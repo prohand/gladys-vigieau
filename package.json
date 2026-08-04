@@ -1,6 +1,6 @@
 {
   "name": "gladys-integration-vigieau",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "private": true,
   "description": "Gladys Assistant external integration exposing the French VigiEau drought alert levels and water restrictions as devices.",
   "type": "module",
