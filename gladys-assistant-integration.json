@@ -6,11 +6,13 @@
     "en": "French drought alert levels and water restrictions, from the official VigiEau service.",
     "fr": "Vigilance sécheresse et restrictions d'eau en France, depuis le service officiel VigiEau."
   },
-  "version": "1.0.2",
-  "docker_image": "ghcr.io/prohand/gladys-vigieau:1.0.2",
+  "version": "1.0.3",
+  "docker_image": "ghcr.io/prohand/gladys-vigieau:1.0.3",
   "gladys_version": ">=4.62.0",
   "cover_image": "https://raw.githubusercontent.com/prohand/gladys-vigieau/main/cover.png",
-  "transports": ["cloud"],
+  "transports": [
+    "cloud"
+  ],
   "config_schema": [
     {
       "key": "intro",
@@ -214,20 +216,32 @@
         {
           "key": "nom",
           "type": "string",
-          "label": { "en": "Commune name", "fr": "Nom de la commune" },
+          "label": {
+            "en": "Commune name",
+            "fr": "Nom de la commune"
+          },
           "required": false,
-          "placeholder": { "en": "Bordeaux", "fr": "Bordeaux" }
+          "placeholder": {
+            "en": "Bordeaux",
+            "fr": "Bordeaux"
+          }
         },
         {
           "key": "code_postal",
           "type": "string",
-          "label": { "en": "Postal code (optional)", "fr": "Code postal (facultatif)" },
+          "label": {
+            "en": "Postal code (optional)",
+            "fr": "Code postal (facultatif)"
+          },
           "description": {
             "en": "Narrows the search down, or searches on its own.",
             "fr": "Affine la recherche, ou suffit à lui seul."
           },
           "required": false,
-          "placeholder": { "en": "33000", "fr": "33000" }
+          "placeholder": {
+            "en": "33000",
+            "fr": "33000"
+          }
         }
       ]
     },
