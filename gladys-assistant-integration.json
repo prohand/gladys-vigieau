@@ -6,16 +6,21 @@
     "en": "French drought alert levels and water restrictions, from the official VigiEau service.",
     "fr": "Vigilance sécheresse et restrictions d'eau en France, depuis le service officiel VigiEau."
   },
-  "version": "1.0.0",
-  "docker_image": "ghcr.io/prohand/gladys-vigieau:1.0.0",
+  "version": "1.0.1",
+  "docker_image": "ghcr.io/prohand/gladys-vigieau:1.0.1",
   "gladys_version": ">=4.62.0",
   "cover_image": "https://raw.githubusercontent.com/prohand/gladys-vigieau/main/cover.png",
-  "transports": ["cloud"],
+  "transports": [
+    "cloud"
+  ],
   "config_schema": [
     {
       "key": "intro",
       "type": "section",
-      "label": { "en": "Getting started", "fr": "Pour commencer" },
+      "label": {
+        "en": "Getting started",
+        "fr": "Pour commencer"
+      },
       "description": {
         "en": "VigiEau is the French government service publishing the drought alert level and the water restrictions in force at a given address. The API is free and needs no account: just tell the integration which location to watch.",
         "fr": "VigiEau est le service de l'État qui publie le niveau de vigilance sécheresse et les restrictions d'eau en vigueur à une adresse donnée. L'API est gratuite et ne demande aucun compte : indiquez simplement le lieu à surveiller."
@@ -23,18 +28,27 @@
       "links": [
         {
           "url": "https://vigieau.gouv.fr",
-          "label": { "en": "The VigiEau website", "fr": "Le site VigiEau" }
+          "label": {
+            "en": "The VigiEau website",
+            "fr": "Le site VigiEau"
+          }
         },
         {
           "url": "https://api.vigieau.beta.gouv.fr/swagger",
-          "label": { "en": "VigiEau API documentation", "fr": "Documentation de l'API VigiEau" }
+          "label": {
+            "en": "VigiEau API documentation",
+            "fr": "Documentation de l'API VigiEau"
+          }
         }
       ]
     },
     {
       "key": "location_name",
       "type": "string",
-      "label": { "en": "Location name", "fr": "Nom du lieu" },
+      "label": {
+        "en": "Location name",
+        "fr": "Nom du lieu"
+      },
       "description": {
         "en": "Shown in the device name, e.g. \"Maison\" or \"Jardin\".",
         "fr": "Affiché dans le nom de l'appareil, par exemple « Maison » ou « Jardin »."
@@ -45,19 +59,28 @@
     {
       "key": "commune",
       "type": "string",
-      "label": { "en": "INSEE commune code", "fr": "Code INSEE de la commune" },
+      "label": {
+        "en": "INSEE commune code",
+        "fr": "Code INSEE de la commune"
+      },
       "description": {
         "en": "Optional, 5 characters (e.g. 75056). When filled in it takes precedence over the coordinates below.",
         "fr": "Facultatif, 5 caractères (par exemple 75056). S'il est renseigné, il est prioritaire sur les coordonnées ci-dessous."
       },
       "required": false,
       "default": "",
-      "placeholder": { "en": "75056", "fr": "75056" }
+      "placeholder": {
+        "en": "75056",
+        "fr": "75056"
+      }
     },
     {
       "key": "latitude",
       "type": "number",
-      "label": { "en": "Latitude", "fr": "Latitude" },
+      "label": {
+        "en": "Latitude",
+        "fr": "Latitude"
+      },
       "description": {
         "en": "Latitude of the watched location (WGS-84).",
         "fr": "Latitude du lieu surveillé (WGS-84)."
@@ -70,7 +93,10 @@
     {
       "key": "longitude",
       "type": "number",
-      "label": { "en": "Longitude", "fr": "Longitude" },
+      "label": {
+        "en": "Longitude",
+        "fr": "Longitude"
+      },
       "description": {
         "en": "Longitude of the watched location (WGS-84).",
         "fr": "Longitude du lieu surveillé (WGS-84)."
@@ -83,7 +109,10 @@
     {
       "key": "profil",
       "type": "select",
-      "label": { "en": "User profile", "fr": "Profil d'usager" },
+      "label": {
+        "en": "User profile",
+        "fr": "Profil d'usager"
+      },
       "description": {
         "en": "Restrictions differ per profile: VigiEau returns the ones that apply to yours.",
         "fr": "Les restrictions diffèrent selon le profil : VigiEau renvoie celles qui s'appliquent au vôtre."
@@ -91,16 +120,43 @@
       "required": true,
       "default": "particulier",
       "options": [
-        { "value": "particulier", "label": { "en": "Household", "fr": "Particulier" } },
-        { "value": "entreprise", "label": { "en": "Company", "fr": "Entreprise" } },
-        { "value": "collectivite", "label": { "en": "Local authority", "fr": "Collectivité" } },
-        { "value": "exploitation", "label": { "en": "Farm", "fr": "Exploitation agricole" } }
+        {
+          "value": "particulier",
+          "label": {
+            "en": "Household",
+            "fr": "Particulier"
+          }
+        },
+        {
+          "value": "entreprise",
+          "label": {
+            "en": "Company",
+            "fr": "Entreprise"
+          }
+        },
+        {
+          "value": "collectivite",
+          "label": {
+            "en": "Local authority",
+            "fr": "Collectivité"
+          }
+        },
+        {
+          "value": "exploitation",
+          "label": {
+            "en": "Farm",
+            "fr": "Exploitation agricole"
+          }
+        }
       ]
     },
     {
       "key": "poll_frequency",
       "type": "number",
-      "label": { "en": "Refresh interval (s)", "fr": "Intervalle de rafraîchissement (s)" },
+      "label": {
+        "en": "Refresh interval (s)",
+        "fr": "Intervalle de rafraîchissement (s)"
+      },
       "description": {
         "en": "How often VigiEau is queried, in seconds. Prefectoral decrees change once a day at most: one hour is plenty.",
         "fr": "Fréquence d'interrogation de VigiEau, en secondes. Les arrêtés préfectoraux changent au plus une fois par jour : une heure suffit largement."
@@ -114,7 +170,10 @@
   "actions": [
     {
       "key": "test_vigieau",
-      "label": { "en": "Test the VigiEau connection", "fr": "Tester la connexion VigiEau" },
+      "label": {
+        "en": "Test the VigiEau connection",
+        "fr": "Tester la connexion VigiEau"
+      },
       "timeout_seconds": 30
     },
     {
