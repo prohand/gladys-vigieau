@@ -16,14 +16,13 @@ and the
 
 ## What it exposes
 
-One device per watched location — `Vigilance sécheresse — <location>` — with six
+One device per watched location — `Vigilance sécheresse — <location>` — with five
 read-only features:
 
 | Feature                        | Category / type  | Value                                         |
 | ------------------------------ | ---------------- | --------------------------------------------- |
 | Niveau de vigilance sécheresse | `risk` / integer | 0-4, the worst of the three water types       |
 | Niveau (texte)                 | `text` / text    | The official wording, e.g. `Alerte renforcée` |
-| Restrictions en cours          | `input` / binary | 1 as soon as the level is above 0             |
 | Niveau eau superficielle       | `risk` / integer | 0-4, `SUP` zones (rivers, lakes)              |
 | Niveau eau souterraine         | `risk` / integer | 0-4, `SOU` zones (aquifers)                   |
 | Niveau eau potable             | `risk` / integer | 0-4, `AEP` zones (tap water network)          |

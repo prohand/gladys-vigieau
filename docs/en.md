@@ -10,16 +10,15 @@ The VigiEau API is free and public: **no account, no API key**. It covers
 
 ## What you get
 
-One device, "Vigilance sécheresse — _your location_", carrying six sensors:
+One device, "Vigilance sécheresse — _your location_", carrying five sensors:
 
-| Sensor                    | Value                                        |
-| ------------------------- | -------------------------------------------- |
-| **Drought alert level**   | 0 to 4 — the worst of the three water types  |
-| **Level (text)**          | "Alerte renforcée", "Crise"…                 |
-| **Restrictions in force** | On as soon as the level is above 0           |
-| **Surface water level**   | 0 to 4 — rivers and lakes (`SUP` zones)      |
-| **Groundwater level**     | 0 to 4 — aquifers (`SOU` zones)              |
-| **Drinking water level**  | 0 to 4 — the tap water network (`AEP` zones) |
+| Sensor                   | Value                                        |
+| ------------------------ | -------------------------------------------- |
+| **Drought alert level**  | 0 to 4 — the worst of the three water types  |
+| **Level (text)**         | "Alerte renforcée", "Crise"…                 |
+| **Surface water level**  | 0 to 4 — rivers and lakes (`SUP` zones)      |
+| **Groundwater level**    | 0 to 4 — aquifers (`SOU` zones)              |
+| **Drinking water level** | 0 to 4 — the tap water network (`AEP` zones) |
 
 The numeric scale follows the one used by the prefectoral decrees:
 
@@ -115,8 +114,8 @@ above the field.
 
 ## Scene ideas
 
-- **Stop the automatic watering** as soon as "Restrictions in force" turns on, or
-  as soon as "Drought alert level" reaches 2 (Alerte).
+- **Stop the automatic watering** as soon as "Drought alert level" reaches 1
+  (Vigilance) or 2 (Alerte), depending on how cautious you want to be.
 - **Get notified** when the level changes: trigger on the "Level (text)" sensor,
   which carries the official wording.
 - **Follow the season**: the numeric sensors keep their history, so a chart shows
@@ -144,8 +143,8 @@ above the field.
 - **Every feature is called "Risk level"** — that is how Gladys displays them:
   the "Features" list on the device page shows the generic category label, not
   the name published by the integration. In order they are: overall level,
-  text, restrictions in force, surface water, groundwater, drinking water. On a
-  dashboard or in a scene, the real names do show.
+  text, surface water, groundwater, drinking water. On a dashboard or in a
+  scene, the four levels do show their real names.
 - **No data / errors in the logs** — start with the **Test the VigiEau
   connection** action. A `VigiEau HTTP 5xx` error means the service is
   temporarily unavailable: it is shown in the Configuration screen, and the

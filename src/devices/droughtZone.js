@@ -5,7 +5,6 @@
 // refreshed by polling:
 //   - the overall severity level (0 to 4), the one to use in scenes;
 //   - the same level for each water type (surface, groundwater, drinking water);
-//   - a binary "restrictions in force", handy as a scene trigger;
 //   - the official French wording of the level, for dashboards and notifications.
 //
 // There is no hardware here: the "work" is an HTTP call to the VigiEau API,
@@ -34,7 +33,6 @@ export const MIN_REFRESH_SECONDS = 300;
 export const FEATURE = {
   LEVEL: 'level',
   LEVEL_TEXT: 'level-text',
-  RESTRICTED: 'restricted',
   LEVEL_SUP: 'level-sup',
   LEVEL_SOU: 'level-sou',
   LEVEL_AEP: 'level-aep',
@@ -93,17 +91,6 @@ export const droughtZone = {
           read_only: true,
           has_feedback: false,
           keep_history: false, // a label, not a measure: nothing to chart
-        },
-        {
-          name: 'Restrictions en cours',
-          external_id: ids.feature(FEATURE.RESTRICTED),
-          category: DEVICE_FEATURE_CATEGORIES.INPUT,
-          type: DEVICE_FEATURE_TYPES.INPUT.BINARY,
-          min: 0,
-          max: 1,
-          read_only: true,
-          has_feedback: false,
-          keep_history: true,
         },
         ...ZONE_TYPES.map((type) =>
           severityFeature(ids.feature(TYPE_FEATURES[type].key), TYPE_FEATURES[type].name),
@@ -174,7 +161,6 @@ export const droughtZone = {
     if (level !== null) {
       states.push(
         { device_feature_external_id: ids.feature(FEATURE.LEVEL), state: level },
-        { device_feature_external_id: ids.feature(FEATURE.RESTRICTED), state: level > 0 ? 1 : 0 },
         { device_feature_external_id: ids.feature(FEATURE.LEVEL_TEXT), text: severityLabel(level) },
       );
     }

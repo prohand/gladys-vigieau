@@ -9,13 +9,12 @@ L'API VigiEau est gratuite et publique : **aucun compte, aucune clé d'API**.
 
 ## Ce que vous obtenez
 
-Un appareil « Vigilance sécheresse — _votre lieu_ » avec six capteurs :
+Un appareil « Vigilance sécheresse — _votre lieu_ » avec cinq capteurs :
 
 | Capteur                            | Valeur                                      |
 | ---------------------------------- | ------------------------------------------- |
 | **Niveau de vigilance sécheresse** | 0 à 4 — le plus élevé des trois types d'eau |
 | **Niveau (texte)**                 | « Alerte renforcée », « Crise »…            |
-| **Restrictions en cours**          | Actif dès que le niveau dépasse 0           |
 | **Niveau eau superficielle**       | 0 à 4 — rivières, lacs (zones `SUP`)        |
 | **Niveau eau souterraine**         | 0 à 4 — nappes phréatiques (zones `SOU`)    |
 | **Niveau eau potable**             | 0 à 4 — réseau d'eau potable (zones `AEP`)  |
@@ -121,8 +120,8 @@ l'intégration, juste au-dessus du champ.
 
 ## Idées de scènes
 
-- **Couper l'arrosage automatique** dès que « Restrictions en cours » passe à
-  actif, ou que « Niveau de vigilance sécheresse » atteint 2 (Alerte).
+- **Couper l'arrosage automatique** dès que « Niveau de vigilance sécheresse »
+  atteint 1 (Vigilance) ou 2 (Alerte), selon votre prudence.
 - **Recevoir une notification** quand le niveau change : déclencheur sur le
   capteur « Niveau (texte) », qui contient le libellé officiel.
 - **Suivre la saison** : les capteurs numériques conservent leur historique, un
@@ -152,9 +151,9 @@ l'intégration, juste au-dessus du champ.
 - **Les fonctionnalités s'appellent toutes « Niveau de risque »** — c'est
   l'affichage de Gladys : la liste « Fonctionnalités » de la fiche appareil
   montre le libellé générique de la catégorie, pas le nom publié par
-  l'intégration. Dans l'ordre, ce sont : niveau global, texte, restrictions en
-  cours, eau superficielle, eau souterraine, eau potable. Sur un tableau de
-  bord ou dans une scène, les vrais noms apparaissent bien.
+  l'intégration. Dans l'ordre, ce sont : niveau global, texte, eau
+  superficielle, eau souterraine, eau potable. Sur un tableau de bord ou dans
+  une scène, les quatre niveaux affichent bien leurs vrais noms.
 - **Aucune donnée / erreur dans les logs** — vérifiez d'abord avec l'action
   **Tester la connexion VigiEau**. Une erreur `VigiEau HTTP 5xx` signale une
   indisponibilité passagère du service : elle est affichée dans l'écran de

@@ -135,16 +135,28 @@ test('every severity feature is a read-only 0-4 risk index', () => {
   }
 });
 
-test('the device carries a text level and a binary "restrictions in force"', () => {
+test('the device carries the level as text alongside the numbers', () => {
   const gladys = createFakeGladys();
   const [device] = buildDiscoveredDevices(gladys, config);
   const text = device.features.find((f) => f.external_id.endsWith(FEATURE.LEVEL_TEXT));
-  const binary = device.features.find((f) => f.external_id.endsWith(FEATURE.RESTRICTED));
   assert.equal(text.category, DEVICE_FEATURE_CATEGORIES.TEXT);
   assert.equal(text.type, DEVICE_FEATURE_TYPES.TEXT.TEXT);
-  assert.equal(binary.category, DEVICE_FEATURE_CATEGORIES.INPUT);
-  assert.equal(binary.type, DEVICE_FEATURE_TYPES.INPUT.BINARY);
-  assert.equal(binary.read_only, true);
+  assert.equal(text.read_only, true);
+});
+
+test('the device carries exactly five features', () => {
+  // Four severity levels + the text label. A binary "restrictions in force"
+  // used to sit here too; it only ever meant "level >= 1", which a scene can
+  // test on the numeric level directly, and the core rendered it as the
+  // baffling "Etat de l'entrée".
+  const gladys = createFakeGladys();
+  const [device] = buildDiscoveredDevices(gladys, config);
+  assert.equal(device.features.length, 5);
+  assert.equal(
+    device.features.filter((f) => f.type === DEVICE_FEATURE_TYPES.SENSOR.BINARY).length,
+    0,
+    'no binary feature is published any more',
+  );
 });
 
 // --- Polling -----------------------------------------------------------------
@@ -161,7 +173,6 @@ test('onPoll publishes the overall level, the text and every water type', async 
   assert.equal(byFeature.get(ids.feature(FEATURE.LEVEL_SUP)).state, 2);
   assert.equal(byFeature.get(ids.feature(FEATURE.LEVEL_SOU)).state, 3);
   assert.equal(byFeature.get(ids.feature(FEATURE.LEVEL_AEP)).state, 1);
-  assert.equal(byFeature.get(ids.feature(FEATURE.RESTRICTED)).state, 1);
   assert.equal(byFeature.get(ids.feature(FEATURE.LEVEL_TEXT)).text, 'Alerte renforcée');
 });
 
@@ -173,7 +184,6 @@ test('onPoll publishes a clear "no restriction" when nothing is in force', async
   const ids = gladys.externalIds('drought-zone', 'commune-75056');
   const byFeature = new Map(gladys.published.map((p) => [p.featureExternalId, p]));
   assert.equal(byFeature.get(ids.feature(FEATURE.LEVEL)).state, 0);
-  assert.equal(byFeature.get(ids.feature(FEATURE.RESTRICTED)).state, 0);
   assert.equal(byFeature.get(ids.feature(FEATURE.LEVEL_TEXT)).text, 'Pas de restriction');
 });
 
@@ -187,7 +197,6 @@ test('onPoll leaves the level untouched rather than publishing a false all-clear
   const ids = gladys.externalIds('drought-zone', 'commune-75056');
   const publishedIds = gladys.published.map((p) => p.featureExternalId);
   assert.ok(!publishedIds.includes(ids.feature(FEATURE.LEVEL)), 'a stale value beats a wrong one');
-  assert.ok(!publishedIds.includes(ids.feature(FEATURE.RESTRICTED)));
   assert.ok(!publishedIds.includes(ids.feature(FEATURE.LEVEL_SUP)));
   // The water types genuinely not covered by any zone are still reported.
   assert.ok(publishedIds.includes(ids.feature(FEATURE.LEVEL_SOU)));
