@@ -6,11 +6,13 @@
     "en": "French drought alert levels and water restrictions, from the official VigiEau service.",
     "fr": "Vigilance sécheresse et restrictions d'eau en France, depuis le service officiel VigiEau."
   },
-  "version": "1.0.1",
-  "docker_image": "ghcr.io/prohand/gladys-vigieau:1.0.1",
+  "version": "1.0.2",
+  "docker_image": "ghcr.io/prohand/gladys-vigieau:1.0.2",
   "gladys_version": ">=4.62.0",
   "cover_image": "https://raw.githubusercontent.com/prohand/gladys-vigieau/main/cover.png",
-  "transports": ["cloud"],
+  "transports": [
+    "cloud"
+  ],
   "config_schema": [
     {
       "key": "intro",
@@ -57,7 +59,10 @@
     {
       "key": "insee_help",
       "type": "section",
-      "label": { "en": "Finding your INSEE code", "fr": "Trouver votre code INSEE" },
+      "label": {
+        "en": "Finding your INSEE code",
+        "fr": "Trouver votre code INSEE"
+      },
       "description": {
         "en": "The INSEE code identifies a French commune with 5 characters (75056 for Paris, 2A004 for Ajaccio). Careful: it is NOT the postal code — a postal code can cover several communes. To find yours, search your commune on the INSEE geographic search below, or open the geo.api.gouv.fr link and replace \"Paris\" with the name of your commune: the \"code\" field of the answer is the INSEE code.",
         "fr": "Le code INSEE identifie une commune française sur 5 caractères (75056 pour Paris, 2A004 pour Ajaccio). Attention : ce n'est PAS le code postal — un code postal peut couvrir plusieurs communes. Pour trouver le vôtre, cherchez votre commune sur la recherche géographique de l'INSEE ci-dessous, ou ouvrez le lien geo.api.gouv.fr et remplacez « Paris » par le nom de votre commune : le champ « code » de la réponse est le code INSEE."
@@ -91,12 +96,18 @@
         "fr": "5 caractères, par exemple 75056 pour Paris. C'est ce code qui sert à récupérer le niveau de sécheresse — voir l'aide juste au-dessus pour trouver le vôtre."
       },
       "required": true,
-      "placeholder": { "en": "75056", "fr": "75056" }
+      "placeholder": {
+        "en": "75056",
+        "fr": "75056"
+      }
     },
     {
       "key": "latitude",
       "type": "number",
-      "label": { "en": "Latitude (optional)", "fr": "Latitude (facultatif)" },
+      "label": {
+        "en": "Latitude (optional)",
+        "fr": "Latitude (facultatif)"
+      },
       "description": {
         "en": "Leave empty unless your commune is large enough to span several restriction zones. Filled in together with the longitude, the exact point replaces the commune in the query.",
         "fr": "Laissez vide, sauf si votre commune est assez étendue pour relever de plusieurs zones de restriction. Renseignée avec la longitude, la position exacte remplace la commune dans la requête."
@@ -104,12 +115,18 @@
       "required": false,
       "min": -90,
       "max": 90,
-      "placeholder": { "en": "48.8566", "fr": "48.8566" }
+      "placeholder": {
+        "en": "48.8566",
+        "fr": "48.8566"
+      }
     },
     {
       "key": "longitude",
       "type": "number",
-      "label": { "en": "Longitude (optional)", "fr": "Longitude (facultatif)" },
+      "label": {
+        "en": "Longitude (optional)",
+        "fr": "Longitude (facultatif)"
+      },
       "description": {
         "en": "Only used when the latitude is filled in too.",
         "fr": "Utilisée uniquement si la latitude est également renseignée."
@@ -117,7 +134,10 @@
       "required": false,
       "min": -180,
       "max": 180,
-      "placeholder": { "en": "2.3522", "fr": "2.3522" }
+      "placeholder": {
+        "en": "2.3522",
+        "fr": "2.3522"
+      }
     },
     {
       "key": "profil",
