@@ -52,9 +52,25 @@ async function publishDevices() {
   // Logged in full at debug level: when Gladys refuses the batch, the rejected
   // payload is the only thing that tells you WHICH feature it choked on.
   logger.debug('publishDiscoveredDevices ->', JSON.stringify(devices));
-  const response = await gladys.publishDiscoveredDevices(devices);
-  logger.info(`Published ${response?.count ?? devices.length} device(s) to the Discovery screen`);
-  return true;
+  try {
+    const response = await gladys.publishDiscoveredDevices(devices);
+    logger.info(`Published ${response?.count ?? devices.length} device(s) to the Discovery screen`);
+    return true;
+  } catch (err) {
+    // Gladys refused the batch — an unsupported feature category, a malformed
+    // external_id... Without this, a "Scan" that fails leaves the Discovery
+    // tab empty with nothing anywhere to say why: the error would only reach
+    // the SDK acknowledgement, which the user never sees.
+    logger.error('Gladys refused the discovered devices', err);
+    const reason = String(err?.message ?? err).slice(0, 150);
+    await gladys
+      .setConnectionStatus(false, {
+        en: `Gladys refused the device: ${reason}`,
+        fr: `Gladys a refusé l'appareil : ${reason}`,
+      })
+      .catch(() => {});
+    throw err;
+  }
 }
 
 // --- Discovery: Gladys asks for the list of devices --------------------------
