@@ -209,28 +209,32 @@ export const droughtZone = {
     const intervalMs = Math.max(MIN_REFRESH_SECONDS, config.poll_frequency) * 1000;
     logger.info(`Refreshing VigiEau every ${Math.round(intervalMs / 1000)} s`);
 
-    const tick = async () => {
-      try {
-        await droughtZone.onPoll(gladys, config);
-        await gladys.setConnectionStatus(true);
-      } catch (err) {
-        // A VigiEau outage must not kill the timer, nor crash the container on
-        // an unhandled rejection: log it, show it, and try again next time.
-        logger.error('VigiEau refresh failed', err);
-        const reason = String(err?.message ?? err).slice(0, 150);
-        await gladys
-          .setConnectionStatus(false, {
-            en: `VigiEau refresh failed: ${reason}`,
-            fr: `Le rafraîchissement VigiEau a échoué : ${reason}`,
-          })
-          .catch(() => {});
-      }
-    };
-
     // Refresh straight away: waiting a full hour for the first value would
     // leave the freshly added device empty on the dashboard.
-    tick();
-    const timer = setInterval(tick, intervalMs);
+    droughtZone.refresh(gladys, config);
+    const timer = setInterval(() => droughtZone.refresh(gladys, config), intervalMs);
     return () => clearInterval(timer);
+  },
+
+  /**
+   * One refresh cycle that NEVER throws: an outage inside a timer callback
+   * would become an unhandled rejection and take the container down. The
+   * outcome is reported in the Configuration screen instead, and the next
+   * cycle simply tries again.
+   */
+  async refresh(gladys, config) {
+    try {
+      await droughtZone.onPoll(gladys, config);
+      await gladys.setConnectionStatus(true);
+    } catch (err) {
+      logger.error('VigiEau refresh failed', err);
+      const reason = String(err?.message ?? err).slice(0, 150);
+      await gladys
+        .setConnectionStatus(false, {
+          en: `VigiEau refresh failed: ${reason}`,
+          fr: `Le rafraîchissement VigiEau a échoué : ${reason}`,
+        })
+        .catch(() => {});
+    }
   },
 };

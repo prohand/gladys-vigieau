@@ -136,6 +136,16 @@ above the field.
   4. Check that the container is actually running: a Docker image that cannot
      be pulled (`manifest unknown`) stops the integration from starting, and
      nothing is ever published.
+- **"No recent value" on every feature** — right after adding the device this
+  is normal for a few seconds: Gladys drops the states published before the
+  device existed. The integration notices the creation and refreshes straight
+  away. If it is still empty after a minute, use the **Test the VigiEau
+  connection** action: it queries the API live and shows any error.
+- **Every feature is called "Risk level"** — that is how Gladys displays them:
+  the "Features" list on the device page shows the generic category label, not
+  the name published by the integration. In order they are: overall level,
+  text, restrictions in force, surface water, groundwater, drinking water. On a
+  dashboard or in a scene, the real names do show.
 - **No data / errors in the logs** — start with the **Test the VigiEau
   connection** action. A `VigiEau HTTP 5xx` error means the service is
   temporarily unavailable: it is shown in the Configuration screen, and the

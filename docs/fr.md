@@ -143,6 +143,18 @@ l'intégration, juste au-dessus du champ.
   4. Vérifiez que le conteneur tourne bien : une image Docker introuvable
      (`manifest unknown`) empêche l'intégration de démarrer, et rien n'est
      jamais publié.
+- **« Pas de valeur récente » sur toutes les fonctionnalités** — juste après
+  l'ajout de l'appareil, c'est normal quelques secondes : Gladys ignore les
+  valeurs publiées avant que l'appareil n'existe. L'intégration détecte la
+  création et rafraîchit immédiatement. Si l'écran reste vide au bout d'une
+  minute, utilisez l'action **Tester la connexion VigiEau** : elle interroge
+  l'API en direct et affiche l'erreur éventuelle.
+- **Les fonctionnalités s'appellent toutes « Niveau de risque »** — c'est
+  l'affichage de Gladys : la liste « Fonctionnalités » de la fiche appareil
+  montre le libellé générique de la catégorie, pas le nom publié par
+  l'intégration. Dans l'ordre, ce sont : niveau global, texte, restrictions en
+  cours, eau superficielle, eau souterraine, eau potable. Sur un tableau de
+  bord ou dans une scène, les vrais noms apparaissent bien.
 - **Aucune donnée / erreur dans les logs** — vérifiez d'abord avec l'action
   **Tester la connexion VigiEau**. Une erreur `VigiEau HTTP 5xx` signale une
   indisponibilité passagère du service : elle est affichée dans l'écran de

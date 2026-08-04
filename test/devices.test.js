@@ -310,6 +310,21 @@ test('startPolling never refreshes faster than the floor, whatever the config sa
   }
 });
 
+test('refresh reports success and never throws on an outage', async () => {
+  const gladys = createFakeGladys();
+  stubVigieau(null, 503);
+  // Called from a timer callback and from onDeviceCreated: a rejection here
+  // would become an unhandled rejection and take the container down.
+  await droughtZone.refresh(gladys, config);
+  assert.equal(gladys.published.length, 0);
+  assert.equal(gladys.connectionStatuses.at(-1).connected, false);
+
+  stubVigieau(zonesFixture());
+  await droughtZone.refresh(gladys, config);
+  assert.ok(gladys.published.length > 0);
+  assert.equal(gladys.connectionStatuses.at(-1).connected, true);
+});
+
 test('a VigiEau outage neither kills the timer nor crashes the container', async () => {
   const gladys = createFakeGladys();
   stubVigieau(null, 503);

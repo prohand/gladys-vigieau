@@ -97,10 +97,29 @@ function stopPolling() {
   pollingCleanups = [];
 }
 
+/** Run one refresh cycle right now. Never throws (see blueprint.refresh). */
+async function refreshNow() {
+  await Promise.all(
+    DEVICE_BLUEPRINTS.filter((bp) => typeof bp.refresh === 'function').map((bp) =>
+      bp.refresh(gladys, config),
+    ),
+  );
+}
+
 // --- Discovery: Gladys asks for the list of devices --------------------------
 gladys.onScanRequest(async () => {
   logger.info('onScanRequest -> publishing discovered devices');
   await publishDevices();
+});
+
+// --- The user just added the device from the Discovery screen ----------------
+// Until that moment the core SILENTLY DROPS every state we publish: the
+// feature does not exist yet (see externalIntegration.saveStates). Without
+// this handler the brand new device would sit on "no recent value" until the
+// next hourly tick — which is exactly what it looks like when it is broken.
+gladys.onDeviceCreated(async (device) => {
+  logger.info(`onDeviceCreated -> ${device.external_id}, refreshing right away`);
+  await refreshNow();
 });
 
 // --- Polling: Gladys asks to refresh a device --------------------------------
