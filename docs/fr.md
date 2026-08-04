@@ -40,7 +40,9 @@ sont exposés séparément, en plus du niveau global.
 2. Donnez un **nom au lieu** (« Maison », « Jardin »…) : il apparaît dans le nom
    de l'appareil.
 3. Renseignez le **code INSEE de la commune** — c'est le seul champ de
-   localisation obligatoire. Voir « Trouver votre code INSEE » ci-dessous.
+   localisation obligatoire. Le plus simple : cliquez sur **« Rechercher ma
+   commune »**, tapez son nom, et le code est renseigné pour vous (voir
+   « Trouver votre code INSEE » ci-dessous).
 4. **Facultatif** : la **latitude** et la **longitude** du lieu (WGS-84). Vous
    pouvez les laisser vides. Ne les renseignez que si votre commune est assez
    étendue pour relever de plusieurs zones de restriction : dans ce cas la
@@ -70,9 +72,27 @@ pour Paris, `69123` pour Lyon, `2A004` pour Ajaccio.
 
 > **Ce n'est pas le code postal.** Un code postal peut couvrir plusieurs
 > communes, et une grande ville a plusieurs codes postaux pour un seul code
-> INSEE. Utiliser le code postal donnera une erreur ou un mauvais résultat.
+> INSEE. Utiliser le code postal dans le champ INSEE donnera une erreur ou un
+> mauvais résultat.
 
-Deux façons de le trouver :
+### Le plus simple : le bouton de recherche
+
+Dans l'écran de configuration, l'action **« Rechercher ma commune (remplit le
+code INSEE) »** fait le travail à votre place :
+
+1. Cliquez sur le bouton.
+2. Tapez le **nom de la commune** (« Bordeaux »). Vous pouvez aussi ne saisir
+   que le **code postal** : c'est celui que vous avez sur votre courrier.
+3. L'intégration interroge l'API Géo officielle, écrit le code INSEE dans le
+   champ **Code INSEE de la commune** et publie l'appareil dans l'onglet
+   **Découverte**. Rechargez la page pour voir le champ rempli.
+
+Si plusieurs communes portent le même nom — il existe une douzaine de
+« Sainte-Marie » — l'intégration **ne choisit pas au hasard** : elle affiche la
+liste des candidates avec leur département et leur code INSEE. Relancez la
+recherche en ajoutant le code postal, ou recopiez le bon code.
+
+### À la main
 
 - **La recherche géographique de l'INSEE** —
   <https://www.insee.fr/fr/recherche/recherche-geographique> : cherchez votre
@@ -87,6 +107,9 @@ l'intégration, juste au-dessus du champ.
 
 ## Actions
 
+- **Rechercher ma commune (remplit le code INSEE)** — cherchez par nom et/ou
+  code postal, le code INSEE est renseigné automatiquement. Voir « Trouver
+  votre code INSEE » plus haut.
 - **Tester la connexion VigiEau** — effectue une requête en direct et affiche le
   niveau actuel pour les trois types d'eau. À utiliser juste après la
   configuration pour vérifier que le lieu est bien couvert.
@@ -105,6 +128,19 @@ l'intégration, juste au-dessus du champ.
 
 ## Dépannage
 
+- **Aucun appareil dans l'onglet Découverte** — dans l'ordre :
+  1. Le **code INSEE est-il renseigné** ? Sans lui, l'intégration ne publie
+     volontairement aucun appareil et l'écran de configuration l'indique.
+     Utilisez le bouton **« Rechercher ma commune »**.
+  2. Cliquez sur **Scanner** dans l'onglet Découverte pour forcer une nouvelle
+     publication.
+  3. Regardez les **logs de l'intégration**. Une ligne commençant par
+     `Published` confirme que Gladys a accepté l'appareil. Si vous voyez plutôt
+     `Post-connection initialization failed`, le message qui suit donne la
+     raison exacte — elle est aussi affichée dans l'écran de configuration.
+  4. Vérifiez que le conteneur tourne bien : une image Docker introuvable
+     (`manifest unknown`) empêche l'intégration de démarrer, et rien n'est
+     jamais publié.
 - **Aucune donnée / erreur dans les logs** — vérifiez d'abord avec l'action
   **Tester la connexion VigiEau**. Une erreur `VigiEau HTTP 5xx` signale une
   indisponibilité passagère du service : l'intégration réessaiera au

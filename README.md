@@ -31,9 +31,11 @@ read-only features:
 The 0-4 scale mirrors the prefectoral decrees: `0` pas de restriction,
 `1` vigilance, `2` alerte, `3` alerte renforcée, `4` crise.
 
-Two buttons are available in the Configuration screen: **Tester la connexion
-VigiEau** (live check, shows the current level) and **Afficher les restrictions
-en vigueur** (lists the restricted usages and links the decree).
+Three buttons are available in the Configuration screen: **Rechercher ma
+commune** (resolves a commune name to its INSEE code and fills it in),
+**Tester la connexion VigiEau** (live check, shows the current level) and
+**Afficher les restrictions en vigueur** (lists the restricted usages and links
+the decree).
 
 User documentation, re-hosted by Gladys and linked from the Configuration
 screen: [`docs/fr.md`](./docs/fr.md) — [`docs/en.md`](./docs/en.md).
@@ -47,9 +49,15 @@ each with its own `niveauGravite`, the decree in force and the list of
 restricted usages.
 
 The location is the **INSEE commune code**, the only mandatory field —
-`75056`, `69123`, `2A004`. The Configuration screen carries a note and two
-lookup links (INSEE geographic search, official Geo API) right above the field,
-including the warning that the postal code is a different thing. Latitude and
+`75056`, `69123`, `2A004`. Nobody knows their INSEE code by heart, so the
+**"Find my commune"** action fills it in: the user types a name and/or a postal
+code, the integration resolves it on the official
+[API Géo](https://geo.api.gouv.fr) (`GET /communes`), writes the code back with
+`setConfig()` and re-publishes the catalog on the spot. Homonyms are never
+guessed — a dozen communes are called "Sainte-Marie", so an ambiguous search
+returns the candidate list with their departments and codes instead of picking
+one. A note and two manual lookup links sit above the field as well, including
+the warning that the postal code is a different thing. Latitude and
 longitude are **optional**: the API takes one or the other and never both, so
 when both coordinates are filled in the exact point replaces the commune in the
 query — useful for a commune large enough to span several restriction zones.
@@ -77,6 +85,7 @@ Three decisions are worth knowing about:
 │  │  ├─ index.js                    #   device registry
 │  │  └─ droughtZone.js              #   the drought device: features + polling + actions
 │  ├─ vigieau.js                     # VigiEau API driver + severity mapping (pure part)
+│  ├─ communes.js                    # API Géo driver: commune name -> INSEE code
 │  └─ config.js                      # config defaults, normalization, stable location id
 ├─ docs/
 │  ├─ en.md                          # user documentation, re-hosted by Gladys and
@@ -102,8 +111,8 @@ npm start
 
 The three `GLADYS_*` variables are injected by the Gladys supervisor when the
 integration runs inside its sandboxed container; the SDK reads them
-automatically. `VIGIEAU_API_URL` can be set to point the driver at a mock server
-instead of the public API.
+automatically. `VIGIEAU_API_URL` and `GEO_API_URL` can be set to point the two
+drivers at a mock server instead of the public APIs.
 
 ## Quality checks
 

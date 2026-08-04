@@ -40,8 +40,9 @@ separately, in addition to the overall level.
 1. Open the integration's **Configuration** tab.
 2. Give the **location a name** ("Maison", "Jardin"…): it shows up in the device
    name.
-3. Fill in the **INSEE commune code** — the only mandatory location field. See
-   "Finding your INSEE code" below.
+3. Fill in the **INSEE commune code** — the only mandatory location field. The
+   easy way: click **"Find my commune"**, type its name, and the code is filled
+   in for you (see "Finding your INSEE code" below).
 4. **Optional**: the **latitude** and **longitude** of the place (WGS-84). Leave
    them empty unless your commune is large enough to span several restriction
    zones; in that case the exact point replaces the commune in the query. Both
@@ -68,9 +69,26 @@ Paris, `69123` for Lyon, `2A004` for Ajaccio.
 
 > **It is not the postal code.** A postal code can cover several communes, and a
 > large city has several postal codes for a single INSEE code. Using the postal
-> code will give an error or the wrong result.
+> code in the INSEE field will give an error or the wrong result.
 
-Two ways to find it:
+### The easy way: the search button
+
+In the Configuration screen, the **"Find my commune (fills the INSEE code)"**
+action does the work for you:
+
+1. Click the button.
+2. Type the **commune name** ("Bordeaux"). You can also give only the **postal
+   code** — the one on your mail.
+3. The integration queries the official Geo API, writes the INSEE code into the
+   **INSEE commune code** field and publishes the device in the **Discovery**
+   tab. Reload the page to see the field filled in.
+
+When several communes share a name — a dozen "Sainte-Marie" exist — the
+integration **does not guess**: it lists the candidates with their department
+and INSEE code. Run the search again with the postal code, or copy the right
+code yourself.
+
+### By hand
 
 - **The INSEE geographic search** —
   <https://www.insee.fr/fr/recherche/recherche-geographique>: look up your
@@ -85,6 +103,9 @@ above the field.
 
 ## Actions
 
+- **Find my commune (fills the INSEE code)** — search by name and/or postal
+  code, the INSEE code is filled in automatically. See "Finding your INSEE
+  code" above.
 - **Test the VigiEau connection** — runs a live request and shows the current
   level for the three water types. Use it right after the configuration to check
   that your location is covered.
@@ -102,6 +123,18 @@ above the field.
 
 ## Troubleshooting
 
+- **No device in the Discovery tab** — in order:
+  1. Is the **INSEE code filled in**? Without it the integration deliberately
+     publishes no device, and the Configuration screen says so. Use the **"Find
+     my commune"** button.
+  2. Click **Scan** in the Discovery tab to force a new publication.
+  3. Read the **integration logs**. A line starting with `Published` confirms
+     Gladys accepted the device. If you see
+     `Post-connection initialization failed` instead, the message that follows
+     gives the exact reason — it is also shown in the Configuration screen.
+  4. Check that the container is actually running: a Docker image that cannot
+     be pulled (`manifest unknown`) stops the integration from starting, and
+     nothing is ever published.
 - **No data / errors in the logs** — start with the **Test the VigiEau
   connection** action. A `VigiEau HTTP 5xx` error means the service is
   temporarily unavailable: the integration retries at the next refresh.

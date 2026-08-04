@@ -16,8 +16,16 @@ const manifest = JSON.parse(
 
 const packageJson = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
 
+// Actions registered outside the blueprints, in index.js: the commune search
+// writes the configuration back and re-publishes the catalog, which is not a
+// device's business.
+const REGISTRY_LEVEL_ACTIONS = ['rechercher_commune'];
+
 test('every manifest action has a registered handler', () => {
-  const handled = new Set(DEVICE_BLUEPRINTS.flatMap((bp) => Object.keys(bp.actions ?? {})));
+  const handled = new Set([
+    ...DEVICE_BLUEPRINTS.flatMap((bp) => Object.keys(bp.actions ?? {})),
+    ...REGISTRY_LEVEL_ACTIONS,
+  ]);
   for (const action of manifest.actions ?? []) {
     assert.ok(handled.has(action.key), `manifest action "${action.key}" has no handler`);
   }
@@ -25,9 +33,37 @@ test('every manifest action has a registered handler', () => {
 
 test('every registered handler is declared in the manifest', () => {
   const declared = new Set((manifest.actions ?? []).map((action) => action.key));
-  for (const bp of DEVICE_BLUEPRINTS) {
-    for (const key of Object.keys(bp.actions ?? {})) {
-      assert.ok(declared.has(key), `action "${key}" is implemented but not declared`);
+  for (const key of [
+    ...DEVICE_BLUEPRINTS.flatMap((bp) => Object.keys(bp.actions ?? {})),
+    ...REGISTRY_LEVEL_ACTIONS,
+  ]) {
+    assert.ok(declared.has(key), `action "${key}" is implemented but not declared`);
+  }
+});
+
+test('the commune search action carries the form it needs', () => {
+  const action = (manifest.actions ?? []).find((a) => a.key === 'rechercher_commune');
+  assert.ok(action, 'the INSEE code is filled in by an action, not by hand');
+  const keys = (action.fields ?? []).map((f) => f.key);
+  assert.deepEqual(keys, ['nom', 'code_postal']);
+  for (const field of action.fields) {
+    assert.equal(field.type, 'string', 'both criteria are free text');
+    assert.notEqual(field.required, true, 'either criterion is enough on its own');
+  }
+});
+
+test('action fields obey the same rules as the config fields', () => {
+  for (const action of manifest.actions ?? []) {
+    for (const field of action.fields ?? []) {
+      assert.ok(ALLOWED_FIELD_TYPES.includes(field.type), `bad type on "${field.key}"`);
+      assert.ok(field.label?.en && field.label?.fr, `"${field.key}" needs both labels`);
+      if (field.placeholder !== undefined) {
+        assert.equal(
+          typeof field.placeholder,
+          'object',
+          `"${field.key}": placeholder is an object`,
+        );
+      }
     }
   }
 });
