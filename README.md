@@ -74,6 +74,13 @@ Three decisions are worth knowing about:
   is filled in, discovery returns nothing and the Configuration screen says
   why — better than a device pinned to an empty location that the user would
   have to delete by hand.
+- **The refresh is driven by the integration, not by Gladys.** The device
+  declares no `poll_frequency`: the core only accepts a fixed enum of intervals
+  in milliseconds, capped at one minute, and querying a public government API
+  1440 times a day for a decree that changes once a day would be absurd. The
+  blueprint runs its own timer instead (`startPolling`), refreshing immediately
+  on connection and then every `poll_frequency` seconds, never faster than a
+  5-minute floor.
 
 ## Project structure
 

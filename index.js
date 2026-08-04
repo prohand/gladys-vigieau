@@ -29,6 +29,11 @@ const gladys = new GladysIntegration();
 // Current configuration (hot-reloaded via onConfigUpdated).
 let config = normalizeConfig();
 
+// Cleanup functions of the refresh timers. The devices declare no
+// `poll_frequency` — Gladys' polling caps at one minute, far too fast for a
+// prefectoral decree — so the integration drives its own refresh.
+let pollingCleanups = [];
+
 // Shown in the Configuration screen while the mandatory INSEE code is missing.
 const NOT_CONFIGURED_MESSAGE = {
   en: 'Fill in the INSEE code of your commune to start watching the drought level.',
@@ -71,6 +76,25 @@ async function publishDevices() {
       .catch(() => {});
     throw err;
   }
+}
+
+/** (Re)start the refresh timers of every blueprint that has one. */
+function startPolling() {
+  stopPolling();
+  pollingCleanups = DEVICE_BLUEPRINTS.filter((bp) => typeof bp.startPolling === 'function').map(
+    (bp) => bp.startPolling(gladys, config),
+  );
+}
+
+function stopPolling() {
+  for (const cleanup of pollingCleanups) {
+    try {
+      cleanup?.();
+    } catch (err) {
+      logger.error('Refresh timer cleanup failed', err);
+    }
+  }
+  pollingCleanups = [];
 }
 
 // --- Discovery: Gladys asks for the list of devices --------------------------
@@ -143,6 +167,8 @@ gladys.onAction('rechercher_commune', async (fields) => {
   await gladys.setConfig({ commune: commune.code });
   config = normalizeConfig({ ...config, commune: commune.code });
   await publishDevices();
+  // The location changed: restart the refresh on the new commune.
+  startPolling();
   await gladys.setConnectionStatus(true).catch(() => {});
 
   return {
@@ -155,12 +181,16 @@ gladys.onAction('rechercher_commune', async (fields) => {
 gladys.onConfigUpdated(async (newConfig) => {
   logger.info('onConfigUpdated -> new configuration received');
   config = normalizeConfig(newConfig);
-  // Re-publish the devices: the name, the poll frequency and the external_id
-  // itself depend on the configured location.
+  // Re-publish the devices: the name and the external_id itself depend on the
+  // configured location.
   // publishDiscoveredDevices is idempotent (upsert by external_id).
   if (await publishDevices()) {
+    // Restart the timers: both the location and the interval may have changed.
+    startPolling();
     // The location just became valid: clear the "not configured" status.
     await gladys.setConnectionStatus(true);
+  } else {
+    stopPolling();
   }
 });
 
@@ -176,10 +206,14 @@ gladys.on('connected', async () => {
     // 2) (Re)publish the device as soon as we are connected. It reports its
     // own status when the mandatory INSEE code is still missing.
     if (!(await publishDevices())) {
+      stopPolling();
       return;
     }
 
-    // 3) Report the application-level status, shown in the Configuration
+    // 3) Start our own refresh loop (the devices declare no poll_frequency).
+    startPolling();
+
+    // 4) Report the application-level status, shown in the Configuration
     // screen. Distinct from the container state machine: an integration can
     // be RUNNING and still unable to reach its third-party service.
     await gladys.setConnectionStatus(true);
@@ -201,8 +235,14 @@ gladys.on('connected', async () => {
 // --- Graceful shutdown -------------------------------------------------------
 // The SDK disconnects cleanly and exits with code 0 when the supervisor stops
 // the container (SIGTERM/SIGINT).
+gladys.on('disconnected', () => {
+  // No point hammering VigiEau while we cannot publish anything.
+  stopPolling();
+});
+
 gladys.handleShutdown((signal) => {
   logger.info(`Received ${signal} -> graceful shutdown`);
+  stopPolling();
 });
 
 // --- Startup -----------------------------------------------------------------

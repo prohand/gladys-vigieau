@@ -52,7 +52,9 @@ sont exposés séparément, en plus du niveau global.
    ou exploitation agricole. Les restrictions ne sont pas les mêmes pour tous, et
    VigiEau renvoie celles qui s'appliquent au vôtre.
 6. Laissez l'**intervalle de rafraîchissement** à 3600 s (1 heure) : les arrêtés
-   préfectoraux changent au plus une fois par jour.
+   préfectoraux changent au plus une fois par jour. C'est l'intégration qui
+   tient ce rythme elle-même ; le minimum appliqué est de 5 minutes, quoi que
+   vous saisissiez.
 7. Enregistrez : l'appareil apparaît dans l'onglet **Découverte**, prêt à être
    ajouté.
 
@@ -143,8 +145,13 @@ l'intégration, juste au-dessus du champ.
      jamais publié.
 - **Aucune donnée / erreur dans les logs** — vérifiez d'abord avec l'action
   **Tester la connexion VigiEau**. Une erreur `VigiEau HTTP 5xx` signale une
-  indisponibilité passagère du service : l'intégration réessaiera au
-  rafraîchissement suivant.
+  indisponibilité passagère du service : elle est affichée dans l'écran de
+  configuration, et l'intégration réessaie au rafraîchissement suivant sans
+  s'arrêter.
+- **Les valeurs ne se rafraîchissent pas toutes les minutes** — c'est normal.
+  L'appareil ne passe pas par le mécanisme d'interrogation de Gladys (plafonné
+  à une minute) : l'intégration se rafraîchit toute seule à l'intervalle
+  configuré, immédiatement à la connexion puis toutes les heures par défaut.
 - **Tous les niveaux à 0** — c'est la réponse normale quand aucune zone de
   restriction ne couvre l'adresse (VigiEau ne couvre que la France).
 - **Le niveau ne bouge plus alors que l'API a changé** — l'intégration ne publie

@@ -1,4 +1,4 @@
-import { test, afterEach } from 'node:test';
+import { test, afterEach, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { DEVICE_FEATURE_CATEGORIES, DEVICE_FEATURE_TYPES } from '@gladysassistant/integration-sdk';
 import {
@@ -6,7 +6,7 @@ import {
   buildDiscoveredDevices,
   findBlueprintByDevice,
 } from '../src/devices/index.js';
-import { FEATURE } from '../src/devices/droughtZone.js';
+import { FEATURE, MIN_REFRESH_SECONDS } from '../src/devices/droughtZone.js';
 import { normalizeConfig } from '../src/config.js';
 import { createFakeGladys, zonesFixture } from './helpers/fakeGladys.js';
 
@@ -69,13 +69,42 @@ test('the device name carries the configured location', () => {
   assert.match(device.name, /Jardin/);
 });
 
-test('the poll frequency comes from the configuration', () => {
+test('the device declares no poll_frequency', () => {
+  // Gladys only accepts a fixed enum of intervals, in MILLISECONDS, whose
+  // slowest value is one minute — anything else is rejected with
+  // "invalid poll frequency" and the whole batch is refused. A drought decree
+  // changes once a day, so the integration runs its own timer instead.
   const gladys = createFakeGladys();
   const [device] = buildDiscoveredDevices(
     gladys,
     normalizeConfig({ commune: '75056', poll_frequency: 7200 }),
   );
-  assert.equal(device.poll_frequency, 7200);
+  assert.equal(device.poll_frequency, undefined);
+});
+
+test('every feature declares a numeric min and max', () => {
+  // The core columns are NOT NULL with no default: a feature without min/max
+  // is refused when the user adds the device from the Discovery screen.
+  const gladys = createFakeGladys();
+  const [device] = buildDiscoveredDevices(gladys, config);
+  for (const feature of device.features) {
+    assert.equal(typeof feature.min, 'number', `${feature.name}: min must be a number`);
+    assert.equal(typeof feature.max, 'number', `${feature.name}: max must be a number`);
+    assert.ok(feature.max >= feature.min, `${feature.name}: max must not be below min`);
+  }
+});
+
+test('every feature carries a name, a category and a type', () => {
+  const gladys = createFakeGladys();
+  const [device] = buildDiscoveredDevices(gladys, config);
+  for (const feature of device.features) {
+    assert.ok(feature.name, 'the core requires a non-empty name');
+    assert.ok(feature.category, 'the core validates the category against its own list');
+    assert.ok(feature.type);
+    assert.equal(typeof feature.read_only, 'boolean');
+    assert.equal(typeof feature.has_feedback, 'boolean');
+    assert.equal(typeof feature.keep_history, 'boolean');
+  }
 });
 
 test('findBlueprintByDevice routes an external_id back to its owner blueprint', () => {
@@ -214,4 +243,94 @@ test('the show_restrictions action says so when nothing is restricted', async ()
   const message = await droughtZone.actions.show_restrictions(gladys, { fields: {}, config });
   assert.match(message.fr, /Aucun usage/);
   assert.match(message.en, /No water usage/);
+});
+
+// --- Self-driven refresh -----------------------------------------------------
+
+/** Let the pending microtasks (and the awaited fetch stub) settle. */
+async function settle() {
+  for (let i = 0; i < 10; i += 1) {
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+}
+
+test('startPolling refreshes straight away, without waiting a full interval', async () => {
+  const gladys = createFakeGladys();
+  stubVigieau(zonesFixture());
+  const stop = droughtZone.startPolling(gladys, config);
+  try {
+    await settle();
+    assert.ok(gladys.published.length > 0, 'a freshly added device must not stay empty');
+    assert.deepEqual(gladys.connectionStatuses.at(-1), { connected: true, message: undefined });
+  } finally {
+    stop();
+  }
+});
+
+test('startPolling stops refreshing once its cleanup is called', async () => {
+  const gladys = createFakeGladys();
+  stubVigieau(zonesFixture());
+  mock.timers.enable({ apis: ['setInterval'] });
+  try {
+    const stop = droughtZone.startPolling(gladys, config);
+    await settle();
+    const afterFirstRefresh = gladys.published.length;
+
+    mock.timers.tick(config.poll_frequency * 1000);
+    await settle();
+    assert.ok(gladys.published.length > afterFirstRefresh, 'the timer refreshes again');
+
+    const beforeStop = gladys.published.length;
+    stop();
+    mock.timers.tick(config.poll_frequency * 10 * 1000);
+    await settle();
+    assert.equal(gladys.published.length, beforeStop, 'nothing is published after cleanup');
+  } finally {
+    mock.timers.reset();
+  }
+});
+
+test('startPolling never refreshes faster than the floor, whatever the config says', () => {
+  const gladys = createFakeGladys();
+  stubVigieau(zonesFixture());
+  mock.timers.enable({ apis: ['setInterval'] });
+  try {
+    // VigiEau is a free public service: an over-eager configuration must not
+    // turn every Gladys install into a hammer.
+    const stop = droughtZone.startPolling(
+      gladys,
+      normalizeConfig({ commune: '75056', poll_frequency: 1 }),
+    );
+    const before = gladys.published.length;
+    mock.timers.tick(MIN_REFRESH_SECONDS * 1000 - 1);
+    assert.equal(gladys.published.length, before, 'no second refresh before the floor');
+    stop();
+  } finally {
+    mock.timers.reset();
+  }
+});
+
+test('a VigiEau outage neither kills the timer nor crashes the container', async () => {
+  const gladys = createFakeGladys();
+  stubVigieau(null, 503);
+  mock.timers.enable({ apis: ['setInterval'] });
+  try {
+    const stop = droughtZone.startPolling(gladys, config);
+    await settle();
+    // The failure is reported, not thrown: an unhandled rejection would take
+    // the whole integration down.
+    const status = gladys.connectionStatuses.at(-1);
+    assert.equal(status.connected, false);
+    assert.match(status.message.fr, /503/);
+
+    // And the next tick still runs, so the sensor recovers on its own.
+    stubVigieau(zonesFixture());
+    mock.timers.tick(config.poll_frequency * 1000);
+    await settle();
+    assert.ok(gladys.published.length > 0, 'the timer survived the outage');
+    assert.equal(gladys.connectionStatuses.at(-1).connected, true);
+    stop();
+  } finally {
+    mock.timers.reset();
+  }
 });

@@ -10,9 +10,7 @@
   "docker_image": "ghcr.io/prohand/gladys-vigieau:1.0.3",
   "gladys_version": ">=4.62.0",
   "cover_image": "https://raw.githubusercontent.com/prohand/gladys-vigieau/main/cover.png",
-  "transports": [
-    "cloud"
-  ],
+  "transports": ["cloud"],
   "config_schema": [
     {
       "key": "intro",
@@ -191,8 +189,8 @@
         "fr": "Intervalle de rafraîchissement (s)"
       },
       "description": {
-        "en": "How often VigiEau is queried, in seconds. Prefectoral decrees change once a day at most: one hour is plenty.",
-        "fr": "Fréquence d'interrogation de VigiEau, en secondes. Les arrêtés préfectoraux changent au plus une fois par jour : une heure suffit largement."
+        "en": "How often the integration queries VigiEau, in seconds. Prefectoral decrees change once a day at most: one hour is plenty.",
+        "fr": "Fréquence à laquelle l'intégration interroge VigiEau, en secondes. Les arrêtés préfectoraux changent au plus une fois par jour : une heure suffit largement."
       },
       "required": false,
       "default": 3600,

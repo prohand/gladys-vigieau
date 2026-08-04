@@ -25,6 +25,11 @@ const DEVICE_TYPE = 'drought-zone';
 // Named logger from the SDK: every line is prefixed with [drought-zone].
 const logger = createLogger({ name: DEVICE_TYPE });
 
+// Floor on the refresh interval, whatever the configuration says. VigiEau is a
+// free public service: hammering it for a value that changes once a day would
+// be rude, and buys nothing.
+export const MIN_REFRESH_SECONDS = 300;
+
 // Feature keys, kept in one place so discovery and polling always agree.
 export const FEATURE = {
   LEVEL: 'level',
@@ -69,8 +74,11 @@ export const droughtZone = {
     return {
       name: `Vigilance sécheresse — ${config.location_name}`,
       external_id: ids.device,
-      // Gladys calls onPoll at this interval (in seconds).
-      poll_frequency: config.poll_frequency,
+      // NO poll_frequency on purpose: Gladys only accepts a fixed enum of
+      // intervals, in milliseconds, capped at one minute (60000). Polling a
+      // public government API 1440 times a day for a decree that changes at
+      // most once a day would be absurd, so this integration drives its own
+      // refresh instead — see startPolling below.
       features: [
         severityFeature(ids.feature(FEATURE.LEVEL), 'Niveau de vigilance sécheresse'),
         {
@@ -78,6 +86,10 @@ export const droughtZone = {
           external_id: ids.feature(FEATURE.LEVEL_TEXT),
           category: DEVICE_FEATURE_CATEGORIES.TEXT,
           type: DEVICE_FEATURE_TYPES.TEXT.TEXT,
+          // Meaningless for a label, but the core column is NOT NULL and has
+          // no default: a feature without min/max is refused at creation time.
+          min: 0,
+          max: 0,
           read_only: true,
           has_feedback: false,
           keep_history: false, // a label, not a measure: nothing to chart
@@ -87,6 +99,8 @@ export const droughtZone = {
           external_id: ids.feature(FEATURE.RESTRICTED),
           category: DEVICE_FEATURE_CATEGORIES.INPUT,
           type: DEVICE_FEATURE_TYPES.INPUT.BINARY,
+          min: 0,
+          max: 1,
           read_only: true,
           has_feedback: false,
           keep_history: true,
@@ -179,5 +193,44 @@ export const droughtZone = {
 
     // Publish every value in a single request (batch, up to 100).
     await gladys.publishStates(states);
+  },
+
+  /**
+   * Drive the refresh ourselves, the way the template's push sensors do.
+   *
+   * Gladys' own polling is not usable here: `poll_frequency` is a fixed enum
+   * of intervals in milliseconds whose slowest value is one minute, while a
+   * prefectoral decree changes once a day at most. So the device declares no
+   * poll_frequency and we run our own timer at the configured interval.
+   *
+   * @returns {() => void} cleanup, to stop the timer on disconnection
+   */
+  startPolling(gladys, config) {
+    const intervalMs = Math.max(MIN_REFRESH_SECONDS, config.poll_frequency) * 1000;
+    logger.info(`Refreshing VigiEau every ${Math.round(intervalMs / 1000)} s`);
+
+    const tick = async () => {
+      try {
+        await droughtZone.onPoll(gladys, config);
+        await gladys.setConnectionStatus(true);
+      } catch (err) {
+        // A VigiEau outage must not kill the timer, nor crash the container on
+        // an unhandled rejection: log it, show it, and try again next time.
+        logger.error('VigiEau refresh failed', err);
+        const reason = String(err?.message ?? err).slice(0, 150);
+        await gladys
+          .setConnectionStatus(false, {
+            en: `VigiEau refresh failed: ${reason}`,
+            fr: `Le rafraîchissement VigiEau a échoué : ${reason}`,
+          })
+          .catch(() => {});
+      }
+    };
+
+    // Refresh straight away: waiting a full hour for the first value would
+    // leave the freshly added device empty on the dashboard.
+    tick();
+    const timer = setInterval(tick, intervalMs);
+    return () => clearInterval(timer);
   },
 };

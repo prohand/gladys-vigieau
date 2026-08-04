@@ -51,7 +51,8 @@ separately, in addition to the overall level.
    Restrictions differ per profile, and VigiEau returns the ones that apply to
    yours.
 6. Leave the **refresh interval** at 3600 s (1 hour): prefectoral decrees change
-   once a day at most.
+   once a day at most. The integration keeps that pace itself; a 5-minute floor
+   applies whatever you type.
 7. Save: the device shows up in the **Discovery** tab, ready to be added.
 
 > Until the INSEE code is filled in, no device is offered and the integration
@@ -137,7 +138,12 @@ above the field.
      nothing is ever published.
 - **No data / errors in the logs** — start with the **Test the VigiEau
   connection** action. A `VigiEau HTTP 5xx` error means the service is
-  temporarily unavailable: the integration retries at the next refresh.
+  temporarily unavailable: it is shown in the Configuration screen, and the
+  integration retries at the next refresh without giving up.
+- **The values do not refresh every minute** — that is expected. The device
+  does not use Gladys' polling mechanism (capped at one minute): the
+  integration refreshes on its own at the configured interval, immediately on
+  connection and then hourly by default.
 - **All levels at 0** — that is the normal answer when no restriction zone covers
   the address (VigiEau only covers France).
 - **The level stopped moving although the API changed** — the integration never
