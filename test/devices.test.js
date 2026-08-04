@@ -10,7 +10,7 @@ import { FEATURE } from '../src/devices/droughtZone.js';
 import { normalizeConfig } from '../src/config.js';
 import { createFakeGladys, zonesFixture } from './helpers/fakeGladys.js';
 
-const config = normalizeConfig();
+const config = normalizeConfig({ commune: '75056' });
 const realFetch = globalThis.fetch;
 
 afterEach(() => {
@@ -62,13 +62,19 @@ test('feature external_ids are unique inside a device', () => {
 
 test('the device name carries the configured location', () => {
   const gladys = createFakeGladys();
-  const [device] = buildDiscoveredDevices(gladys, normalizeConfig({ location_name: 'Jardin' }));
+  const [device] = buildDiscoveredDevices(
+    gladys,
+    normalizeConfig({ commune: '75056', location_name: 'Jardin' }),
+  );
   assert.match(device.name, /Jardin/);
 });
 
 test('the poll frequency comes from the configuration', () => {
   const gladys = createFakeGladys();
-  const [device] = buildDiscoveredDevices(gladys, normalizeConfig({ poll_frequency: 7200 }));
+  const [device] = buildDiscoveredDevices(
+    gladys,
+    normalizeConfig({ commune: '75056', poll_frequency: 7200 }),
+  );
   assert.equal(device.poll_frequency, 7200);
 });
 
@@ -82,7 +88,7 @@ test('findBlueprintByDevice routes an external_id back to its owner blueprint', 
 
 test('findBlueprintByDevice returns undefined for a device of another location', () => {
   const gladys = createFakeGladys();
-  const otherLocation = normalizeConfig({ latitude: 45.764, longitude: 4.8357 });
+  const otherLocation = normalizeConfig({ commune: '69123' });
   const staleId = droughtZone.deviceExternalId(gladys, otherLocation);
   assert.equal(findBlueprintByDevice(gladys, { external_id: staleId }, config), undefined);
 });
@@ -120,7 +126,7 @@ test('onPoll publishes the overall level, the text and every water type', async 
   await droughtZone.onPoll(gladys, config);
 
   const byFeature = new Map(gladys.published.map((p) => [p.featureExternalId, p]));
-  const ids = gladys.externalIds('drought-zone', 'latlon-48.8566_2.3522');
+  const ids = gladys.externalIds('drought-zone', 'commune-75056');
 
   assert.equal(byFeature.get(ids.feature(FEATURE.LEVEL)).state, 3);
   assert.equal(byFeature.get(ids.feature(FEATURE.LEVEL_SUP)).state, 2);
@@ -135,7 +141,7 @@ test('onPoll publishes a clear "no restriction" when nothing is in force', async
   stubVigieau([], 404);
   await droughtZone.onPoll(gladys, config);
 
-  const ids = gladys.externalIds('drought-zone', 'latlon-48.8566_2.3522');
+  const ids = gladys.externalIds('drought-zone', 'commune-75056');
   const byFeature = new Map(gladys.published.map((p) => [p.featureExternalId, p]));
   assert.equal(byFeature.get(ids.feature(FEATURE.LEVEL)).state, 0);
   assert.equal(byFeature.get(ids.feature(FEATURE.RESTRICTED)).state, 0);
@@ -149,7 +155,7 @@ test('onPoll leaves the level untouched rather than publishing a false all-clear
   stubVigieau([{ type: 'SUP', niveauGravite: 'niveau_martien' }]);
   await droughtZone.onPoll(gladys, config);
 
-  const ids = gladys.externalIds('drought-zone', 'latlon-48.8566_2.3522');
+  const ids = gladys.externalIds('drought-zone', 'commune-75056');
   const publishedIds = gladys.published.map((p) => p.featureExternalId);
   assert.ok(!publishedIds.includes(ids.feature(FEATURE.LEVEL)), 'a stale value beats a wrong one');
   assert.ok(!publishedIds.includes(ids.feature(FEATURE.RESTRICTED)));

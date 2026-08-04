@@ -39,23 +39,51 @@ sont exposés séparément, en plus du niveau global.
 1. Ouvrez l'onglet **Configuration** de l'intégration.
 2. Donnez un **nom au lieu** (« Maison », « Jardin »…) : il apparaît dans le nom
    de l'appareil.
-3. Indiquez **où regarder**, au choix :
-   - le **code INSEE de la commune** (5 caractères, par exemple `75056` pour
-     Paris) — c'est l'option la plus fiable ; il est prioritaire sur les
-     coordonnées ;
-   - ou la **latitude** et la **longitude** du lieu (WGS-84). Vous les trouvez
-     dans Gladys (maison → position) ou sur n'importe quelle carte.
-4. Choisissez votre **profil d'usager** : particulier, entreprise, collectivité
+3. Renseignez le **code INSEE de la commune** — c'est le seul champ de
+   localisation obligatoire. Voir « Trouver votre code INSEE » ci-dessous.
+4. **Facultatif** : la **latitude** et la **longitude** du lieu (WGS-84). Vous
+   pouvez les laisser vides. Ne les renseignez que si votre commune est assez
+   étendue pour relever de plusieurs zones de restriction : dans ce cas la
+   position exacte remplace la commune dans la requête. Il faut les **deux** —
+   une latitude seule est ignorée.
+5. Choisissez votre **profil d'usager** : particulier, entreprise, collectivité
    ou exploitation agricole. Les restrictions ne sont pas les mêmes pour tous, et
    VigiEau renvoie celles qui s'appliquent au vôtre.
-5. Laissez l'**intervalle de rafraîchissement** à 3600 s (1 heure) : les arrêtés
+6. Laissez l'**intervalle de rafraîchissement** à 3600 s (1 heure) : les arrêtés
    préfectoraux changent au plus une fois par jour.
-6. Enregistrez : l'appareil apparaît dans l'onglet **Découverte**, prêt à être
+7. Enregistrez : l'appareil apparaît dans l'onglet **Découverte**, prêt à être
    ajouté.
 
-> Si vous changez de lieu après coup (nouvelles coordonnées ou nouveau code
-> INSEE), Gladys découvre un **nouvel** appareil : ajoutez-le, puis supprimez
-> l'ancien. Renommer simplement le lieu ne change rien à l'appareil existant.
+> Tant que le code INSEE n'est pas renseigné, aucun appareil n'est proposé et
+> l'intégration l'indique dans son écran de configuration. C'est voulu : mieux
+> vaut pas d'appareil qu'un appareil rattaché à un lieu vide.
+
+> Si vous changez de lieu après coup (nouveau code INSEE, ou ajout/retrait des
+> coordonnées), Gladys découvre un **nouvel** appareil : ajoutez-le, puis
+> supprimez l'ancien. Renommer simplement le lieu ne change rien à l'appareil
+> existant.
+
+## Trouver votre code INSEE
+
+Le code INSEE identifie une commune française sur **5 caractères** : `75056`
+pour Paris, `69123` pour Lyon, `2A004` pour Ajaccio.
+
+> **Ce n'est pas le code postal.** Un code postal peut couvrir plusieurs
+> communes, et une grande ville a plusieurs codes postaux pour un seul code
+> INSEE. Utiliser le code postal donnera une erreur ou un mauvais résultat.
+
+Deux façons de le trouver :
+
+- **La recherche géographique de l'INSEE** —
+  <https://www.insee.fr/fr/recherche/recherche-geographique> : cherchez votre
+  commune, le code officiel géographique est affiché sur sa fiche.
+- **L'API Géo officielle**, si vous préférez une réponse directe — ouvrez
+  <https://geo.api.gouv.fr/communes?nom=Paris&fields=code,nom> dans votre
+  navigateur et remplacez `Paris` par le nom de votre commune. Le champ `code`
+  de la réponse est le code INSEE.
+
+Les deux liens sont également accessibles depuis l'écran de configuration de
+l'intégration, juste au-dessus du champ.
 
 ## Actions
 

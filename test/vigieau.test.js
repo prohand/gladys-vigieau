@@ -11,6 +11,8 @@ import {
 import { normalizeConfig } from '../src/config.js';
 import { zonesFixture } from './helpers/fakeGladys.js';
 
+const PARIS = normalizeConfig({ commune: '75056' });
+
 const realFetch = globalThis.fetch;
 
 afterEach(() => {
@@ -49,43 +51,56 @@ test('severityLabel gives the official French wording', () => {
 
 // --- URL building ------------------------------------------------------------
 
-test('buildZonesUrl uses the coordinates when no commune is configured', () => {
-  const url = buildZonesUrl(normalizeConfig({ latitude: 45.764, longitude: 4.8357 }));
+test('buildZonesUrl queries the commune, the mandatory input', () => {
+  const url = buildZonesUrl(normalizeConfig({ commune: '69123' }));
   assert.match(url, /\/api\/zones\?/);
-  assert.match(url, /lat=45\.764/);
-  assert.match(url, /lon=4\.8357/);
+  assert.match(url, /commune=69123/);
   assert.match(url, /profil=particulier/);
-  assert.doesNotMatch(url, /commune=/);
+  assert.doesNotMatch(url, /lat=/);
 });
 
-test('buildZonesUrl prefers the INSEE commune code when it is filled in', () => {
+test('buildZonesUrl prefers the optional coordinates when both are filled in', () => {
+  // A large commune can span several restriction zones: an exact point wins.
+  const url = buildZonesUrl(
+    normalizeConfig({ commune: '69123', latitude: 45.764, longitude: 4.8 }),
+  );
+  assert.match(url, /lat=45\.764/);
+  assert.match(url, /lon=4\.8/);
+  assert.doesNotMatch(url, /commune=/, 'the API takes one or the other, never both');
+});
+
+test('buildZonesUrl ignores a half-filled coordinate pair', () => {
   const url = buildZonesUrl(normalizeConfig({ commune: '69123', latitude: 45.764 }));
   assert.match(url, /commune=69123/);
   assert.doesNotMatch(url, /lat=/);
 });
 
 test('buildZonesUrl forwards the configured profile', () => {
-  const url = buildZonesUrl(normalizeConfig({ profil: 'exploitation' }));
+  const url = buildZonesUrl(normalizeConfig({ commune: '75056', profil: 'exploitation' }));
   assert.match(url, /profil=exploitation/);
+});
+
+test('buildZonesUrl refuses to guess when no location is configured', () => {
+  assert.throws(() => buildZonesUrl(normalizeConfig()), /INSEE commune code/);
 });
 
 // --- HTTP --------------------------------------------------------------------
 
 test('fetchZones returns the zones of a 200 response', async () => {
   globalThis.fetch = async () => ({ ok: true, status: 200, json: async () => zonesFixture() });
-  const zones = await fetchZones(normalizeConfig());
+  const zones = await fetchZones(PARIS);
   assert.equal(zones.length, 3);
   assert.equal(zones[1].type, 'SOU');
 });
 
 test('fetchZones treats a 404 as "no zone covers this location"', async () => {
   globalThis.fetch = async () => ({ ok: false, status: 404 });
-  assert.deepEqual(await fetchZones(normalizeConfig()), []);
+  assert.deepEqual(await fetchZones(PARIS), []);
 });
 
 test('fetchZones throws on any other non-2xx response', async () => {
   globalThis.fetch = async () => ({ ok: false, status: 502 });
-  await assert.rejects(() => fetchZones(normalizeConfig()), /VigiEau HTTP 502/);
+  await assert.rejects(() => fetchZones(PARIS), /VigiEau HTTP 502/);
 });
 
 test('fetchZones wraps a single object answer into a list', async () => {
@@ -94,7 +109,7 @@ test('fetchZones wraps a single object answer into a list', async () => {
     status: 200,
     json: async () => ({ type: 'SUP', niveauGravite: 'crise' }),
   });
-  const zones = await fetchZones(normalizeConfig());
+  const zones = await fetchZones(PARIS);
   assert.equal(zones.length, 1);
   assert.equal(zones[0].niveauGravite, 'crise');
 });

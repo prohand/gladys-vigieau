@@ -40,21 +40,48 @@ separately, in addition to the overall level.
 1. Open the integration's **Configuration** tab.
 2. Give the **location a name** ("Maison", "Jardin"…): it shows up in the device
    name.
-3. Tell the integration **where to look**, either:
-   - the **INSEE commune code** (5 characters, e.g. `75056` for Paris) — the most
-     reliable option, and it takes precedence over the coordinates;
-   - or the **latitude** and **longitude** of the place (WGS-84). You will find
-     them in Gladys (house → position) or on any map.
-4. Pick your **user profile**: household, company, local authority or farm.
+3. Fill in the **INSEE commune code** — the only mandatory location field. See
+   "Finding your INSEE code" below.
+4. **Optional**: the **latitude** and **longitude** of the place (WGS-84). Leave
+   them empty unless your commune is large enough to span several restriction
+   zones; in that case the exact point replaces the commune in the query. Both
+   are needed — a latitude on its own is ignored.
+5. Pick your **user profile**: household, company, local authority or farm.
    Restrictions differ per profile, and VigiEau returns the ones that apply to
    yours.
-5. Leave the **refresh interval** at 3600 s (1 hour): prefectoral decrees change
+6. Leave the **refresh interval** at 3600 s (1 hour): prefectoral decrees change
    once a day at most.
-6. Save: the device shows up in the **Discovery** tab, ready to be added.
+7. Save: the device shows up in the **Discovery** tab, ready to be added.
 
-> If you change the location later (new coordinates or new INSEE code), Gladys
-> discovers a **new** device: add it, then delete the old one. Merely renaming
-> the location leaves the existing device untouched.
+> Until the INSEE code is filled in, no device is offered and the integration
+> says so in its Configuration screen. That is deliberate: no device beats a
+> device pinned to an empty location.
+
+> If you change the location later (new INSEE code, or coordinates added or
+> removed), Gladys discovers a **new** device: add it, then delete the old one.
+> Merely renaming the location leaves the existing device untouched.
+
+## Finding your INSEE code
+
+The INSEE code identifies a French commune with **5 characters**: `75056` for
+Paris, `69123` for Lyon, `2A004` for Ajaccio.
+
+> **It is not the postal code.** A postal code can cover several communes, and a
+> large city has several postal codes for a single INSEE code. Using the postal
+> code will give an error or the wrong result.
+
+Two ways to find it:
+
+- **The INSEE geographic search** —
+  <https://www.insee.fr/fr/recherche/recherche-geographique>: look up your
+  commune, its official geographic code is shown on its page.
+- **The official Geo API**, for a direct answer — open
+  <https://geo.api.gouv.fr/communes?nom=Paris&fields=code,nom> in your browser
+  and replace `Paris` with the name of your commune. The `code` field of the
+  answer is the INSEE code.
+
+Both links are also available in the integration's Configuration screen, right
+above the field.
 
 ## Actions
 

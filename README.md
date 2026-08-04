@@ -41,12 +41,20 @@ screen: [`docs/fr.md`](./docs/fr.md) — [`docs/en.md`](./docs/en.md).
 ## How it works
 
 `GET https://api.vigieau.beta.gouv.fr/api/zones` is called at the configured
-interval, with either the INSEE commune code or WGS-84 coordinates, plus the
-user profile (`particulier`, `entreprise`, `collectivite`, `exploitation`). The
-endpoint answers one zone per water type, each with its own `niveauGravite`,
-the decree in force and the list of restricted usages.
+interval, with the user profile (`particulier`, `entreprise`, `collectivite`,
+`exploitation`) and the location. The endpoint answers one zone per water type,
+each with its own `niveauGravite`, the decree in force and the list of
+restricted usages.
 
-Two decisions are worth knowing about:
+The location is the **INSEE commune code**, the only mandatory field —
+`75056`, `69123`, `2A004`. The Configuration screen carries a note and two
+lookup links (INSEE geographic search, official Geo API) right above the field,
+including the warning that the postal code is a different thing. Latitude and
+longitude are **optional**: the API takes one or the other and never both, so
+when both coordinates are filled in the exact point replaces the commune in the
+query — useful for a commune large enough to span several restriction zones.
+
+Three decisions are worth knowing about:
 
 - **A location outside any zone is not an error.** VigiEau answers `404` there;
   the integration reads that as "nothing in force" and publishes level `0`.
@@ -54,6 +62,10 @@ Two decisions are worth knowing about:
   wording the integration does not know, the affected level is left at its last
   known value and a warning is logged, rather than publishing a `0` that would
   tell a watering scene everything is fine in the middle of a crisis.
+- **No device is published before the location is known.** Until the INSEE code
+  is filled in, discovery returns nothing and the Configuration screen says
+  why — better than a device pinned to an empty location that the user would
+  have to delete by hand.
 
 ## Project structure
 

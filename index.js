@@ -16,7 +16,7 @@
 // -----------------------------------------------------------------------------
 
 import { GladysIntegration, logger } from '@gladysassistant/integration-sdk';
-import { normalizeConfig } from './src/config.js';
+import { isConfigured, normalizeConfig } from './src/config.js';
 import {
   DEVICE_BLUEPRINTS,
   buildDiscoveredDevices,
@@ -28,10 +28,33 @@ const gladys = new GladysIntegration();
 // Current configuration (hot-reloaded via onConfigUpdated).
 let config = normalizeConfig();
 
+// Shown in the Configuration screen while the mandatory INSEE code is missing.
+const NOT_CONFIGURED_MESSAGE = {
+  en: 'Fill in the INSEE code of your commune to start watching the drought level.',
+  fr: 'Renseignez le code INSEE de votre commune pour suivre le niveau de sécheresse.',
+};
+
+/**
+ * Publish the device catalog — unless we do not know WHERE to look yet.
+ * Publishing a device before the user filled in the mandatory INSEE code would
+ * create a device pinned to an empty location, which the user would then have
+ * to delete by hand once configured.
+ * @returns {Promise<boolean>} whether the devices were published
+ */
+async function publishDevices() {
+  if (!isConfigured(config)) {
+    logger.warn('No INSEE commune code configured yet: nothing to discover');
+    await gladys.setConnectionStatus(false, NOT_CONFIGURED_MESSAGE).catch(() => {});
+    return false;
+  }
+  await gladys.publishDiscoveredDevices(buildDiscoveredDevices(gladys, config));
+  return true;
+}
+
 // --- Discovery: Gladys asks for the list of devices --------------------------
 gladys.onScanRequest(async () => {
   logger.info('onScanRequest -> publishing discovered devices');
-  await gladys.publishDiscoveredDevices(buildDiscoveredDevices(gladys, config));
+  await publishDevices();
 });
 
 // --- Polling: Gladys asks to refresh a device --------------------------------
@@ -67,7 +90,10 @@ gladys.onConfigUpdated(async (newConfig) => {
   // Re-publish the devices: the name, the poll frequency and the external_id
   // itself depend on the configured location.
   // publishDiscoveredDevices is idempotent (upsert by external_id).
-  await gladys.publishDiscoveredDevices(buildDiscoveredDevices(gladys, config));
+  if (await publishDevices()) {
+    // The location just became valid: clear the "not configured" status.
+    await gladys.setConnectionStatus(true);
+  }
 });
 
 // --- Connection lifecycle ----------------------------------------------------
@@ -79,8 +105,11 @@ gladys.on('connected', async () => {
     // 1) Fetch the configuration filled in by the user.
     config = normalizeConfig(await gladys.getConfig());
 
-    // 2) (Re)publish the device as soon as we are connected.
-    await gladys.publishDiscoveredDevices(buildDiscoveredDevices(gladys, config));
+    // 2) (Re)publish the device as soon as we are connected. It reports its
+    // own status when the mandatory INSEE code is still missing.
+    if (!(await publishDevices())) {
+      return;
+    }
 
     // 3) Report the application-level status, shown in the Configuration
     // screen. Distinct from the container state machine: an integration can

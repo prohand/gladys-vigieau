@@ -10,9 +10,7 @@
   "docker_image": "ghcr.io/prohand/gladys-vigieau:1.0.1",
   "gladys_version": ">=4.62.0",
   "cover_image": "https://raw.githubusercontent.com/prohand/gladys-vigieau/main/cover.png",
-  "transports": [
-    "cloud"
-  ],
+  "transports": ["cloud"],
   "config_schema": [
     {
       "key": "intro",
@@ -57,6 +55,31 @@
       "default": "Maison"
     },
     {
+      "key": "insee_help",
+      "type": "section",
+      "label": { "en": "Finding your INSEE code", "fr": "Trouver votre code INSEE" },
+      "description": {
+        "en": "The INSEE code identifies a French commune with 5 characters (75056 for Paris, 2A004 for Ajaccio). Careful: it is NOT the postal code — a postal code can cover several communes. To find yours, search your commune on the INSEE geographic search below, or open the geo.api.gouv.fr link and replace \"Paris\" with the name of your commune: the \"code\" field of the answer is the INSEE code.",
+        "fr": "Le code INSEE identifie une commune française sur 5 caractères (75056 pour Paris, 2A004 pour Ajaccio). Attention : ce n'est PAS le code postal — un code postal peut couvrir plusieurs communes. Pour trouver le vôtre, cherchez votre commune sur la recherche géographique de l'INSEE ci-dessous, ou ouvrez le lien geo.api.gouv.fr et remplacez « Paris » par le nom de votre commune : le champ « code » de la réponse est le code INSEE."
+      },
+      "links": [
+        {
+          "url": "https://www.insee.fr/fr/recherche/recherche-geographique",
+          "label": {
+            "en": "INSEE geographic search",
+            "fr": "Recherche géographique de l'INSEE"
+          }
+        },
+        {
+          "url": "https://geo.api.gouv.fr/communes?nom=Paris&fields=code,nom",
+          "label": {
+            "en": "Look up a commune (official Geo API)",
+            "fr": "Rechercher une commune (API Géo officielle)"
+          }
+        }
+      ]
+    },
+    {
       "key": "commune",
       "type": "string",
       "label": {
@@ -64,47 +87,37 @@
         "fr": "Code INSEE de la commune"
       },
       "description": {
-        "en": "Optional, 5 characters (e.g. 75056). When filled in it takes precedence over the coordinates below.",
-        "fr": "Facultatif, 5 caractères (par exemple 75056). S'il est renseigné, il est prioritaire sur les coordonnées ci-dessous."
+        "en": "5 characters, e.g. 75056 for Paris. This is the code the drought level is looked up with — see the help just above to find yours.",
+        "fr": "5 caractères, par exemple 75056 pour Paris. C'est ce code qui sert à récupérer le niveau de sécheresse — voir l'aide juste au-dessus pour trouver le vôtre."
       },
-      "required": false,
-      "default": "",
-      "placeholder": {
-        "en": "75056",
-        "fr": "75056"
-      }
+      "required": true,
+      "placeholder": { "en": "75056", "fr": "75056" }
     },
     {
       "key": "latitude",
       "type": "number",
-      "label": {
-        "en": "Latitude",
-        "fr": "Latitude"
-      },
+      "label": { "en": "Latitude (optional)", "fr": "Latitude (facultatif)" },
       "description": {
-        "en": "Latitude of the watched location (WGS-84).",
-        "fr": "Latitude du lieu surveillé (WGS-84)."
+        "en": "Leave empty unless your commune is large enough to span several restriction zones. Filled in together with the longitude, the exact point replaces the commune in the query.",
+        "fr": "Laissez vide, sauf si votre commune est assez étendue pour relever de plusieurs zones de restriction. Renseignée avec la longitude, la position exacte remplace la commune dans la requête."
       },
-      "required": true,
-      "default": 48.8566,
+      "required": false,
       "min": -90,
-      "max": 90
+      "max": 90,
+      "placeholder": { "en": "48.8566", "fr": "48.8566" }
     },
     {
       "key": "longitude",
       "type": "number",
-      "label": {
-        "en": "Longitude",
-        "fr": "Longitude"
-      },
+      "label": { "en": "Longitude (optional)", "fr": "Longitude (facultatif)" },
       "description": {
-        "en": "Longitude of the watched location (WGS-84).",
-        "fr": "Longitude du lieu surveillé (WGS-84)."
+        "en": "Only used when the latitude is filled in too.",
+        "fr": "Utilisée uniquement si la latitude est également renseignée."
       },
-      "required": true,
-      "default": 2.3522,
+      "required": false,
       "min": -180,
-      "max": 180
+      "max": 180,
+      "placeholder": { "en": "2.3522", "fr": "2.3522" }
     },
     {
       "key": "profil",

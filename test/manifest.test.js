@@ -156,6 +156,41 @@ test('the catalog description stays within the 100-character store limit', () =>
   }
 });
 
+test('the INSEE code is mandatory and the coordinates are not', () => {
+  const field = (key) => manifest.config_schema.find((f) => f.key === key);
+  assert.equal(field('commune').required, true, 'the INSEE code is the mandatory input');
+  assert.notEqual(field('latitude').required, true, 'the coordinates only refine the commune');
+  assert.notEqual(field('longitude').required, true);
+});
+
+test('the optional coordinates ship no default that would override the commune', () => {
+  // A default latitude/longitude would make every install query a point
+  // instead of the commune the user carefully filled in.
+  for (const key of ['latitude', 'longitude']) {
+    const field = manifest.config_schema.find((f) => f.key === key);
+    assert.equal(field.default, undefined, `"${key}" must start empty`);
+    assert.equal(DEFAULT_CONFIG[key], null, `DEFAULT_CONFIG.${key} means "left empty"`);
+  }
+});
+
+test('the configuration screen explains where to find the INSEE code', () => {
+  const help = manifest.config_schema.find((f) => f.key === 'insee_help');
+  assert.ok(help, 'a section walks the user through finding their INSEE code');
+  assert.equal(help.type, 'section');
+  assert.ok(help.links?.length >= 1, 'the note carries at least one lookup link');
+  // The single most common mistake is using the postal code instead.
+  assert.match(help.description.fr, /code postal/);
+  assert.match(help.description.en, /postal code/);
+});
+
+test('the help section comes before the field it explains', () => {
+  const keys = manifest.config_schema.map((f) => f.key);
+  assert.ok(
+    keys.indexOf('insee_help') < keys.indexOf('commune'),
+    'the note is useless once the user has already filled the field in',
+  );
+});
+
 test('the manifest declares the cloud transport only', () => {
   // VigiEau is a public HTTP API: there is no local channel, so Gladys must not
   // show the "Prefer the local connection" toggle.

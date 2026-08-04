@@ -20,6 +20,7 @@
 // -----------------------------------------------------------------------------
 
 import { createLogger } from '@gladysassistant/integration-sdk';
+import { hasCoordinates } from './config.js';
 
 const logger = createLogger({ name: 'vigieau' });
 
@@ -79,17 +80,24 @@ export function toSeverityLevel(raw) {
 
 /**
  * Build the query string of `GET /api/zones`.
- * The API takes EITHER an INSEE commune code OR WGS-84 coordinates; when the
- * user filled in a commune we use it, as it is the unambiguous option.
- * @param {{ commune: string, latitude: number, longitude: number, profil: string }} config
+ *
+ * The API takes EITHER an INSEE commune code OR WGS-84 coordinates, never
+ * both, so we pick one. The commune is the mandatory input and covers the vast
+ * majority of cases; the optional coordinates win when they are filled in,
+ * because a large commune can be split across several restriction zones and
+ * only a precise point can tell which one applies.
+ *
+ * @param {{ commune: string, latitude: number|null, longitude: number|null, profil: string }} config
  */
 export function buildZonesUrl(config) {
   const params = new URLSearchParams();
-  if (config.commune) {
-    params.set('commune', config.commune);
-  } else {
+  if (hasCoordinates(config)) {
     params.set('lat', String(config.latitude));
     params.set('lon', String(config.longitude));
+  } else if (config.commune) {
+    params.set('commune', config.commune);
+  } else {
+    throw new Error('No location configured: fill in the INSEE commune code');
   }
   params.set('profil', config.profil);
   return `${API_BASE_URL}/api/zones?${params.toString()}`;
