@@ -61,10 +61,17 @@ longitude are **optional**: the API takes one or the other and never both, so
 when both coordinates are filled in the exact point replaces the commune in the
 query — useful for a commune large enough to span several restriction zones.
 
-Three decisions are worth knowing about:
+A few decisions are worth knowing about:
 
 - **A location outside any zone is not an error.** VigiEau answers `404` there;
   the integration reads that as "nothing in force" and publishes level `0`.
+  Neither is a zone published _without_ a severity: VigiEau pads the water types
+  a commune has no real zone for with placeholders carrying only the municipal
+  decree, and those mean "nothing in force" too — not "unknown".
+- **`409` means the commune is ambiguous, not that the service is down.** The
+  commune spans several alert zones of the same type and only an exact point can
+  settle it, so the error is tagged and the Configuration screen asks for the
+  coordinates instead of showing a status code. Retrying cannot help.
 - **An unreadable severity is never published.** If VigiEau ever returns a
   wording the integration does not know, the affected level is left at its last
   known value and a warning is logged, rather than publishing a `0` that would

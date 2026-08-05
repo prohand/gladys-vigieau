@@ -32,6 +32,10 @@ const REQUEST_TIMEOUT_MS = 15_000;
 // The three water types VigiEau reports, in the order we display them.
 export const ZONE_TYPES = ['SUP', 'SOU', 'AEP'];
 
+// Tag carried by the error thrown on HTTP 409, so the caller can show an
+// actionable message instead of a bare status code.
+export const AMBIGUOUS_COMMUNE = 'AMBIGUOUS_COMMUNE';
+
 // The severity scale, from "nothing to report" to the most severe decree.
 // Values are the ones the API returns in `niveauGravite`.
 export const SEVERITY_LEVELS = {
@@ -76,6 +80,29 @@ export function toSeverityLevel(raw) {
     return SEVERITY_LEVELS.pas_restriction;
   }
   return null;
+}
+
+/**
+ * Severity of a single zone, as a number.
+ *
+ * A zone published WITHOUT any severity is not an unreadable one: when a
+ * commune carries a municipal decree, VigiEau pads the water types it has no
+ * real zone for with placeholder entries holding only `type` and the decree
+ * URL (see formatZones in the API sources). Reading those as "unknown" made a
+ * whole commune report "Inconnu" while nothing was in force there.
+ *
+ * `niveauAlerte` is accepted as a fallback: it is the field name of the
+ * previous generation of the API, with the same meaning.
+ *
+ * @param {object} zone
+ * @returns {number | null} the level, or null when the wording is unknown
+ */
+export function zoneSeverity(zone) {
+  const raw = zone?.niveauGravite ?? zone?.niveauAlerte;
+  if (raw === null || raw === undefined || String(raw).trim() === '') {
+    return SEVERITY_LEVELS.pas_restriction;
+  }
+  return toSeverityLevel(raw);
 }
 
 /**
@@ -127,6 +154,16 @@ export async function fetchZones(config) {
     logger.info('VigiEau: no restriction zone covers this location');
     return [];
   }
+  if (response.status === 409) {
+    // "La commune comporte plusieurs zones d'alerte de même type." The commune
+    // code alone cannot identify the applicable zone, and no amount of
+    // retrying will change that: only an exact point can settle it.
+    const error = new Error(
+      'This commune spans several VigiEau zones of the same type: fill in the latitude and longitude',
+    );
+    error.code = AMBIGUOUS_COMMUNE;
+    throw error;
+  }
   if (!response.ok) {
     throw new Error(`VigiEau HTTP ${response.status}`);
   }
@@ -169,13 +206,11 @@ export function summarize(zones = []) {
       zoneNames[type] = '';
       continue;
     }
-    const levels = zonesOfType
-      .map((zone) => toSeverityLevel(zone.niveauGravite))
-      .filter((level) => level !== null);
+    const levels = zonesOfType.map(zoneSeverity).filter((level) => level !== null);
     if (levels.length === 0) {
       logger.warn(
         `VigiEau returned an unknown severity for the ${type} zone: ` +
-          `${JSON.stringify(zonesOfType.map((z) => z.niveauGravite))}`,
+          `${JSON.stringify(zonesOfType.map((z) => z.niveauGravite ?? z.niveauAlerte))}`,
       );
       levelsByType[type] = null;
     } else {
@@ -191,9 +226,7 @@ export function summarize(zones = []) {
 
   // The zone that carries the worst level: its decree is the one to show.
   const worstZone =
-    level === null
-      ? null
-      : (zones.find((zone) => toSeverityLevel(zone.niveauGravite) === level) ?? null);
+    level === null ? null : (zones.find((zone) => zoneSeverity(zone) === level) ?? null);
 
   return {
     level,

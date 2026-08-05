@@ -76,6 +76,22 @@ Empty coordinates are `null`, never `0`: `Number('')` is `0`, a valid latitude i
 `isConfigured()` gates discovery. With no location, `publishDevices()` publishes nothing and reports
 why through `setConnectionStatus` — a device pinned to an empty location is worse than no device.
 
+### VigiEau answers that are not what they look like
+
+Confirmed against the API sources (`MTES-MCT/vigieau-api`, public), not guessed:
+
+- **`404`** = no zone covers the location → level 0, not an error.
+- **`409`** = "la commune comporte plusieurs zones d'alerte de même type": the INSEE code alone
+  cannot identify the applicable zone. Only coordinates settle it, so retrying is pointless. The
+  error carries `code = AMBIGUOUS_COMMUNE` and the Configuration screen asks for lat/lon.
+- **A zone with no severity at all** is level 0, not "unknown". `formatZones` pads the water types a
+  commune has no real zone for with placeholders holding only `type` and the municipal decree URL.
+  `zoneSeverity()` makes that distinction; only a non-empty wording it cannot map returns `null`.
+
+`niveauGravite` is the current field (`pas_restriction | vigilance | alerte | alerte_renforcee |
+crise`); `niveauAlerte` was the previous generation's name, spelled out in French, and is read as a
+fallback. `toSeverityLevel()` normalizes accents, case and separators, so both vocabularies map.
+
 ### Refresh loop
 
 The device declares **no `poll_frequency`** and the integration runs its own `setInterval`

@@ -145,6 +145,11 @@ above the field.
   the name published by the integration. In order they are: overall level,
   text, surface water, groundwater, drinking water. On a dashboard or in a
   scene, the four levels do show their real names.
+- **"This commune spans several VigiEau zones of the same type"** — the commune
+  is covered by several alert zones of the same type, and the INSEE code alone
+  does not let VigiEau pick the applicable one (the website asks for your
+  street in that case). **Fill in the latitude and longitude**: the exact point
+  settles it. Retrying without them will never help.
 - **No data / errors in the logs** — start with the **Test the VigiEau
   connection** action. A `VigiEau HTTP 5xx` error means the service is
   temporarily unavailable: it is shown in the Configuration screen, and the

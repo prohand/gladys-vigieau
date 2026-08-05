@@ -1,12 +1,14 @@
 import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  AMBIGUOUS_COMMUNE,
   buildZonesUrl,
   collectUsages,
   fetchZones,
   severityLabel,
   summarize,
   toSeverityLevel,
+  zoneSeverity,
 } from '../src/vigieau.js';
 import { normalizeConfig } from '../src/config.js';
 import { zonesFixture } from './helpers/fakeGladys.js';
@@ -84,6 +86,31 @@ test('buildZonesUrl refuses to guess when no location is configured', () => {
   assert.throws(() => buildZonesUrl(normalizeConfig()), /INSEE commune code/);
 });
 
+// --- Severity of one zone ----------------------------------------------------
+
+test('zoneSeverity reads the current niveauGravite field', () => {
+  assert.equal(zoneSeverity({ type: 'AEP', niveauGravite: 'crise' }), 4);
+});
+
+test('zoneSeverity falls back to the older niveauAlerte field', () => {
+  // The previous generation of the API named it differently and spelled the
+  // levels out in French; the normalizer copes with both.
+  assert.equal(zoneSeverity({ type: 'SUP', niveauAlerte: 'Alerte renforcée' }), 3);
+});
+
+test('a zone published without any severity means "no restriction"', () => {
+  // VigiEau pads the water types it has no real zone for with placeholders
+  // carrying only `type` and the municipal decree URL. Reading those as
+  // "unknown" reported "Inconnu" for a whole commune with nothing in force.
+  assert.equal(zoneSeverity({ type: 'AEP', arreteMunicipalCheminFichier: 'x.pdf' }), 0);
+  assert.equal(zoneSeverity({ type: 'AEP', niveauGravite: null }), 0);
+  assert.equal(zoneSeverity({ type: 'AEP', niveauGravite: '  ' }), 0);
+});
+
+test('zoneSeverity still refuses a wording it does not know', () => {
+  assert.equal(zoneSeverity({ type: 'AEP', niveauGravite: 'niveau_martien' }), null);
+});
+
 // --- HTTP --------------------------------------------------------------------
 
 test('fetchZones returns the zones of a 200 response', async () => {
@@ -96,6 +123,21 @@ test('fetchZones returns the zones of a 200 response', async () => {
 test('fetchZones treats a 404 as "no zone covers this location"', async () => {
   globalThis.fetch = async () => ({ ok: false, status: 404 });
   assert.deepEqual(await fetchZones(PARIS), []);
+});
+
+test('fetchZones tags the 409 that means "this commune is ambiguous"', async () => {
+  // "La commune comporte plusieurs zones d'alerte de même type." Retrying will
+  // never help — only coordinates can settle it — so the caller must be able
+  // to tell this apart from an outage.
+  globalThis.fetch = async () => ({ ok: false, status: 409 });
+  await assert.rejects(
+    () => fetchZones(PARIS),
+    (err) => {
+      assert.equal(err.code, AMBIGUOUS_COMMUNE);
+      assert.match(err.message, /latitude and longitude/);
+      return true;
+    },
+  );
 });
 
 test('fetchZones throws on any other non-2xx response', async () => {
@@ -134,6 +176,27 @@ test('summarize returns null rather than a false "no restriction"', () => {
   const { level, levelsByType } = summarize([{ type: 'SOU', niveauGravite: 'niveau_martien' }]);
   assert.equal(levelsByType.SOU, null, 'an unreadable zone is not level 0');
   assert.equal(level, null, 'one unknown water type makes the overall level unknown');
+});
+
+test('summarize reports "no restriction" for a commune padded with placeholders', () => {
+  // The shape VigiEau returns for a commune under a municipal decree only.
+  const { level, levelsByType } = summarize([
+    { id: null, type: 'AEP', arreteMunicipalCheminFichier: 'https://x/am.pdf' },
+    { id: null, type: 'SUP', arreteMunicipalCheminFichier: 'https://x/am.pdf' },
+    { id: null, type: 'SOU', arreteMunicipalCheminFichier: 'https://x/am.pdf' },
+  ]);
+  assert.equal(level, 0, 'nothing in force must read "Pas de restriction", not "Inconnu"');
+  assert.deepEqual(levelsByType, { SUP: 0, SOU: 0, AEP: 0 });
+});
+
+test('a real level still wins over a placeholder zone of another type', () => {
+  const { level, levelsByType } = summarize([
+    { type: 'AEP', niveauGravite: 'alerte' },
+    { id: null, type: 'SUP', arreteMunicipalCheminFichier: 'https://x/am.pdf' },
+  ]);
+  assert.equal(levelsByType.AEP, 2);
+  assert.equal(levelsByType.SUP, 0);
+  assert.equal(level, 2);
 });
 
 test('summarize points at the decree of the worst zone', () => {

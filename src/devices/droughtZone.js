@@ -17,7 +17,7 @@ import {
   DEVICE_FEATURE_TYPES,
 } from '@gladysassistant/integration-sdk';
 import { locationId } from '../config.js';
-import { fetchZones, severityLabel, summarize, ZONE_TYPES } from '../vigieau.js';
+import { AMBIGUOUS_COMMUNE, fetchZones, severityLabel, summarize, ZONE_TYPES } from '../vigieau.js';
 
 const DEVICE_TYPE = 'drought-zone';
 
@@ -57,6 +57,28 @@ function severityFeature(externalId, name) {
     read_only: true, // sensor: no action possible
     has_feedback: false,
     keep_history: true, // keep history to draw the season on a chart
+  };
+}
+
+/**
+ * Why the last refresh failed, in the user's language.
+ *
+ * The ambiguous-commune case gets its own wording: it is not a transient
+ * outage but a configuration gap, and "VigiEau HTTP 409" tells nobody that
+ * filling in the coordinates is the way out.
+ * @param {unknown} err
+ */
+function failureMessage(err) {
+  if (err?.code === AMBIGUOUS_COMMUNE) {
+    return {
+      en: 'This commune spans several VigiEau zones of the same type. Fill in the latitude and longitude to pinpoint the right one.',
+      fr: "Cette commune relève de plusieurs zones VigiEau du même type. Renseignez la latitude et la longitude pour lever l'ambiguïté.",
+    };
+  }
+  const reason = String(err?.message ?? err).slice(0, 150);
+  return {
+    en: `VigiEau refresh failed: ${reason}`,
+    fr: `Le rafraîchissement VigiEau a échoué : ${reason}`,
   };
 }
 
@@ -214,13 +236,7 @@ export const droughtZone = {
       await gladys.setConnectionStatus(true);
     } catch (err) {
       logger.error('VigiEau refresh failed', err);
-      const reason = String(err?.message ?? err).slice(0, 150);
-      await gladys
-        .setConnectionStatus(false, {
-          en: `VigiEau refresh failed: ${reason}`,
-          fr: `Le rafraîchissement VigiEau a échoué : ${reason}`,
-        })
-        .catch(() => {});
+      await gladys.setConnectionStatus(false, failureMessage(err)).catch(() => {});
     }
   },
 };

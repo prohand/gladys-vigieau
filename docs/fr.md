@@ -154,6 +154,12 @@ l'intégration, juste au-dessus du champ.
   l'intégration. Dans l'ordre, ce sont : niveau global, texte, eau
   superficielle, eau souterraine, eau potable. Sur un tableau de bord ou dans
   une scène, les quatre niveaux affichent bien leurs vrais noms.
+- **« Cette commune relève de plusieurs zones VigiEau du même type »** — la
+  commune est couverte par plusieurs zones d'alerte du même type, et le code
+  INSEE seul ne permet pas à VigiEau de choisir laquelle s'applique (le site
+  vous demande alors votre rue). **Renseignez la latitude et la longitude** du
+  lieu : la position exacte lève l'ambiguïté. Réessayer sans elles ne servira à
+  rien.
 - **Aucune donnée / erreur dans les logs** — vérifiez d'abord avec l'action
   **Tester la connexion VigiEau**. Une erreur `VigiEau HTTP 5xx` signale une
   indisponibilité passagère du service : elle est affichée dans l'écran de

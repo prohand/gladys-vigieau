@@ -334,6 +334,19 @@ test('refresh reports success and never throws on an outage', async () => {
   assert.equal(gladys.connectionStatuses.at(-1).connected, true);
 });
 
+test('an ambiguous commune is reported as a fixable configuration gap', async () => {
+  const gladys = createFakeGladys();
+  stubVigieau(null, 409);
+  await droughtZone.refresh(gladys, config);
+
+  const { connected, message } = gladys.connectionStatuses.at(-1);
+  assert.equal(connected, false);
+  // "VigiEau HTTP 409" tells nobody what to do; the coordinates do.
+  assert.match(message.fr, /latitude et la longitude/);
+  assert.match(message.en, /latitude and longitude/);
+  assert.doesNotMatch(message.fr, /409/);
+});
+
 test('a VigiEau outage neither kills the timer nor crashes the container', async () => {
   const gladys = createFakeGladys();
   stubVigieau(null, 503);
