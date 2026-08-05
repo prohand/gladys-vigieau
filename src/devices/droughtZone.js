@@ -63,16 +63,16 @@ function severityFeature(externalId, name) {
 /**
  * Why the last refresh failed, in the user's language.
  *
- * The ambiguous-commune case gets its own wording: it is not a transient
- * outage but a configuration gap, and "VigiEau HTTP 409" tells nobody that
- * filling in the coordinates is the way out.
+ * The ambiguous-zone case gets its own wording: it is not a transient outage
+ * but a location that is not precise enough, and "VigiEau HTTP 409" tells
+ * nobody that a street address is the way out.
  * @param {unknown} err
  */
 function failureMessage(err) {
   if (err?.code === AMBIGUOUS_COMMUNE) {
     return {
-      en: 'This commune spans several VigiEau zones of the same type. Fill in the latitude and longitude to pinpoint the right one.',
-      fr: "Cette commune relève de plusieurs zones VigiEau du même type. Renseignez la latitude et la longitude pour lever l'ambiguïté.",
+      en: 'VigiEau cannot tell which zone applies here. Search again with a more precise address (street and number).',
+      fr: "VigiEau n'arrive pas à déterminer la zone applicable ici. Relancez la recherche avec une adresse plus précise (rue et numéro).",
     };
   }
   const reason = String(err?.message ?? err).slice(0, 150);

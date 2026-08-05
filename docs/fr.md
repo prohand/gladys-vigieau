@@ -38,79 +38,62 @@ sont exposés séparément, en plus du niveau global.
 1. Ouvrez l'onglet **Configuration** de l'intégration.
 2. Donnez un **nom au lieu** (« Maison », « Jardin »…) : il apparaît dans le nom
    de l'appareil.
-3. Renseignez le **code INSEE de la commune** — c'est le seul champ de
-   localisation obligatoire. Le plus simple : cliquez sur **« Rechercher ma
-   commune »**, tapez son nom, et le code est renseigné pour vous (voir
-   « Trouver votre code INSEE » ci-dessous).
-4. **Facultatif** : la **latitude** et la **longitude** du lieu (WGS-84). Vous
-   pouvez les laisser vides. Ne les renseignez que si votre commune est assez
-   étendue pour relever de plusieurs zones de restriction : dans ce cas la
-   position exacte remplace la commune dans la requête. Il faut les **deux** —
-   une latitude seule est ignorée.
-5. Choisissez votre **profil d'usager** : particulier, entreprise, collectivité
+3. Cliquez sur **« Rechercher mon adresse »**, saisissez votre adresse (rue,
+   code postal, commune) et validez : la **latitude** et la **longitude** sont
+   renseignées à votre place. C'est le seul champ de localisation.
+4. Choisissez votre **profil d'usager** : particulier, entreprise, collectivité
    ou exploitation agricole. Les restrictions ne sont pas les mêmes pour tous, et
    VigiEau renvoie celles qui s'appliquent au vôtre.
-6. Laissez l'**intervalle de rafraîchissement** à 3600 s (1 heure) : les arrêtés
+5. Laissez l'**intervalle de rafraîchissement** à 3600 s (1 heure) : les arrêtés
    préfectoraux changent au plus une fois par jour. C'est l'intégration qui
    tient ce rythme elle-même ; le minimum appliqué est de 5 minutes, quoi que
    vous saisissiez.
-7. Enregistrez : l'appareil apparaît dans l'onglet **Découverte**, prêt à être
+6. Enregistrez : l'appareil apparaît dans l'onglet **Découverte**, prêt à être
    ajouté.
 
-> Tant que le code INSEE n'est pas renseigné, aucun appareil n'est proposé et
+> Tant qu'aucune adresse n'a été géocodée, aucun appareil n'est proposé et
 > l'intégration l'indique dans son écran de configuration. C'est voulu : mieux
 > vaut pas d'appareil qu'un appareil rattaché à un lieu vide.
 
-> Si vous changez de lieu après coup (nouveau code INSEE, ou ajout/retrait des
-> coordonnées), Gladys découvre un **nouvel** appareil : ajoutez-le, puis
-> supprimez l'ancien. Renommer simplement le lieu ne change rien à l'appareil
-> existant.
+> Si vous changez de lieu après coup (nouvelle adresse), Gladys découvre un
+> **nouvel** appareil : ajoutez-le, puis supprimez l'ancien. Renommer
+> simplement le lieu ne change rien à l'appareil existant.
 
-## Trouver votre code INSEE
+## Pourquoi une adresse et pas un code postal
 
-Le code INSEE identifie une commune française sur **5 caractères** : `75056`
-pour Paris, `69123` pour Lyon, `2A004` pour Ajaccio.
+Le lieu surveillé est un **point précis**, pas une commune.
 
-> **Ce n'est pas le code postal.** Un code postal peut couvrir plusieurs
-> communes, et une grande ville a plusieurs codes postaux pour un seul code
-> INSEE. Utiliser le code postal dans le champ INSEE donnera une erreur ou un
-> mauvais résultat.
+> Un **code postal** couvre souvent plusieurs communes, et une même commune
+> peut relever de **plusieurs zones de restriction** pour un même type d'eau.
+> C'est exactement le cas où VigiEau refuse de répondre et vous demande votre
+> rue : le code de la commune ne suffit pas à désigner la zone applicable.
 
-### Le plus simple : le bouton de recherche
+Un point géocodé n'a jamais ce problème : il tombe dans une seule zone par type
+d'eau. L'intégration interroge donc toujours VigiEau par coordonnées.
 
-Dans l'écran de configuration, l'action **« Rechercher ma commune (remplit le
-code INSEE) »** fait le travail à votre place :
+### Le bouton de recherche
 
-1. Cliquez sur le bouton.
-2. Tapez le **nom de la commune** (« Bordeaux »). Vous pouvez aussi ne saisir
-   que le **code postal** : c'est celui que vous avez sur votre courrier.
-3. L'intégration interroge l'API Géo officielle, écrit le code INSEE dans le
-   champ **Code INSEE de la commune** et publie l'appareil dans l'onglet
-   **Découverte**. Rechargez la page pour voir le champ rempli.
+1. Cliquez sur **« Rechercher mon adresse (remplit les coordonnées) »**.
+2. Saisissez votre adresse. Plus c'est précis, meilleure est la réponse :
+   « 12 rue des Lilas, 82000 Montauban » vaut mieux que « Montauban ».
+3. L'intégration géocode l'adresse sur la
+   [Base Adresse Nationale](https://adresse.data.gouv.fr) officielle — le même
+   service que le site VigiEau — écrit la latitude et la longitude dans les
+   champs, et publie l'appareil dans l'onglet **Découverte**. Rechargez la page
+   pour voir les champs remplis.
 
-Si plusieurs communes portent le même nom — il existe une douzaine de
-« Sainte-Marie » — l'intégration **ne choisit pas au hasard** : elle affiche la
-liste des candidates avec leur département et leur code INSEE. Relancez la
-recherche en ajoutant le code postal, ou recopiez le bon code.
+Si plusieurs adresses correspondent **sans qu'aucune ne se détache**,
+l'intégration **ne choisit pas au hasard** : elle affiche les candidates et
+vous demande de préciser. Ajoutez le numéro, la rue ou la commune, et relancez.
 
-### À la main
-
-- **La recherche géographique de l'INSEE** —
-  <https://www.insee.fr/fr/recherche/recherche-geographique> : cherchez votre
-  commune, le code officiel géographique est affiché sur sa fiche.
-- **L'API Géo officielle**, si vous préférez une réponse directe — ouvrez
-  <https://geo.api.gouv.fr/communes?nom=Paris&fields=code,nom> dans votre
-  navigateur et remplacez `Paris` par le nom de votre commune. Le champ `code`
-  de la réponse est le code INSEE.
-
-Les deux liens sont également accessibles depuis l'écran de configuration de
-l'intégration, juste au-dessus du champ.
+Le message de confirmation affiche l'adresse retenue et ses coordonnées :
+vérifiez-la d'un coup d'œil avant de continuer.
 
 ## Actions
 
-- **Rechercher ma commune (remplit le code INSEE)** — cherchez par nom et/ou
-  code postal, le code INSEE est renseigné automatiquement. Voir « Trouver
-  votre code INSEE » plus haut.
+- **Rechercher mon adresse (remplit les coordonnées)** — géocode votre adresse
+  et renseigne la latitude et la longitude. Voir « Pourquoi une adresse et pas
+  un code postal » plus haut.
 - **Tester la connexion VigiEau** — effectue une requête en direct et affiche le
   niveau actuel pour les trois types d'eau. À utiliser juste après la
   configuration pour vérifier que le lieu est bien couvert.
@@ -130,9 +113,10 @@ l'intégration, juste au-dessus du champ.
 ## Dépannage
 
 - **Aucun appareil dans l'onglet Découverte** — dans l'ordre :
-  1. Le **code INSEE est-il renseigné** ? Sans lui, l'intégration ne publie
-     volontairement aucun appareil et l'écran de configuration l'indique.
-     Utilisez le bouton **« Rechercher ma commune »**.
+  1. La **latitude et la longitude sont-elles renseignées** ? Sans elles,
+     l'intégration ne publie volontairement aucun appareil et l'écran de
+     configuration l'indique. Utilisez le bouton
+     **« Rechercher mon adresse »**.
   2. Cliquez sur **Scanner** dans l'onglet Découverte pour forcer une nouvelle
      publication.
   3. Regardez les **logs de l'intégration**. Une ligne commençant par
@@ -154,12 +138,10 @@ l'intégration, juste au-dessus du champ.
   l'intégration. Dans l'ordre, ce sont : niveau global, texte, eau
   superficielle, eau souterraine, eau potable. Sur un tableau de bord ou dans
   une scène, les quatre niveaux affichent bien leurs vrais noms.
-- **« Cette commune relève de plusieurs zones VigiEau du même type »** — la
-  commune est couverte par plusieurs zones d'alerte du même type, et le code
-  INSEE seul ne permet pas à VigiEau de choisir laquelle s'applique (le site
-  vous demande alors votre rue). **Renseignez la latitude et la longitude** du
-  lieu : la position exacte lève l'ambiguïté. Réessayer sans elles ne servira à
-  rien.
+- **« VigiEau n'arrive pas à déterminer la zone applicable ici »** — le point
+  configuré ne tombe pas dans une seule zone. Relancez **« Rechercher mon
+  adresse »** avec une adresse plus précise (numéro et rue plutôt que le seul
+  nom de la commune).
 - **Aucune donnée / erreur dans les logs** — vérifiez d'abord avec l'action
   **Tester la connexion VigiEau**. Une erreur `VigiEau HTTP 5xx` signale une
   indisponibilité passagère du service : elle est affichée dans l'écran de

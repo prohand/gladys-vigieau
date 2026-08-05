@@ -108,24 +108,20 @@ export function zoneSeverity(zone) {
 /**
  * Build the query string of `GET /api/zones`.
  *
- * The API takes EITHER an INSEE commune code OR WGS-84 coordinates, never
- * both, so we pick one. The commune is the mandatory input and covers the vast
- * majority of cases; the optional coordinates win when they are filled in,
- * because a large commune can be split across several restriction zones and
- * only a precise point can tell which one applies.
+ * Always by coordinates. The endpoint also accepts an INSEE commune code, but
+ * that path answers `409` as soon as the commune spans several zones of one
+ * water type, and no retry can fix it — a point always resolves to exactly one
+ * zone per type.
  *
- * @param {{ commune: string, latitude: number|null, longitude: number|null, profil: string }} config
+ * @param {{ latitude: number|null, longitude: number|null, profil: string }} config
  */
 export function buildZonesUrl(config) {
-  const params = new URLSearchParams();
-  if (hasCoordinates(config)) {
-    params.set('lat', String(config.latitude));
-    params.set('lon', String(config.longitude));
-  } else if (config.commune) {
-    params.set('commune', config.commune);
-  } else {
-    throw new Error('No location configured: fill in the INSEE commune code');
+  if (!hasCoordinates(config)) {
+    throw new Error('No location configured: search for your address first');
   }
+  const params = new URLSearchParams();
+  params.set('lat', String(config.latitude));
+  params.set('lon', String(config.longitude));
   params.set('profil', config.profil);
   return `${API_BASE_URL}/api/zones?${params.toString()}`;
 }
@@ -155,12 +151,11 @@ export async function fetchZones(config) {
     return [];
   }
   if (response.status === 409) {
-    // "La commune comporte plusieurs zones d'alerte de même type." The commune
-    // code alone cannot identify the applicable zone, and no amount of
-    // retrying will change that: only an exact point can settle it.
-    const error = new Error(
-      'This commune spans several VigiEau zones of the same type: fill in the latitude and longitude',
-    );
+    // "La commune comporte plusieurs zones d'alerte de même type." Querying by
+    // point is meant to make this unreachable; keep the branch so that, if it
+    // ever fires, the screen asks for a more precise address instead of
+    // showing a status code and retrying forever.
+    const error = new Error('VigiEau cannot resolve a single zone for this point');
     error.code = AMBIGUOUS_COMMUNE;
     throw error;
   }

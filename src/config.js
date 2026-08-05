@@ -19,13 +19,12 @@ export const PROFILES = ['particulier', 'entreprise', 'collectivite', 'exploitat
 // Defaults: they MUST stay consistent with the `default` values declared in the
 // `config_schema` of the manifest (a unit test enforces it).
 //
-// The INSEE commune code is the mandatory input; the coordinates are an
-// OPTIONAL refinement for the large communes covered by several zones, and
-// therefore have no default — `null` means "the user left them empty".
+// The location is a pair of WGS-84 coordinates, geocoded from the address the
+// user types. They have no default — `null` means "not configured yet", and a
+// default would silently watch Paris.
 export const DEFAULT_CONFIG = {
   location_name: 'Maison',
-  commune: '', // INSEE code, required in the manifest
-  latitude: null, // optional; when both are filled in they win over the commune
+  latitude: null,
   longitude: null,
   profil: 'particulier',
   poll_frequency: 3600, // seconds — drought decrees change once a day at most
@@ -56,12 +55,6 @@ export function normalizeConfig(raw = {}) {
     ...DEFAULT_CONFIG,
     ...raw,
     location_name: String(raw.location_name ?? DEFAULT_CONFIG.location_name).trim(),
-    // An INSEE code is a 5-character string ('01001', '2A004'): keep it as a
-    // string, never as a number, or the leading zero is lost. Upper-cased so
-    // the Corsican '2a004' typed in lowercase still matches.
-    commune: String(raw.commune ?? DEFAULT_CONFIG.commune)
-      .trim()
-      .toUpperCase(),
     latitude: toOptionalNumber(raw.latitude),
     longitude: toOptionalNumber(raw.longitude),
     // Guard against a profile the manifest no longer offers.
@@ -80,11 +73,13 @@ export function hasCoordinates(config) {
 }
 
 /**
- * Whether the integration knows where to look at all.
+ * Whether the integration knows where to look at all. The coordinates ARE the
+ * location, so this is exactly `hasCoordinates` — kept under its own name
+ * because that is the question index.js asks.
  * @param {ReturnType<typeof normalizeConfig>} config
  */
 export function isConfigured(config) {
-  return Boolean(config.commune) || hasCoordinates(config);
+  return hasCoordinates(config);
 }
 
 /**
@@ -92,16 +87,10 @@ export function isConfigured(config) {
  * `external_id`. It must NOT change when the user only renames the location,
  * otherwise Gladys would see a brand new device and the history would be lost.
  *
- * It follows the same precedence as the query itself: the coordinates when
- * they are provided, the commune otherwise. Two locations answered by the same
- * query must share the same id, and only that.
+ * Rounded to ~10 m: re-running the address search on the same street must not
+ * orphan the device the user already added to a room over a metre of jitter.
  * @param {ReturnType<typeof normalizeConfig>} config
  */
 export function locationId(config) {
-  if (hasCoordinates(config)) {
-    // Round to ~10 m: a one-metre jitter in the coordinates must not orphan the
-    // device the user already added to a room.
-    return `latlon-${config.latitude.toFixed(4)}_${config.longitude.toFixed(4)}`;
-  }
-  return `commune-${config.commune.toLowerCase()}`;
+  return `latlon-${Number(config.latitude).toFixed(4)}_${Number(config.longitude).toFixed(4)}`;
 }

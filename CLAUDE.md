@@ -43,7 +43,7 @@ GLADYS_HOST_API_URL="http://localhost:1443" GLADYS_INTEGRATION_TOKEN="<token>" \
 GLADYS_INTEGRATION_SELECTOR="vigieau" LOG_LEVEL=debug npm start
 ```
 
-`VIGIEAU_API_URL` and `GEO_API_URL` redirect the two drivers at a mock server.
+`VIGIEAU_API_URL` and `ADDRESS_API_URL` redirect the two drivers at a mock server.
 
 ## Architecture
 
@@ -57,33 +57,38 @@ no business logic. Everything else lives under `src/`:
 - **`src/vigieau.js`** — VigiEau driver. Deliberately split: `fetchZones()` is the only impure part,
   `summarize()` / `toSeverityLevel()` are pure and carry all the mapping logic, which is why the
   severity rules are cheap to test.
-- **`src/communes.js`** — API Géo driver, commune name/postal code → INSEE code.
+- **`src/address.js`** — Base Adresse Nationale driver, free-text address → WGS-84 point.
 - **`src/config.js`** — defaults, normalization, and `locationId()`, which derives the device
   `external_id`.
 
 A blueprint exposes: `key`, `deviceExternalId(gladys, config)`, `buildDevice(gladys, config)`, and
 optionally `onPoll`, `refresh`, `startPolling`, `actions`.
 
-### Config precedence and device identity
+### The location is a point, never a commune
 
-The INSEE `commune` code is mandatory; `latitude`/`longitude` are an optional refinement. The API
-takes one **or** the other, never both, so a complete coordinate pair wins over the commune (it is
-more precise — a large commune can span several restriction zones). `locationId()` follows the same
-precedence, so the device's `external_id` always matches the query that feeds it.
+`latitude`/`longitude` ARE the location, geocoded from the address typed in the `rechercher_adresse`
+action. There is deliberately no INSEE commune code: `GET /api/zones?commune=` answers `409` as soon
+as the commune spans several zones of one water type, and no retry fixes that — a point always falls
+inside exactly one zone per type. `locationId()` is built from the rounded coordinates, so the
+device's `external_id` matches the query that feeds it.
 
 Empty coordinates are `null`, never `0`: `Number('')` is `0`, a valid latitude in the Gulf of Guinea.
 
 `isConfigured()` gates discovery. With no location, `publishDevices()` publishes nothing and reports
 why through `setConnectionStatus` — a device pinned to an empty location is worse than no device.
 
+The geocoder answers GeoJSON: `coordinates[0]` is the **longitude**, `[1]` the latitude. Swapping
+them moves the location by hundreds of kilometres in silence.
+
 ### VigiEau answers that are not what they look like
 
 Confirmed against the API sources (`MTES-MCT/vigieau-api`, public), not guessed:
 
 - **`404`** = no zone covers the location → level 0, not an error.
-- **`409`** = "la commune comporte plusieurs zones d'alerte de même type": the INSEE code alone
-  cannot identify the applicable zone. Only coordinates settle it, so retrying is pointless. The
-  error carries `code = AMBIGUOUS_COMMUNE` and the Configuration screen asks for lat/lon.
+- **`409`** = "la commune comporte plusieurs zones d'alerte de même type": the commune path cannot
+  identify the applicable zone, which is why this integration never uses it. The branch is kept
+  tagged with `code = AMBIGUOUS_COMMUNE` so that, if it ever fires on a point, the screen asks for a
+  more precise address instead of retrying forever.
 - **A zone with no severity at all** is level 0, not "unknown". `formatZones` pads the water types a
   commune has no real zone for with placeholders holding only `type` and the municipal decree URL.
   `zoneSeverity()` makes that distinction; only a non-empty wording it cannot map returns `null`.
@@ -132,7 +137,7 @@ The traps, each pinned by a test in `test/manifest.test.js`:
 - a `select` takes static `options` or the core's `source: "devices"` — there is no dynamic source,
   which is why the commune "selector" is an action with its own form rather than a dropdown.
 
-Manifest actions are registered per key. Most live in `blueprint.actions`; `rechercher_commune` is
+Manifest actions are registered per key. Most live in `blueprint.actions`; `rechercher_adresse` is
 registered directly in `index.js` because it writes the config back (`setConfig`) and re-publishes
 the catalog. `test/manifest.test.js` keeps `REGISTRY_LEVEL_ACTIONS` in sync — update it when adding
 another registry-level action.

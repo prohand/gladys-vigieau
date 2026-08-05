@@ -30,8 +30,8 @@ read-only features:
 The 0-4 scale mirrors the prefectoral decrees: `0` pas de restriction,
 `1` vigilance, `2` alerte, `3` alerte renforcée, `4` crise.
 
-Three buttons are available in the Configuration screen: **Rechercher ma
-commune** (resolves a commune name to its INSEE code and fills it in),
+Three buttons are available in the Configuration screen: **Rechercher mon
+adresse** (geocodes an address and fills in the coordinates),
 **Tester la connexion VigiEau** (live check, shows the current level) and
 **Afficher les restrictions en vigueur** (lists the restricted usages and links
 the decree).
@@ -47,19 +47,16 @@ interval, with the user profile (`particulier`, `entreprise`, `collectivite`,
 each with its own `niveauGravite`, the decree in force and the list of
 restricted usages.
 
-The location is the **INSEE commune code**, the only mandatory field —
-`75056`, `69123`, `2A004`. Nobody knows their INSEE code by heart, so the
-**"Find my commune"** action fills it in: the user types a name and/or a postal
-code, the integration resolves it on the official
-[API Géo](https://geo.api.gouv.fr) (`GET /communes`), writes the code back with
-`setConfig()` and re-publishes the catalog on the spot. Homonyms are never
-guessed — a dozen communes are called "Sainte-Marie", so an ambiguous search
-returns the candidate list with their departments and codes instead of picking
-one. A note and two manual lookup links sit above the field as well, including
-the warning that the postal code is a different thing. Latitude and
-longitude are **optional**: the API takes one or the other and never both, so
-when both coordinates are filled in the exact point replaces the commune in the
-query — useful for a commune large enough to span several restriction zones.
+The location is a **geocoded point**. The user types an address in the
+**"Search for my address"** action, the integration resolves it on the official
+[Base Adresse Nationale](https://adresse.data.gouv.fr) (`GET /search`) — the
+same geocoder vigieau.gouv.fr uses — and writes the latitude and longitude back
+with `setConfig()`, re-publishing the catalog on the spot. There is no INSEE
+commune code: querying VigiEau by commune answers `409` as soon as the commune
+spans several zones of one water type, which no retry can fix. A point always
+falls inside exactly one zone per type. An address that matches several
+candidates with no clear winner is never guessed — the action lists them and
+asks for a more precise query.
 
 A few decisions are worth knowing about:
 
@@ -68,16 +65,16 @@ A few decisions are worth knowing about:
   Neither is a zone published _without_ a severity: VigiEau pads the water types
   a commune has no real zone for with placeholders carrying only the municipal
   decree, and those mean "nothing in force" too — not "unknown".
-- **`409` means the commune is ambiguous, not that the service is down.** The
-  commune spans several alert zones of the same type and only an exact point can
-  settle it, so the error is tagged and the Configuration screen asks for the
-  coordinates instead of showing a status code. Retrying cannot help.
+- **`409` means the location is ambiguous, not that the service is down.**
+  Querying by point is meant to make it unreachable, but the branch is kept: it
+  is tagged and the Configuration screen asks for a more precise address instead
+  of showing a status code and retrying forever.
 - **An unreadable severity is never published.** If VigiEau ever returns a
   wording the integration does not know, the affected level is left at its last
   known value and a warning is logged, rather than publishing a `0` that would
   tell a watering scene everything is fine in the middle of a crisis.
-- **No device is published before the location is known.** Until the INSEE code
-  is filled in, discovery returns nothing and the Configuration screen says
+- **No device is published before the location is known.** Until an address has
+  been geocoded, discovery returns nothing and the Configuration screen says
   why — better than a device pinned to an empty location that the user would
   have to delete by hand.
 - **The refresh is driven by the integration, not by Gladys.** The device
@@ -98,7 +95,7 @@ A few decisions are worth knowing about:
 │  │  ├─ index.js                    #   device registry
 │  │  └─ droughtZone.js              #   the drought device: features + polling + actions
 │  ├─ vigieau.js                     # VigiEau API driver + severity mapping (pure part)
-│  ├─ communes.js                    # API Géo driver: commune name -> INSEE code
+│  ├─ address.js                     # geocoder driver: address -> lat/lon
 │  └─ config.js                      # config defaults, normalization, stable location id
 ├─ docs/
 │  ├─ en.md                          # user documentation, re-hosted by Gladys and
@@ -124,8 +121,8 @@ npm start
 
 The three `GLADYS_*` variables are injected by the Gladys supervisor when the
 integration runs inside its sandboxed container; the SDK reads them
-automatically. `VIGIEAU_API_URL` and `GEO_API_URL` can be set to point the two
-drivers at a mock server instead of the public APIs.
+automatically. `VIGIEAU_API_URL` and `ADDRESS_API_URL` can be set to point the
+two drivers at a mock server instead of the public APIs.
 
 ## Quality checks
 

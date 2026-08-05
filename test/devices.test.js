@@ -10,7 +10,7 @@ import { FEATURE, MIN_REFRESH_SECONDS } from '../src/devices/droughtZone.js';
 import { normalizeConfig } from '../src/config.js';
 import { createFakeGladys, zonesFixture } from './helpers/fakeGladys.js';
 
-const config = normalizeConfig({ commune: '75056' });
+const config = normalizeConfig({ latitude: 48.8566, longitude: 2.3522 });
 const realFetch = globalThis.fetch;
 
 afterEach(() => {
@@ -64,7 +64,7 @@ test('the device name carries the configured location', () => {
   const gladys = createFakeGladys();
   const [device] = buildDiscoveredDevices(
     gladys,
-    normalizeConfig({ commune: '75056', location_name: 'Jardin' }),
+    normalizeConfig({ ...config, location_name: 'Jardin' }),
   );
   assert.match(device.name, /Jardin/);
 });
@@ -77,7 +77,7 @@ test('the device declares no poll_frequency', () => {
   const gladys = createFakeGladys();
   const [device] = buildDiscoveredDevices(
     gladys,
-    normalizeConfig({ commune: '75056', poll_frequency: 7200 }),
+    normalizeConfig({ ...config, poll_frequency: 7200 }),
   );
   assert.equal(device.poll_frequency, undefined);
 });
@@ -117,7 +117,7 @@ test('findBlueprintByDevice routes an external_id back to its owner blueprint', 
 
 test('findBlueprintByDevice returns undefined for a device of another location', () => {
   const gladys = createFakeGladys();
-  const otherLocation = normalizeConfig({ commune: '69123' });
+  const otherLocation = normalizeConfig({ latitude: 45.764, longitude: 4.8357 });
   const staleId = droughtZone.deviceExternalId(gladys, otherLocation);
   assert.equal(findBlueprintByDevice(gladys, { external_id: staleId }, config), undefined);
 });
@@ -167,7 +167,7 @@ test('onPoll publishes the overall level, the text and every water type', async 
   await droughtZone.onPoll(gladys, config);
 
   const byFeature = new Map(gladys.published.map((p) => [p.featureExternalId, p]));
-  const ids = gladys.externalIds('drought-zone', 'commune-75056');
+  const ids = gladys.externalIds('drought-zone', 'latlon-48.8566_2.3522');
 
   assert.equal(byFeature.get(ids.feature(FEATURE.LEVEL)).state, 3);
   assert.equal(byFeature.get(ids.feature(FEATURE.LEVEL_SUP)).state, 2);
@@ -181,7 +181,7 @@ test('onPoll publishes a clear "no restriction" when nothing is in force', async
   stubVigieau([], 404);
   await droughtZone.onPoll(gladys, config);
 
-  const ids = gladys.externalIds('drought-zone', 'commune-75056');
+  const ids = gladys.externalIds('drought-zone', 'latlon-48.8566_2.3522');
   const byFeature = new Map(gladys.published.map((p) => [p.featureExternalId, p]));
   assert.equal(byFeature.get(ids.feature(FEATURE.LEVEL)).state, 0);
   assert.equal(byFeature.get(ids.feature(FEATURE.LEVEL_TEXT)).text, 'Pas de restriction');
@@ -194,7 +194,7 @@ test('onPoll leaves the level untouched rather than publishing a false all-clear
   stubVigieau([{ type: 'SUP', niveauGravite: 'niveau_martien' }]);
   await droughtZone.onPoll(gladys, config);
 
-  const ids = gladys.externalIds('drought-zone', 'commune-75056');
+  const ids = gladys.externalIds('drought-zone', 'latlon-48.8566_2.3522');
   const publishedIds = gladys.published.map((p) => p.featureExternalId);
   assert.ok(!publishedIds.includes(ids.feature(FEATURE.LEVEL)), 'a stale value beats a wrong one');
   assert.ok(!publishedIds.includes(ids.feature(FEATURE.LEVEL_SUP)));
@@ -308,7 +308,7 @@ test('startPolling never refreshes faster than the floor, whatever the config sa
     // turn every Gladys install into a hammer.
     const stop = droughtZone.startPolling(
       gladys,
-      normalizeConfig({ commune: '75056', poll_frequency: 1 }),
+      normalizeConfig({ ...config, poll_frequency: 1 }),
     );
     const before = gladys.published.length;
     mock.timers.tick(MIN_REFRESH_SECONDS * 1000 - 1);
@@ -342,8 +342,8 @@ test('an ambiguous commune is reported as a fixable configuration gap', async ()
   const { connected, message } = gladys.connectionStatuses.at(-1);
   assert.equal(connected, false);
   // "VigiEau HTTP 409" tells nobody what to do; the coordinates do.
-  assert.match(message.fr, /latitude et la longitude/);
-  assert.match(message.en, /latitude and longitude/);
+  assert.match(message.fr, /adresse plus précise/);
+  assert.match(message.en, /more precise address/);
   assert.doesNotMatch(message.fr, /409/);
 });
 

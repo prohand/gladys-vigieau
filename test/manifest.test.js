@@ -19,7 +19,7 @@ const packageJson = JSON.parse(await readFile(new URL('../package.json', import.
 // Actions registered outside the blueprints, in index.js: the commune search
 // writes the configuration back and re-publishes the catalog, which is not a
 // device's business.
-const REGISTRY_LEVEL_ACTIONS = ['rechercher_commune'];
+const REGISTRY_LEVEL_ACTIONS = ['rechercher_adresse'];
 
 test('every manifest action has a registered handler', () => {
   const handled = new Set([
@@ -41,15 +41,22 @@ test('every registered handler is declared in the manifest', () => {
   }
 });
 
-test('the commune search action carries the form it needs', () => {
-  const action = (manifest.actions ?? []).find((a) => a.key === 'rechercher_commune');
-  assert.ok(action, 'the INSEE code is filled in by an action, not by hand');
-  const keys = (action.fields ?? []).map((f) => f.key);
-  assert.deepEqual(keys, ['nom', 'code_postal']);
-  for (const field of action.fields) {
-    assert.equal(field.type, 'string', 'both criteria are free text');
-    assert.notEqual(field.required, true, 'either criterion is enough on its own');
-  }
+test('the address search action carries the form it needs', () => {
+  const action = (manifest.actions ?? []).find((a) => a.key === 'rechercher_adresse');
+  assert.ok(action, 'the coordinates are filled in by an action, not by hand');
+  assert.deepEqual(
+    (action.fields ?? []).map((f) => f.key),
+    ['adresse'],
+  );
+  assert.equal(action.fields[0].type, 'string');
+});
+
+test('no INSEE commune code is asked for any more', () => {
+  // The commune path answers 409 whenever a commune spans several zones of the
+  // same type; a geocoded point never does.
+  const keys = manifest.config_schema.map((f) => f.key);
+  assert.ok(!keys.includes('commune'), 'the location is a point, not a commune code');
+  assert.ok(!('commune' in DEFAULT_CONFIG));
 });
 
 test('action fields obey the same rules as the config fields', () => {
@@ -192,38 +199,30 @@ test('the catalog description stays within the 100-character store limit', () =>
   }
 });
 
-test('the INSEE code is mandatory and the coordinates are not', () => {
-  const field = (key) => manifest.config_schema.find((f) => f.key === key);
-  assert.equal(field('commune').required, true, 'the INSEE code is the mandatory input');
-  assert.notEqual(field('latitude').required, true, 'the coordinates only refine the commune');
-  assert.notEqual(field('longitude').required, true);
-});
-
-test('the optional coordinates ship no default that would override the commune', () => {
-  // A default latitude/longitude would make every install query a point
-  // instead of the commune the user carefully filled in.
+test('both coordinates are mandatory and ship no default', () => {
+  // A default latitude/longitude would silently watch Paris on a fresh install.
   for (const key of ['latitude', 'longitude']) {
     const field = manifest.config_schema.find((f) => f.key === key);
+    assert.equal(field.required, true, `"${key}" is the location itself`);
     assert.equal(field.default, undefined, `"${key}" must start empty`);
     assert.equal(DEFAULT_CONFIG[key], null, `DEFAULT_CONFIG.${key} means "left empty"`);
   }
 });
 
-test('the configuration screen explains where to find the INSEE code', () => {
-  const help = manifest.config_schema.find((f) => f.key === 'insee_help');
-  assert.ok(help, 'a section walks the user through finding their INSEE code');
+test('the configuration screen explains the postal-code trap', () => {
+  const help = manifest.config_schema.find((f) => f.key === 'address_help');
+  assert.ok(help, 'a section explains what the location is');
   assert.equal(help.type, 'section');
-  assert.ok(help.links?.length >= 1, 'the note carries at least one lookup link');
-  // The single most common mistake is using the postal code instead.
+  assert.ok(help.links?.length >= 1);
   assert.match(help.description.fr, /code postal/);
   assert.match(help.description.en, /postal code/);
 });
 
-test('the help section comes before the field it explains', () => {
+test('the help section comes before the fields it explains', () => {
   const keys = manifest.config_schema.map((f) => f.key);
   assert.ok(
-    keys.indexOf('insee_help') < keys.indexOf('commune'),
-    'the note is useless once the user has already filled the field in',
+    keys.indexOf('address_help') < keys.indexOf('latitude'),
+    'the note is useless once the user has already filled the fields in',
   );
 });
 

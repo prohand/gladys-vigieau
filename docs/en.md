@@ -39,72 +39,59 @@ separately, in addition to the overall level.
 1. Open the integration's **Configuration** tab.
 2. Give the **location a name** ("Maison", "Jardin"…): it shows up in the device
    name.
-3. Fill in the **INSEE commune code** — the only mandatory location field. The
-   easy way: click **"Find my commune"**, type its name, and the code is filled
-   in for you (see "Finding your INSEE code" below).
-4. **Optional**: the **latitude** and **longitude** of the place (WGS-84). Leave
-   them empty unless your commune is large enough to span several restriction
-   zones; in that case the exact point replaces the commune in the query. Both
-   are needed — a latitude on its own is ignored.
-5. Pick your **user profile**: household, company, local authority or farm.
+3. Click **"Search for my address"**, type your address (street, postal code,
+   town) and confirm: the **latitude** and **longitude** are filled in for you.
+   That is the only location input.
+4. Pick your **user profile**: household, company, local authority or farm.
    Restrictions differ per profile, and VigiEau returns the ones that apply to
    yours.
-6. Leave the **refresh interval** at 3600 s (1 hour): prefectoral decrees change
+5. Leave the **refresh interval** at 3600 s (1 hour): prefectoral decrees change
    once a day at most. The integration keeps that pace itself; a 5-minute floor
    applies whatever you type.
-7. Save: the device shows up in the **Discovery** tab, ready to be added.
+6. Save: the device shows up in the **Discovery** tab, ready to be added.
 
-> Until the INSEE code is filled in, no device is offered and the integration
+> Until an address has been geocoded, no device is offered and the integration
 > says so in its Configuration screen. That is deliberate: no device beats a
 > device pinned to an empty location.
 
-> If you change the location later (new INSEE code, or coordinates added or
-> removed), Gladys discovers a **new** device: add it, then delete the old one.
-> Merely renaming the location leaves the existing device untouched.
+> If you change the location later (a new address), Gladys discovers a **new**
+> device: add it, then delete the old one. Merely renaming the location leaves
+> the existing device untouched.
 
-## Finding your INSEE code
+## Why an address and not a postal code
 
-The INSEE code identifies a French commune with **5 characters**: `75056` for
-Paris, `69123` for Lyon, `2A004` for Ajaccio.
+The watched location is a **precise point**, not a commune.
 
-> **It is not the postal code.** A postal code can cover several communes, and a
-> large city has several postal codes for a single INSEE code. Using the postal
-> code in the INSEE field will give an error or the wrong result.
+> A **postal code** often covers several communes, and one commune can span
+> **several restriction zones** for the same water type. That is exactly when
+> VigiEau refuses to answer and asks for your street: the commune code cannot
+> name the applicable zone.
 
-### The easy way: the search button
+A geocoded point never has that problem — it falls inside exactly one zone per
+water type. The integration therefore always queries VigiEau by coordinates.
 
-In the Configuration screen, the **"Find my commune (fills the INSEE code)"**
-action does the work for you:
+### The search button
 
-1. Click the button.
-2. Type the **commune name** ("Bordeaux"). You can also give only the **postal
-   code** — the one on your mail.
-3. The integration queries the official Geo API, writes the INSEE code into the
-   **INSEE commune code** field and publishes the device in the **Discovery**
-   tab. Reload the page to see the field filled in.
+1. Click **"Search for my address (fills the coordinates)"**.
+2. Type your address. The more precise, the better: "12 rue des Lilas, 82000
+   Montauban" beats "Montauban".
+3. The integration geocodes it on the official
+   [Base Adresse Nationale](https://adresse.data.gouv.fr) — the same service
+   the VigiEau website uses — writes the latitude and longitude into the
+   fields, and publishes the device in the **Discovery** tab. Reload the page
+   to see the fields filled in.
 
-When several communes share a name — a dozen "Sainte-Marie" exist — the
-integration **does not guess**: it lists the candidates with their department
-and INSEE code. Run the search again with the postal code, or copy the right
-code yourself.
+When several addresses match with **no clear winner**, the integration **does
+not guess**: it lists the candidates and asks you to be more precise. Add the
+number, the street or the town, and search again.
 
-### By hand
-
-- **The INSEE geographic search** —
-  <https://www.insee.fr/fr/recherche/recherche-geographique>: look up your
-  commune, its official geographic code is shown on its page.
-- **The official Geo API**, for a direct answer — open
-  <https://geo.api.gouv.fr/communes?nom=Paris&fields=code,nom> in your browser
-  and replace `Paris` with the name of your commune. The `code` field of the
-  answer is the INSEE code.
-
-Both links are also available in the integration's Configuration screen, right
-above the field.
+The confirmation message shows the address it settled on and its coordinates:
+check it at a glance before moving on.
 
 ## Actions
 
-- **Find my commune (fills the INSEE code)** — search by name and/or postal
-  code, the INSEE code is filled in automatically. See "Finding your INSEE
+- **Search for my address (fills the coordinates)** — geocodes your address and
+  fills in the latitude and longitude. See "Why an address and not a postal
   code" above.
 - **Test the VigiEau connection** — runs a live request and shows the current
   level for the three water types. Use it right after the configuration to check
@@ -124,9 +111,9 @@ above the field.
 ## Troubleshooting
 
 - **No device in the Discovery tab** — in order:
-  1. Is the **INSEE code filled in**? Without it the integration deliberately
-     publishes no device, and the Configuration screen says so. Use the **"Find
-     my commune"** button.
+  1. Are the **latitude and longitude filled in**? Without them the integration
+     deliberately publishes no device, and the Configuration screen says so.
+     Use the **"Search for my address"** button.
   2. Click **Scan** in the Discovery tab to force a new publication.
   3. Read the **integration logs**. A line starting with `Published` confirms
      Gladys accepted the device. If you see
@@ -145,11 +132,9 @@ above the field.
   the name published by the integration. In order they are: overall level,
   text, surface water, groundwater, drinking water. On a dashboard or in a
   scene, the four levels do show their real names.
-- **"This commune spans several VigiEau zones of the same type"** — the commune
-  is covered by several alert zones of the same type, and the INSEE code alone
-  does not let VigiEau pick the applicable one (the website asks for your
-  street in that case). **Fill in the latitude and longitude**: the exact point
-  settles it. Retrying without them will never help.
+- **"VigiEau cannot tell which zone applies here"** — the configured point does
+  not fall inside a single zone. Run **"Search for my address"** again with a
+  more precise address (number and street rather than just the town name).
 - **No data / errors in the logs** — start with the **Test the VigiEau
   connection** action. A `VigiEau HTTP 5xx` error means the service is
   temporarily unavailable: it is shown in the Configuration screen, and the

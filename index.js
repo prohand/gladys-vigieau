@@ -17,7 +17,7 @@
 
 import { GladysIntegration, logger } from '@gladysassistant/integration-sdk';
 import { isConfigured, normalizeConfig } from './src/config.js';
-import { describeCommune, resolveCommune } from './src/communes.js';
+import { describeAddress, resolveAddress } from './src/address.js';
 import {
   DEVICE_BLUEPRINTS,
   buildDiscoveredDevices,
@@ -34,22 +34,22 @@ let config = normalizeConfig();
 // prefectoral decree — so the integration drives its own refresh.
 let pollingCleanups = [];
 
-// Shown in the Configuration screen while the mandatory INSEE code is missing.
+// Shown in the Configuration screen while no address has been geocoded yet.
 const NOT_CONFIGURED_MESSAGE = {
-  en: 'Fill in the INSEE code of your commune to start watching the drought level.',
-  fr: 'Renseignez le code INSEE de votre commune pour suivre le niveau de sécheresse.',
+  en: 'Search for your address to start watching the drought level.',
+  fr: 'Recherchez votre adresse pour suivre le niveau de sécheresse.',
 };
 
 /**
  * Publish the device catalog — unless we do not know WHERE to look yet.
- * Publishing a device before the user filled in the mandatory INSEE code would
- * create a device pinned to an empty location, which the user would then have
- * to delete by hand once configured.
+ * Publishing a device before the address is geocoded would create a device
+ * pinned to an empty location, which the user would then have to delete by
+ * hand once configured.
  * @returns {Promise<boolean>} whether the devices were published
  */
 async function publishDevices() {
   if (!isConfigured(config)) {
-    logger.warn('No INSEE commune code configured yet: nothing to discover');
+    logger.warn('No location configured yet: nothing to discover');
     await gladys.setConnectionStatus(false, NOT_CONFIGURED_MESSAGE).catch(() => {});
     return false;
   }
@@ -148,51 +148,47 @@ for (const blueprint of DEVICE_BLUEPRINTS) {
   }
 }
 
-// The commune search is registered here, not in a blueprint: it writes the
+// The address search is registered here, not in a blueprint: it writes the
 // configuration back and re-publishes the catalog, which is this file's job.
 //
-// It is the closest thing to a commune "selector" the manifest allows — a
-// `config_schema` select only takes static options or the core's `devices`
-// source, and the 34 000 French communes fit in neither. So the user types a
-// name (and, when it is ambiguous, a postal code) in the action's own form,
-// and we fill the INSEE code in for them.
-gladys.onAction('rechercher_commune', async (fields) => {
-  logger.info(`Action rechercher_commune <- ${fields.nom ?? ''} ${fields.code_postal ?? ''}`);
-  const { commune, candidates } = await resolveCommune({
-    nom: fields.nom,
-    codePostal: fields.code_postal,
-  });
+// It is also the only way to offer a location picker at all — a `config_schema`
+// select only takes static options or the core's `devices` source, so the user
+// types an address in the action's own form and we geocode it for them.
+gladys.onAction('rechercher_adresse', async (fields) => {
+  logger.info(`Action rechercher_adresse <- ${fields.adresse ?? ''}`);
+  const { match, candidates } = await resolveAddress(fields.adresse);
 
   if (candidates.length === 0) {
     return {
-      en: 'No commune found. Check the spelling, or search by postal code.',
-      fr: 'Aucune commune trouvée. Vérifiez l’orthographe, ou cherchez par code postal.',
+      en: 'No address found. Try adding the postal code or the town.',
+      fr: 'Aucune adresse trouvée. Essayez d’ajouter le code postal ou la commune.',
     };
   }
 
-  if (!commune) {
-    // Several communes share that name: the user must choose. Guessing here
-    // would silently watch the drought level of another town.
-    const list = candidates.slice(0, 8).map(describeCommune).join(' | ');
-    const more = candidates.length > 8 ? ` (+${candidates.length - 8})` : '';
+  if (!match) {
+    // Too vague to pick one — a postal code covers several communes, and a
+    // town name often exists a dozen times over. Guessing here would silently
+    // watch another town's drought level.
+    const list = candidates.slice(0, 6).map(describeAddress).join(' | ');
     return {
-      en: `Several communes match. Add the postal code, or copy the right INSEE code: ${list}${more}`,
-      fr: `Plusieurs communes correspondent. Ajoutez le code postal, ou recopiez le bon code INSEE : ${list}${more}`,
+      en: `Several addresses match, none clearly. Be more precise: ${list}`,
+      fr: `Plusieurs adresses correspondent, sans évidence. Précisez : ${list}`,
     };
   }
 
-  // Write the INSEE code into our own configuration, then re-publish: the
+  // Write the coordinates into our own configuration, then re-publish: the
   // device shows up in the Discovery screen right away, no copy-paste.
-  await gladys.setConfig({ commune: commune.code });
-  config = normalizeConfig({ ...config, commune: commune.code });
+  await gladys.setConfig({ latitude: match.latitude, longitude: match.longitude });
+  config = normalizeConfig({ ...config, latitude: match.latitude, longitude: match.longitude });
   await publishDevices();
-  // The location changed: restart the refresh on the new commune.
+  // The location changed: restart the refresh on the new point.
   startPolling();
   await gladys.setConnectionStatus(true).catch(() => {});
 
+  const point = `${match.latitude.toFixed(5)}, ${match.longitude.toFixed(5)}`;
   return {
-    en: `${commune.nom} — INSEE code ${commune.code} filled in. Reload the page to see it, the device is in the Discovery tab.`,
-    fr: `${commune.nom} — code INSEE ${commune.code} renseigné. Rechargez la page pour le voir, l’appareil est dans l’onglet Découverte.`,
+    en: `Location set to ${describeAddress(match)} — ${point}. The device is in the Discovery tab.`,
+    fr: `Lieu défini sur ${describeAddress(match)} — ${point}. L’appareil est dans l’onglet Découverte.`,
   };
 });
 
