@@ -69,7 +69,8 @@ no business logic. Everything else lives under `src/`:
 - **`src/locations.js`** — the watched locations: the list, its edits, and the migration of the
   single pre-1.3.0 location. Read its header before touching anything about where they are stored.
 - **`src/locationActions.js`** — the four buttons that edit that list. Everything it needs is
-  injected (`getConfig`, `saveLocations`, `resolveDevice`), so it is tested without a Gladys.
+  injected (`getConfig`, `saveLocations`), so it is tested without a Gladys. Its header explains why
+  a location is designated by NAME and not by a device picker.
 - **`src/vigieau.js`** — VigiEau driver. Deliberately split: `fetchZones()` is the only impure part,
   `summarize()` / `toSeverityLevel()` are pure and carry all the mapping logic, which is why the
   severity rules are cheap to test.
@@ -80,15 +81,15 @@ no business logic. Everything else lives under `src/`:
   `external_id` of the devices published by ≤ 1.1.1 so they can be recognized.
 
 A blueprint exposes: `key`, `deviceExternalIds(gladys, config)`, `buildDevices(gladys, config)`, and
-optionally `onPoll(gladys, config, externalId)`, `refresh`, `startPolling`, `actions`,
-`locationForDevice`. Everything is plural: one device per watched location.
+optionally `onPoll(gladys, config, externalId)`, `refresh`, `startPolling`, `actions`. Everything is
+plural: one device per watched location.
 
 ### The location list cannot be a config_schema field
 
 The integration watches SEVERAL locations, and the user builds that list at runtime. Nothing in a
-manifest can hold it: a `config_schema` is a fixed set of fields, and a `select` takes either the
-static `options` written in the manifest or the core's own `source: "devices"` — there is no
-repeatable field type and no way to generate options from our own state.
+manifest can hold it: a `config_schema` is a fixed set of fields, there is no repeatable field type,
+and a `select` only offers the static `options` written in the manifest — nothing can generate
+options from our own state (the `source: "devices"` that looks like it could is a trap, see below).
 
 So the list lives under the **off-schema `locations` key**. `externalIntegration.setIntegrationConfig`
 validates only the keys the schema declares and documents the others as "a free internal storage of
@@ -97,18 +98,36 @@ by `getConfig()`. `getConfigForFront` skips them and `saveConfigFromFront` 422s 
 find in the schema, so the Configuration screen can neither show nor clobber the list.
 
 Everything the user does to it goes through **manifest actions**, whose mini-forms the core DOES
-render dynamically — including a `select` with `source: "devices"`, resolved at render time to the
-integration's own created devices (label = device name, value = external_id). That select is the
-"which location?" picker of `modifier_lieu`, `supprimer_lieu`, `test_vigieau` and
-`show_restrictions`.
+render. Each of them takes the location it works on as a NAME typed in a `string` field (`lieu`),
+matched case- and accent-insensitively by `findLocationByName`. Never a device picker — see below.
 
 Two consequences worth remembering:
 
-- the dropdown only lists devices the user has **already created** from the Discovery screen, so a
-  location added and not yet created is not in it — hence the `nom` fallback on `supprimer_lieu`
-  and the update-by-name behaviour of `ajouter_lieu`;
+- a name that matches nothing must answer with the names that DO exist (`locationNames()`), since
+  there is no list to browse; `lister_lieux` is the other way to recall them;
 - an integration cannot delete a Gladys device. `supprimer_lieu` stops publishing it and says so;
   the user deletes the device.
+
+#### `source: "devices"` is rendered by the front and refused by the server
+
+The core defines one dynamic option source for a `select`: `source: "devices"`, the integration's
+own created devices (label = device name, value = external_id). The **front** has resolved it since
+4.84.0 (`loadDynamicOptions` in `config-page/index.js`), so the dropdown looks perfectly functional.
+The **server** side of it — `externalIntegration.getDynamicOptions`, Gladys PR #2779 — is in **no
+released version**: up to 4.84.4 included, `validateConfigValue` reads a select's valid values from
+the manifest's static `options`, which a field carrying a `source` does not have. The list is
+therefore empty server side and **every value the dropdown offers is refused with a 422**, before
+`runAction` relays anything to the container.
+
+That is what broke `modifier_lieu`, `supprimer_lieu`, `test_vigieau` and `show_restrictions` in
+1.3.0: the Configuration screen showed "L'action a échoué. Vérifiez que l'intégration est démarrée."
+(the generic `actions.error` string — a 422's `properties` does reach the front on a direct
+connection, but `GatewayHttpClient` drops it through Gladys Plus), and `modifier_lieu`, whose
+selector was `required`, could not be run at all. The integration never saw the command.
+
+So: **no manifest field of this integration may declare a `source`**, whatever the Configuration
+screen appears to do with it. `test/manifest.test.js` fails the build if one comes back. Revisit
+only once the `gladys_version` floor is a release that actually contains #2779.
 
 ### The device identity does not depend on the configuration
 
@@ -228,14 +247,13 @@ Each of these caused a real bug. The core sources are worth cloning when in doub
 - **Publish-time validation lives in `externalIntegration.setDiscoveredDevices.js`** — read it before
   adding a field to the device payload. It only requires the `ext:<selector>:` prefix on the device
   and feature `external_id`s, and caps the batch at `MAX_DISCOVERED_DEVICES` (2000).
-- **A `select` config field cannot hold an optional or a stale value** — `validateConfigValue`
-  rejects anything not in the option list, `''` included, and the front's `<select>` offers an empty
-  option whose value is `''`; the integration cannot write `null` under a select either. With
-  `source: "devices"`, deleting the last device would therefore make the stored value invalid and
-  **422 the whole Save**. That is why the location picker is an ACTION field, never a config field:
-  an action's value is transient and validated against the live device list at run time. (Explicitly
-  choosing the blank option of an optional action select still 422s — the core validates before we
-  see it. Leaving it untouched sends nothing, which is the normal path.)
+- **A `select` cannot hold an optional or a stale value** — `validateConfigValue` rejects anything
+  not in the option list, `''` included, and the front's `<select>` offers an empty option whose
+  value is `''`; the integration cannot write `null` under a select either. This applies to an
+  ACTION select too: explicitly choosing its blank option 422s, whatever `required` says — the core
+  validates before we see it. Leaving it untouched sends nothing, which is the normal path. And a
+  select with a dynamic `source` has NO valid value at all on a released Gladys (see above), so this
+  integration uses none.
 - **Keys outside the `config_schema` are free internal storage** — `setIntegrationConfig` skips
   validation for them, stores them JSON-encoded, and `getConfigForFront` never exposes them. This is
   the only place a runtime-built list can live (see the `locations` key above). Keys must match
@@ -249,8 +267,8 @@ The traps, each pinned by a test in `test/manifest.test.js`:
 - the free-text field type is **`string`**, not `text`;
 - `placeholder` must be a multi-language **object**, never a bare string;
 - `description.en` / `.fr` are capped at **100 characters**;
-- a `select` takes static `options` or the core's `source: "devices"` — there is no dynamic source,
-  which is why the commune "selector" is an action with its own form rather than a dropdown.
+- a `select` takes static `options`; the store also accepts `source: "devices"`, which no released
+  Gladys server can validate — the manifest test refuses any `source` for that reason (see above).
 
 Manifest actions are registered per key. The read-only ones live in `blueprint.actions`; the four
 that EDIT the location list (`ajouter_lieu`, `modifier_lieu`, `supprimer_lieu`, `lister_lieux`) are
@@ -258,8 +276,10 @@ registered directly in `index.js` because they write the config back (`setConfig
 catalog. `test/manifest.test.js` keeps `REGISTRY_LEVEL_ACTIONS` in sync — update it when adding
 another registry-level action.
 
-An action field is a `configField`: same types, same rules, and `source: "devices"` works there too
-(`runAction` resolves the dynamic options before validating). `timeout_seconds` is capped at 120.
+An action field is a `configField`: same types, same rules — including the `source` trap, which the
+store schema accepts and `runAction` refuses on every released Gladys. `timeout_seconds` is capped
+at 120. An action's values are transient: nothing of what the user types there is ever stored, which
+is why the location manager lives in actions and not in the `config_schema`.
 
 ## Releasing
 

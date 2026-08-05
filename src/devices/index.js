@@ -53,19 +53,3 @@ export function findBlueprintByDevice(gladys, device, config) {
     bp.deviceExternalIds(gladys, config).includes(device.external_id),
   );
 }
-
-/**
- * The watched location a device external_id belongs to. Used by the actions
- * whose form carries a `select` fed by the core's `devices` source: their value
- * is a device external_id, and what the handler needs is the location behind it.
- * @returns {object | undefined}
- */
-export function findLocationByDevice(gladys, externalId, config) {
-  for (const bp of DEVICE_BLUEPRINTS) {
-    const location = bp.locationForDevice?.(gladys, config, externalId);
-    if (location) {
-      return location;
-    }
-  }
-  return undefined;
-}
