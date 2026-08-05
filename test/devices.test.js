@@ -122,7 +122,7 @@ test('findBlueprintByDevice returns undefined for a device of another location',
   assert.equal(findBlueprintByDevice(gladys, { external_id: staleId }, config), undefined);
 });
 
-test('every severity feature is a read-only 0-4 risk index', () => {
+test('every severity feature is a read-only 0-3 risk index', () => {
   const gladys = createFakeGladys();
   const [device] = buildDiscoveredDevices(gladys, config);
   const severities = device.features.filter((f) => f.category === DEVICE_FEATURE_CATEGORIES.RISK);
@@ -130,7 +130,7 @@ test('every severity feature is a read-only 0-4 risk index', () => {
   for (const feature of severities) {
     assert.equal(feature.type, DEVICE_FEATURE_TYPES.RISK.INTEGER);
     assert.equal(feature.min, 0);
-    assert.equal(feature.max, 4);
+    assert.equal(feature.max, 3, 'Gladys only labels 0-3 on a risk feature');
     assert.equal(feature.read_only, true);
   }
 });
@@ -174,6 +174,18 @@ test('onPoll publishes the overall level, the text and every water type', async 
   assert.equal(byFeature.get(ids.feature(FEATURE.LEVEL_SOU)).state, 3);
   assert.equal(byFeature.get(ids.feature(FEATURE.LEVEL_AEP)).state, 1);
   assert.equal(byFeature.get(ids.feature(FEATURE.LEVEL_TEXT)).text, 'Alerte renforcée');
+});
+
+test('a crise is published as 3, never as a value Gladys renders "Inconnu"', async () => {
+  const gladys = createFakeGladys();
+  stubVigieau([{ type: 'SUP', niveauGravite: 'crise' }]);
+  await droughtZone.onPoll(gladys, config);
+
+  const ids = gladys.externalIds('drought-zone', 'latlon-48.8566_2.3522');
+  const byFeature = new Map(gladys.published.map((p) => [p.featureExternalId, p]));
+  assert.equal(byFeature.get(ids.feature(FEATURE.LEVEL)).state, 3);
+  // The exact wording survives where it matters.
+  assert.equal(byFeature.get(ids.feature(FEATURE.LEVEL_TEXT)).text, 'Crise');
 });
 
 test('onPoll publishes a clear "no restriction" when nothing is in force', async () => {

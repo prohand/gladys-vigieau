@@ -51,6 +51,13 @@ test('the address search action carries the form it needs', () => {
   assert.equal(action.fields[0].type, 'string');
 });
 
+test('the configuration remembers the address the point came from', () => {
+  const field = manifest.config_schema.find((f) => f.key === 'address_label');
+  assert.ok(field, 'the user must be able to see WHERE the device is looking');
+  assert.equal(field.type, 'string');
+  assert.notEqual(field.required, true, 'purely informational');
+});
+
 test('no INSEE commune code is asked for any more', () => {
   // The commune path answers 409 whenever a commune spans several zones of the
   // same type; a geocoded point never does.

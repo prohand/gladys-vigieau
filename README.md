@@ -21,14 +21,16 @@ read-only features:
 
 | Feature                        | Category / type  | Value                                         |
 | ------------------------------ | ---------------- | --------------------------------------------- |
-| Niveau de vigilance sécheresse | `risk` / integer | 0-4, the worst of the three water types       |
+| Niveau de vigilance sécheresse | `risk` / integer | 0-3, the worst of the three water types       |
 | Niveau (texte)                 | `text` / text    | The official wording, e.g. `Alerte renforcée` |
-| Niveau eau superficielle       | `risk` / integer | 0-4, `SUP` zones (rivers, lakes)              |
-| Niveau eau souterraine         | `risk` / integer | 0-4, `SOU` zones (aquifers)                   |
-| Niveau eau potable             | `risk` / integer | 0-4, `AEP` zones (tap water network)          |
+| Niveau eau superficielle       | `risk` / integer | 0-3, `SUP` zones (rivers, lakes)              |
+| Niveau eau souterraine         | `risk` / integer | 0-3, `SOU` zones (aquifers)                   |
+| Niveau eau potable             | `risk` / integer | 0-3, `AEP` zones (tap water network)          |
 
-The 0-4 scale mirrors the prefectoral decrees: `0` pas de restriction,
-`1` vigilance, `2` alerte, `3` alerte renforcée, `4` crise.
+The numeric scale is the prefectoral one folded onto the four values Gladys can
+name — `0` Pas de risque, `1` Faible, `2` Moyen, `3` Élevé. VigiEau has five
+levels, so `crise` shares `3` with `alerte renforcée`; the text feature keeps
+the exact official wording to tell them apart.
 
 Three buttons are available in the Configuration screen: **Rechercher mon
 adresse** (geocodes an address and fills in the coordinates),
@@ -51,7 +53,9 @@ The location is a **geocoded point**. The user types an address in the
 **"Search for my address"** action, the integration resolves it on the official
 [Base Adresse Nationale](https://adresse.data.gouv.fr) (`GET /search`) — the
 same geocoder vigieau.gouv.fr uses — and writes the latitude and longitude back
-with `setConfig()`, re-publishing the catalog on the spot. There is no INSEE
+with `setConfig()`, re-publishing the catalog on the spot. The address it
+settled on is kept in the `address_label` config field — purely informational,
+so the user can see where the device is looking without decoding two decimals. There is no INSEE
 commune code: querying VigiEau by commune answers `409` as soon as the commune
 spans several zones of one water type, which no retry can fix. A point always
 falls inside exactly one zone per type. An address that matches several
@@ -77,6 +81,11 @@ A few decisions are worth knowing about:
   been geocoded, discovery returns nothing and the Configuration screen says
   why — better than a device pinned to an empty location that the user would
   have to delete by hand.
+- **The numeric scale stops at 3 because Gladys' does.** A `risk`/`integer`
+  feature is rendered through the core's own label set (`BADGE_VALUE_CONVERTERS`
+  in `BadgeNumberDeviceValue.jsx`), which maps `0-3` and shows **"Inconnu"** for
+  anything else — a `4` for `crise` would read as "unknown" precisely when it
+  matters most. `toGladysRisk()` does the folding.
 - **The refresh is driven by the integration, not by Gladys.** The device
   declares no `poll_frequency`: the core only accepts a fixed enum of intervals
   in milliseconds, capped at one minute, and querying a public government API

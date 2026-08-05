@@ -118,6 +118,13 @@ Each of these caused a real bug. The core sources are worth cloning when in doub
 - **The core silently drops states for a feature that does not exist yet**
   (`externalIntegration.saveStates.js`). States published before the user adds the device go nowhere,
   which is why `index.js` listens to `onDeviceCreated` and refreshes immediately.
+- **A `risk`/`integer` value is rendered through the core's OWN label set** —
+  `BADGE_VALUE_CONVERTERS` in
+  `front/src/components/boxs/device-in-room/device-features/sensor-value/BadgeNumberDeviceValue.jsx`
+  maps `0 no-risk · 1 low-risk · 2 medium-risk · 3 high-risk`; everything else,
+  a missing value included, falls through to "Inconnu". VigiEau's five levels are folded onto that
+  range by `toGladysRisk()` — `crise` joins `alerte renforcée` at `3`, and the text feature carries
+  the exact wording.
 - **The Features list ignores the published feature `name`** —
   `front/src/components/device/view/DeviceFeature.jsx` renders only
   `deviceFeatureCategory.<category>.<type>`, so four `risk`/`integer` features all read "Niveau de

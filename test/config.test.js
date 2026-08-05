@@ -28,6 +28,18 @@ test('normalizeConfig coerces numeric strings coming from a form', () => {
 
 test('normalizeConfig trims the free-text fields', () => {
   assert.equal(normalizeConfig({ location_name: '  Maison  ' }).location_name, 'Maison');
+  assert.equal(normalizeConfig({ address_label: '  12 rue X  ' }).address_label, '12 rue X');
+});
+
+test('the remembered address is informational and starts empty', () => {
+  assert.equal(normalizeConfig().address_label, '');
+  const config = normalizeConfig({ address_label: '12 Rue des Lilas 82000 Montauban' });
+  assert.equal(config.address_label, '12 Rue des Lilas 82000 Montauban');
+  // It must never take part in the identity of the device.
+  assert.equal(
+    locationId(normalizeConfig({ latitude: 1, longitude: 2, address_label: 'a' })),
+    locationId(normalizeConfig({ latitude: 1, longitude: 2, address_label: 'b' })),
+  );
 });
 
 test('normalizeConfig falls back to the default for an unknown profile', () => {

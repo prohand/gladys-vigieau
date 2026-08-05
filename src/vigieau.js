@@ -46,6 +46,28 @@ export const SEVERITY_LEVELS = {
   crise: 4,
 };
 
+// Gladys renders a `risk`/`integer` feature through ITS OWN label set, and that
+// set only knows four values — see BADGE_VALUE_CONVERTERS in
+// front/src/components/boxs/device-in-room/device-features/sensor-value/
+// BadgeNumberDeviceValue.jsx:
+//     0 no-risk ("Pas de risque") · 1 low-risk ("Faible")
+//     2 medium-risk ("Moyen")     · 3 high-risk ("Élevé")
+// Anything else, `4` included, falls through to "Inconnu". So the VigiEau scale
+// is squeezed onto it before publishing: "crise" joins "alerte renforcée" at
+// the top. Nothing is lost for the reader — the text feature keeps the exact
+// official wording, "Crise" included.
+export const GLADYS_RISK_MAX = 3;
+const GLADYS_RISK_SCALE = [0, 1, 2, 3, 3];
+
+/**
+ * Turn a VigiEau level (0-4) into the 0-3 value Gladys can label.
+ * @param {number | null} level
+ * @returns {number | null}
+ */
+export function toGladysRisk(level) {
+  return level === null || level === undefined ? null : (GLADYS_RISK_SCALE[level] ?? null);
+}
+
 // Human-readable labels, indexed by numeric level. The French wording is the
 // official one used by the prefectoral decrees, so we publish it as-is in the
 // text feature; the English one is only used in the action messages.

@@ -14,21 +14,26 @@ One device, "Vigilance sécheresse — _your location_", carrying five sensors:
 
 | Sensor                   | Value                                        |
 | ------------------------ | -------------------------------------------- |
-| **Drought alert level**  | 0 to 4 — the worst of the three water types  |
+| **Drought alert level**  | 0 to 3 — the worst of the three water types  |
 | **Level (text)**         | "Alerte renforcée", "Crise"…                 |
-| **Surface water level**  | 0 to 4 — rivers and lakes (`SUP` zones)      |
-| **Groundwater level**    | 0 to 4 — aquifers (`SOU` zones)              |
-| **Drinking water level** | 0 to 4 — the tap water network (`AEP` zones) |
+| **Surface water level**  | 0 to 3 — rivers and lakes (`SUP` zones)      |
+| **Groundwater level**    | 0 to 3 — aquifers (`SOU` zones)              |
+| **Drinking water level** | 0 to 3 — the tap water network (`AEP` zones) |
 
-The numeric scale follows the one used by the prefectoral decrees:
+The numeric scale follows the prefectoral decrees, folded onto the four values
+Gladys knows how to name:
 
-| Value | Level (official French wording) | What it means                              |
-| ----- | ------------------------------- | ------------------------------------------ |
-| 0     | Pas de restriction              | Nothing in force at this address           |
-| 1     | Vigilance                       | Water savings encouraged, no ban yet       |
-| 2     | Alerte                          | First bans (watering, car washing…)        |
-| 3     | Alerte renforcée                | Wider bans, stricter time windows          |
-| 4     | Crise                           | Only priority uses (health, safety) remain |
+| Value | Shown by Gladys | VigiEau level                 | What it means                        |
+| ----- | --------------- | ----------------------------- | ------------------------------------ |
+| 0     | Pas de risque   | Pas de restriction            | Nothing in force at this address     |
+| 1     | Faible          | Vigilance                     | Water savings encouraged, no ban yet |
+| 2     | Moyen           | Alerte                        | First bans (watering, car washing…)  |
+| 3     | Élevé           | Alerte renforcée **or** Crise | Wider bans, up to priority uses only |
+
+> Gladys can only label a risk level from 0 to 3; anything above shows as
+> "Inconnu". "Alerte renforcée" and "Crise" therefore share the value 3. The
+> **Level (text)** sensor keeps the exact official wording, "Crise" included —
+> use it to tell the two apart.
 
 A single location can belong to several zones: a decree may restrict groundwater
 without touching the tap. That is why the three water types are exposed
@@ -40,8 +45,9 @@ separately, in addition to the overall level.
 2. Give the **location a name** ("Maison", "Jardin"…): it shows up in the device
    name.
 3. Click **"Search for my address"**, type your address (street, postal code,
-   town) and confirm: the **latitude** and **longitude** are filled in for you.
-   That is the only location input.
+   town) and confirm: the **latitude** and **longitude** are filled in for you,
+   and the address it settled on is kept in **"Last address searched"** so you
+   can see at a glance where the device is looking.
 4. Pick your **user profile**: household, company, local authority or farm.
    Restrictions differ per profile, and VigiEau returns the ones that apply to
    yours.

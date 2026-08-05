@@ -83,6 +83,24 @@
       ]
     },
     {
+      "key": "address_label",
+      "type": "string",
+      "label": {
+        "en": "Last address searched",
+        "fr": "Dernière adresse recherchée"
+      },
+      "description": {
+        "en": "Informational: the address the coordinates below were resolved from. Filled in by the search button.",
+        "fr": "Pour information : l'adresse dont proviennent les coordonnées ci-dessous. Renseignée par le bouton de recherche."
+      },
+      "required": false,
+      "default": "",
+      "placeholder": {
+        "en": "Not searched yet",
+        "fr": "Pas encore recherchée"
+      }
+    },
+    {
       "key": "latitude",
       "type": "number",
       "label": {

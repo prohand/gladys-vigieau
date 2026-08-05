@@ -178,8 +178,13 @@ gladys.onAction('rechercher_adresse', async (fields) => {
 
   // Write the coordinates into our own configuration, then re-publish: the
   // device shows up in the Discovery screen right away, no copy-paste.
-  await gladys.setConfig({ latitude: match.latitude, longitude: match.longitude });
-  config = normalizeConfig({ ...config, latitude: match.latitude, longitude: match.longitude });
+  const resolved = {
+    address_label: match.label,
+    latitude: match.latitude,
+    longitude: match.longitude,
+  };
+  await gladys.setConfig(resolved);
+  config = normalizeConfig({ ...config, ...resolved });
   await publishDevices();
   // The location changed: restart the refresh on the new point.
   startPolling();

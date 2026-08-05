@@ -13,21 +13,26 @@ Un appareil « Vigilance sécheresse — _votre lieu_ » avec cinq capteurs :
 
 | Capteur                            | Valeur                                      |
 | ---------------------------------- | ------------------------------------------- |
-| **Niveau de vigilance sécheresse** | 0 à 4 — le plus élevé des trois types d'eau |
+| **Niveau de vigilance sécheresse** | 0 à 3 — le plus élevé des trois types d'eau |
 | **Niveau (texte)**                 | « Alerte renforcée », « Crise »…            |
-| **Niveau eau superficielle**       | 0 à 4 — rivières, lacs (zones `SUP`)        |
-| **Niveau eau souterraine**         | 0 à 4 — nappes phréatiques (zones `SOU`)    |
-| **Niveau eau potable**             | 0 à 4 — réseau d'eau potable (zones `AEP`)  |
+| **Niveau eau superficielle**       | 0 à 3 — rivières, lacs (zones `SUP`)        |
+| **Niveau eau souterraine**         | 0 à 3 — nappes phréatiques (zones `SOU`)    |
+| **Niveau eau potable**             | 0 à 3 — réseau d'eau potable (zones `AEP`)  |
 
-L'échelle numérique suit celle des arrêtés préfectoraux :
+L'échelle numérique suit celle des arrêtés préfectoraux, ramenée aux quatre
+valeurs que Gladys sait nommer :
 
-| Valeur | Niveau             | Ce que cela signifie                                       |
-| ------ | ------------------ | ---------------------------------------------------------- |
-| 0      | Pas de restriction | Rien en vigueur à cette adresse                            |
-| 1      | Vigilance          | Appel aux économies d'eau, pas encore d'interdiction       |
-| 2      | Alerte             | Premières interdictions (arrosage, lavage…)                |
-| 3      | Alerte renforcée   | Interdictions étendues, horaires plus stricts              |
-| 4      | Crise              | Seuls les usages prioritaires (santé, sécurité) subsistent |
+| Valeur | Affiché par Gladys | Niveau VigiEau                | Ce que cela signifie                                        |
+| ------ | ------------------ | ----------------------------- | ----------------------------------------------------------- |
+| 0      | Pas de risque      | Pas de restriction            | Rien en vigueur à cette adresse                             |
+| 1      | Faible             | Vigilance                     | Appel aux économies d'eau, pas encore d'interdiction        |
+| 2      | Moyen              | Alerte                        | Premières interdictions (arrosage, lavage…)                 |
+| 3      | Élevé              | Alerte renforcée **ou** Crise | Interdictions étendues, jusqu'aux seuls usages prioritaires |
+
+> Gladys ne sait étiqueter qu'un niveau de risque de 0 à 3 : au-delà, il
+> affiche « Inconnu ». « Alerte renforcée » et « Crise » partagent donc la
+> valeur 3. Le capteur **Niveau (texte)** conserve le libellé officiel exact,
+> « Crise » compris — utilisez-le pour distinguer les deux.
 
 Un même lieu peut relever de plusieurs zones : un arrêté peut restreindre la
 nappe phréatique sans toucher au robinet. C'est pourquoi les trois types d'eau
@@ -40,7 +45,9 @@ sont exposés séparément, en plus du niveau global.
    de l'appareil.
 3. Cliquez sur **« Rechercher mon adresse »**, saisissez votre adresse (rue,
    code postal, commune) et validez : la **latitude** et la **longitude** sont
-   renseignées à votre place. C'est le seul champ de localisation.
+   renseignées à votre place, et l'adresse retenue est conservée dans
+   **« Dernière adresse recherchée »** pour que vous sachiez d'un coup d'œil où
+   l'appareil regarde.
 4. Choisissez votre **profil d'usager** : particulier, entreprise, collectivité
    ou exploitation agricole. Les restrictions ne sont pas les mêmes pour tous, et
    VigiEau renvoie celles qui s'appliquent au vôtre.

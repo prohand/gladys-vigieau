@@ -3,7 +3,7 @@
 //
 // One virtual device per observed location, carrying read-only sensors
 // refreshed by polling:
-//   - the overall severity level (0 to 4), the one to use in scenes;
+//   - the overall severity level (0 to 3), the one to use in scenes;
 //   - the same level for each water type (surface, groundwater, drinking water);
 //   - the official French wording of the level, for dashboards and notifications.
 //
@@ -17,7 +17,15 @@ import {
   DEVICE_FEATURE_TYPES,
 } from '@gladysassistant/integration-sdk';
 import { locationId } from '../config.js';
-import { AMBIGUOUS_COMMUNE, fetchZones, severityLabel, summarize, ZONE_TYPES } from '../vigieau.js';
+import {
+  AMBIGUOUS_COMMUNE,
+  fetchZones,
+  GLADYS_RISK_MAX,
+  severityLabel,
+  summarize,
+  toGladysRisk,
+  ZONE_TYPES,
+} from '../vigieau.js';
 
 const DEVICE_TYPE = 'drought-zone';
 
@@ -45,7 +53,8 @@ const TYPE_FEATURES = {
   AEP: { key: FEATURE.LEVEL_AEP, name: 'Niveau eau potable' },
 };
 
-// Shared shape of the four severity features: a read-only 0-4 risk index.
+// Shared shape of the four severity features: a read-only risk index on the
+// 0-3 scale Gladys knows how to label (see toGladysRisk).
 function severityFeature(externalId, name) {
   return {
     name,
@@ -53,7 +62,7 @@ function severityFeature(externalId, name) {
     category: DEVICE_FEATURE_CATEGORIES.RISK,
     type: DEVICE_FEATURE_TYPES.RISK.INTEGER,
     min: 0,
-    max: 4,
+    max: GLADYS_RISK_MAX,
     read_only: true, // sensor: no action possible
     has_feedback: false,
     keep_history: true, // keep history to draw the season on a chart
@@ -182,7 +191,9 @@ export const droughtZone = {
     const states = [];
     if (level !== null) {
       states.push(
-        { device_feature_external_id: ids.feature(FEATURE.LEVEL), state: level },
+        { device_feature_external_id: ids.feature(FEATURE.LEVEL), state: toGladysRisk(level) },
+        // The text keeps the exact official wording, "Crise" included, which
+        // the squeezed numeric scale can no longer tell from "Alerte renforcée".
         { device_feature_external_id: ids.feature(FEATURE.LEVEL_TEXT), text: severityLabel(level) },
       );
     }
@@ -190,7 +201,7 @@ export const droughtZone = {
       if (levelsByType[type] !== null) {
         states.push({
           device_feature_external_id: ids.feature(TYPE_FEATURES[type].key),
-          state: levelsByType[type],
+          state: toGladysRisk(levelsByType[type]),
         });
       }
     }

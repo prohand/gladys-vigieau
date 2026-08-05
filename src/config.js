@@ -24,6 +24,10 @@ export const PROFILES = ['particulier', 'entreprise', 'collectivite', 'exploitat
 // default would silently watch Paris.
 export const DEFAULT_CONFIG = {
   location_name: 'Maison',
+  // Purely informational: the address the coordinates below were geocoded from,
+  // so the user can see WHERE the device is actually looking without decoding
+  // a pair of decimals. Never used to query anything.
+  address_label: '',
   latitude: null,
   longitude: null,
   profil: 'particulier',
@@ -55,6 +59,7 @@ export function normalizeConfig(raw = {}) {
     ...DEFAULT_CONFIG,
     ...raw,
     location_name: String(raw.location_name ?? DEFAULT_CONFIG.location_name).trim(),
+    address_label: String(raw.address_label ?? DEFAULT_CONFIG.address_label).trim(),
     latitude: toOptionalNumber(raw.latitude),
     longitude: toOptionalNumber(raw.longitude),
     // Guard against a profile the manifest no longer offers.

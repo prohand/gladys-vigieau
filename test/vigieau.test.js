@@ -2,11 +2,13 @@ import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   AMBIGUOUS_COMMUNE,
+  SEVERITY_LEVELS,
   buildZonesUrl,
   collectUsages,
   fetchZones,
   severityLabel,
   summarize,
+  toGladysRisk,
   toSeverityLevel,
   zoneSeverity,
 } from '../src/vigieau.js';
@@ -49,6 +51,30 @@ test('severityLabel gives the official French wording', () => {
   assert.equal(severityLabel(null), 'Inconnu');
   assert.equal(severityLabel(null, 'en'), 'Unknown');
   assert.equal(severityLabel(4, 'en'), 'Crisis');
+});
+
+// --- The Gladys 0-3 risk scale -----------------------------------------------
+
+test('toGladysRisk squeezes the VigiEau scale onto the one Gladys can label', () => {
+  // Gladys' BADGE_VALUE_CONVERTERS only maps 0-3; anything else, `4` included,
+  // is rendered as "Inconnu". "Crise" therefore joins "Alerte renforcée".
+  assert.equal(toGladysRisk(0), 0);
+  assert.equal(toGladysRisk(1), 1);
+  assert.equal(toGladysRisk(2), 2);
+  assert.equal(toGladysRisk(3), 3);
+  assert.equal(toGladysRisk(4), 3, 'crise must not fall through to "Inconnu"');
+});
+
+test('toGladysRisk never invents a value for an unknown level', () => {
+  assert.equal(toGladysRisk(null), null);
+  assert.equal(toGladysRisk(undefined), null);
+});
+
+test('every VigiEau level maps inside the range the feature declares', () => {
+  for (const level of Object.values(SEVERITY_LEVELS)) {
+    const mapped = toGladysRisk(level);
+    assert.ok(mapped >= 0 && mapped <= 3, `level ${level} maps outside 0-3`);
+  }
 });
 
 // --- URL building ------------------------------------------------------------
