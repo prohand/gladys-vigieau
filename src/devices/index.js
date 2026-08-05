@@ -4,10 +4,10 @@
 // Add or remove device types here. Each device lives in its own file and
 // exposes the same shape:
 //   - key                             : short identifier (used in logs)
-//   - deviceExternalIds(gladys, cfg)  : every external_id it publishes, one per
-//     watched location; they do NOT depend on the coordinates, see ./identity.js
-//   - buildDevices(gladys, config)    : the discovery payloads sent to Gladys
-//   - onPoll(gladys, config, id)       (optional): periodic read of ONE device
+//   - deviceExternalId(gladys)        : the device external_id (for dispatch);
+//     it does NOT depend on the configuration, see ./identity.js
+//   - buildDevice(gladys, config)     : the discovery payload sent to Gladys
+//   - onPoll(gladys, config)           (optional): periodic read
 //   - actions                          (optional): manifest action handlers,
 //     keyed by the action `key` declared in gladys-assistant-integration.json
 //
@@ -24,9 +24,10 @@ export const DEVICE_BLUEPRINTS = [droughtZone];
 export { forgetDeletedDevice } from './identity.js';
 
 /**
- * Inherit the identity of the device the user already created, so the devices
- * created by versions <= 1.1.1, whose external_id carried the coordinates,
- * keep working after the upgrade. See ./identity.js.
+ * Inherit the identity of the devices the user already created, so an address
+ * change updates the existing device instead of discovering a new one — and so
+ * the devices created by versions <= 1.1.1, whose external_id carried the
+ * coordinates, keep working after the upgrade. See ./identity.js.
  */
 export function adoptExistingDevices(gladys, config) {
   return adoptIdentities(
@@ -37,11 +38,10 @@ export function adoptExistingDevices(gladys, config) {
 }
 
 /**
- * Build the discovery payload for Gladys: every device type, for every watched
- * location.
+ * Build the discovery payload for Gladys (all devices).
  */
 export function buildDiscoveredDevices(gladys, config) {
-  return DEVICE_BLUEPRINTS.flatMap((bp) => bp.buildDevices(gladys, config));
+  return DEVICE_BLUEPRINTS.map((bp) => bp.buildDevice(gladys, config));
 }
 
 /**
@@ -49,23 +49,5 @@ export function buildDiscoveredDevices(gladys, config) {
  * (used to route onPoll to the right device).
  */
 export function findBlueprintByDevice(gladys, device, config) {
-  return DEVICE_BLUEPRINTS.find((bp) =>
-    bp.deviceExternalIds(gladys, config).includes(device.external_id),
-  );
-}
-
-/**
- * The watched location a device external_id belongs to. Used by the actions
- * whose form carries a `select` fed by the core's `devices` source: their value
- * is a device external_id, and what the handler needs is the location behind it.
- * @returns {object | undefined}
- */
-export function findLocationByDevice(gladys, externalId, config) {
-  for (const bp of DEVICE_BLUEPRINTS) {
-    const location = bp.locationForDevice?.(gladys, config, externalId);
-    if (location) {
-      return location;
-    }
-  }
-  return undefined;
+  return DEVICE_BLUEPRINTS.find((bp) => bp.deviceExternalId(gladys, config) === device.external_id);
 }

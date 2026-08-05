@@ -2,15 +2,11 @@
 // Entry point of the Gladys "VigiEau" external integration.
 //
 // Role of this file: wire the SDK to the device catalog (src/devices/). It holds
-// NO business logic: the VigiEau calls live in src/vigieau.js, the device
-// definition in src/devices/droughtZone.js and the watched locations in
-// src/locations.js. This file only:
+// NO business logic: the VigiEau calls live in src/vigieau.js and the device
+// definition in src/devices/droughtZone.js. This file only:
 //   1. instantiates the SDK (connection, auth, reconnection: handled for you);
 //   2. registers the event handlers BEFORE connect();
-//   3. connects and publishes the discovered devices;
-//   4. owns the actions that EDIT THE LOCATION LIST — they write the
-//      configuration back and re-publish the catalog, which is not a device's
-//      business.
+//   3. connects and publishes the discovered devices.
 //
 // Environment variables provided by the Gladys supervisor to the container:
 //   - GLADYS_HOST_API_URL         (host API URL)
@@ -20,15 +16,18 @@
 // -----------------------------------------------------------------------------
 
 import { GladysIntegration, logger } from '@gladysassistant/integration-sdk';
-import { isConfigured, normalizeConfig } from './src/config.js';
-import { LOCATIONS_KEY, serializeLocations } from './src/locations.js';
-import { createLocationActions } from './src/locationActions.js';
+import {
+  formatCoordinate,
+  isConfigured,
+  legacyCoordinatePatch,
+  normalizeConfig,
+} from './src/config.js';
+import { describeAddress, resolveAddress } from './src/address.js';
 import {
   DEVICE_BLUEPRINTS,
   adoptExistingDevices,
   buildDiscoveredDevices,
   findBlueprintByDevice,
-  findLocationByDevice,
   forgetDeletedDevice,
 } from './src/devices/index.js';
 
@@ -42,15 +41,15 @@ let config = normalizeConfig();
 // prefectoral decree — so the integration drives its own refresh.
 let pollingCleanups = [];
 
-// Shown in the Configuration screen while no location has been added yet.
+// Shown in the Configuration screen while no address has been geocoded yet.
 const NOT_CONFIGURED_MESSAGE = {
-  en: 'Add a location to start watching the drought level.',
-  fr: 'Ajoutez un lieu pour suivre le niveau de sécheresse.',
+  en: 'Search for your address to start watching the drought level.',
+  fr: 'Recherchez votre adresse pour suivre le niveau de sécheresse.',
 };
 
 /**
  * Publish the device catalog — unless we do not know WHERE to look yet.
- * Publishing a device before a location is geocoded would create a device
+ * Publishing a device before the address is geocoded would create a device
  * pinned to an empty location, which the user would then have to delete by
  * hand once configured.
  * @returns {Promise<boolean>} whether the devices were published
@@ -114,34 +113,13 @@ async function refreshNow() {
   );
 }
 
-/**
- * Store a new location list, re-publish the catalog and restart the refresh on
- * it. The single place that writes `locations`, so the three editing actions
- * cannot drift apart.
- * @param {Array<object>} locations - the new list, already normalized
- */
-async function saveLocations(locations) {
-  // Written as TEXT coordinates under a key the manifest does NOT declare: the
-  // core stores an off-schema key as free internal storage of the integration
-  // (JSON-encoded, never rendered in the Configuration screen), which is the
-  // only place a list the user builds at runtime can live. See src/locations.js.
-  await gladys.setConfig({ [LOCATIONS_KEY]: serializeLocations(locations) });
-  config = normalizeConfig({ ...config, [LOCATIONS_KEY]: serializeLocations(locations) });
-  if (await publishDevices()) {
-    startPolling();
-    await gladys.setConnectionStatus(true).catch(() => {});
-  } else {
-    stopPolling();
-  }
-}
-
 // --- Discovery: Gladys asks for the list of devices --------------------------
 gladys.onScanRequest(async () => {
   logger.info('onScanRequest -> publishing discovered devices');
   await publishDevices();
 });
 
-// --- The user just added a device from the Discovery screen ------------------
+// --- The user just added the device from the Discovery screen ----------------
 // Until that moment the core SILENTLY DROPS every state we publish: the
 // feature does not exist yet (see externalIntegration.saveStates). Without
 // this handler the brand new device would sit on "no recent value" until the
@@ -155,27 +133,28 @@ gladys.onDeviceCreated(async (device) => {
 gladys.onPoll(async (device) => {
   const blueprint = findBlueprintByDevice(gladys, device, config);
   if (!blueprint || typeof blueprint.onPoll !== 'function') {
-    // Not one of the locations we watch: either a leftover from a version that
-    // published one device per address, or the device of a location the user
-    // has since deleted. Either way it can safely be deleted in Gladys.
+    // The device identity no longer depends on the location, so this is not a
+    // location change any more: it is a leftover device from a version that
+    // published one device per address, next to the one we publish now. It can
+    // safely be deleted in Gladys.
     logger.warn(
-      `onPoll ignored: ${device.external_id} is not a device this integration publishes. ` +
-        'Its location no longer exists, you can delete it in Gladys.',
+      `onPoll ignored: ${device.external_id} is not the device this integration publishes. ` +
+        'It is a leftover from an older version, you can delete it in Gladys.',
     );
     return;
   }
-  await blueprint.onPoll(gladys, config, device.external_id);
+  await blueprint.onPoll(gladys, config);
 });
 
-// --- The user deleted a device in Gladys -------------------------------------
+// --- The user deleted the device in Gladys -----------------------------------
 // If it was the device whose identity we inherited (an install upgraded from a
 // version that keyed the external_id on the coordinates), keep publishing under
-// the location's own identity instead of an id that no longer exists.
+// the stable identity instead of an id that no longer exists.
 gladys.onDeviceDeleted(async (device) => {
   if (!forgetDeletedDevice(device.external_id)) {
     return;
   }
-  logger.info(`onDeviceDeleted -> ${device.external_id}, re-publishing under the stable identity`);
+  logger.info(`onDeviceDeleted -> ${device.external_id}, re-publishing the stable device`);
   // Never throws out of the handler: publishDevices already reported the
   // reason through setConnectionStatus.
   await publishDevices().catch(() => {});
@@ -191,36 +170,72 @@ for (const blueprint of DEVICE_BLUEPRINTS) {
   }
 }
 
-// The location-list actions live in src/locationActions.js and are registered
-// here, not in a blueprint: they write the configuration back and re-publish
-// the catalog, which is this file's business.
+// The address search is registered here, not in a blueprint: it writes the
+// configuration back and re-publishes the catalog, which is this file's job.
 //
-// They are also the only way to offer a location manager at all — a
-// `config_schema` holds a fixed set of fields and a `select` only takes static
-// options or the core's `devices` source, so a list the user builds at runtime
-// cannot be a form field. An action's mini-form, on the other hand, IS rendered
-// from the manifest and its `devices` select is resolved at run time.
-const locationActions = createLocationActions({
-  getConfig: () => config,
-  saveLocations,
-  resolveDevice: (externalId) => findLocationByDevice(gladys, externalId, config),
+// It is also the only way to offer a location picker at all — a `config_schema`
+// select only takes static options or the core's `devices` source, so the user
+// types an address in the action's own form and we geocode it for them.
+gladys.onAction('rechercher_adresse', async (fields) => {
+  logger.info(`Action rechercher_adresse <- ${fields.adresse ?? ''}`);
+  const { match, candidates } = await resolveAddress(fields.adresse);
+
+  if (candidates.length === 0) {
+    return {
+      en: 'No address found. Try adding the postal code or the town.',
+      fr: 'Aucune adresse trouvée. Essayez d’ajouter le code postal ou la commune.',
+    };
+  }
+
+  if (!match) {
+    // Too vague to pick one — a postal code covers several communes, and a
+    // town name often exists a dozen times over. Guessing here would silently
+    // watch another town's drought level.
+    const list = candidates.slice(0, 6).map(describeAddress).join(' | ');
+    return {
+      en: `Several addresses match, none clearly. Be more precise: ${list}`,
+      fr: `Plusieurs adresses correspondent, sans évidence. Précisez : ${list}`,
+    };
+  }
+
+  // Write the coordinates into our own configuration, then re-publish: the
+  // device shows up in the Discovery screen right away, no copy-paste.
+  // They go in as TEXT: the fields are declared `string` so that a typed dot
+  // survives a French browser (see toCoordinate), and the core rejects a number
+  // under a `string` field.
+  const resolved = {
+    address_label: match.label,
+    latitude: formatCoordinate(match.latitude),
+    longitude: formatCoordinate(match.longitude),
+  };
+  await gladys.setConfig(resolved);
+  config = normalizeConfig({ ...config, ...resolved });
+  await publishDevices();
+  // The location changed: restart the refresh on the new point.
+  startPolling();
+  await gladys.setConnectionStatus(true).catch(() => {});
+
+  const point = `${match.latitude.toFixed(5)}, ${match.longitude.toFixed(5)}`;
+  // The device keeps its identity across a location change, so an existing one
+  // simply follows the new address — nothing to delete, nothing to re-add.
+  return {
+    en: `Location set to ${describeAddress(match)} — ${point}. The device now watches this address; add it from the Discovery tab if it is not created yet.`,
+    fr: `Lieu défini sur ${describeAddress(match)} — ${point}. L’appareil suit désormais cette adresse ; ajoutez-le depuis l’onglet Découverte s’il n’existe pas encore.`,
+  };
 });
-for (const [actionKey, handler] of Object.entries(locationActions)) {
-  gladys.onAction(actionKey, (fields) => handler(fields));
-}
 
 // --- Configuration updated by the user ---------------------------------------
 gladys.onConfigUpdated(async (newConfig) => {
   logger.info('onConfigUpdated -> new configuration received');
   config = normalizeConfig(newConfig);
-  // Re-publish the devices: the names depend on the configured locations. The
-  // external_ids deliberately do NOT depend on the coordinates, so a device
-  // already created keeps reporting on the new address instead of being
-  // replaced. publishDiscoveredDevices is idempotent (upsert by external_id).
+  // Re-publish the devices: the name depends on the configured location. The
+  // external_id deliberately does NOT, so the device already created keeps
+  // reporting on the new address instead of being replaced by another one.
+  // publishDiscoveredDevices is idempotent (upsert by external_id).
   if (await publishDevices()) {
-    // Restart the timers: both the locations and the interval may have changed.
+    // Restart the timers: both the location and the interval may have changed.
     startPolling();
-    // The configuration just became valid: clear the "not configured" status.
+    // The location just became valid: clear the "not configured" status.
     await gladys.setConnectionStatus(true);
   } else {
     stopPolling();
@@ -237,16 +252,14 @@ gladys.on('connected', async () => {
     const rawConfig = await gladys.getConfig();
     config = normalizeConfig(rawConfig);
 
-    // 1 bis) An install made before 1.3.0 kept its single location in the
-    // `location_name` / `latitude` / `longitude` config fields. normalizeConfig
-    // has already rebuilt it as the first entry of the list (keeping the very
-    // id its device was published under); persist that so the editing actions
-    // work on a real list. The old keys are left where they are: they are no
-    // longer declared in the config_schema, so the Configuration screen neither
-    // shows them nor sends them back — they simply stop being read.
-    if (!Array.isArray(rawConfig?.[LOCATIONS_KEY]) && config.locations.length > 0) {
-      logger.info('Migrating the single configured location to the location list');
-      await gladys.setConfig({ [LOCATIONS_KEY]: serializeLocations(config.locations) });
+    // 1 bis) Coordinates stored as numbers by a version that declared the
+    // fields `number` are rewritten as text. Left alone, the first Save on the
+    // Configuration screen would fail as a whole: the front sends the untouched
+    // stored value back and the core refuses a number under a `string` field.
+    const patch = legacyCoordinatePatch(rawConfig);
+    if (Object.keys(patch).length > 0) {
+      logger.info('Migrating the stored coordinates to text');
+      await gladys.setConfig(patch);
     }
 
     // 1 ter) Inherit the identity of the device the user already created. The
@@ -254,8 +267,8 @@ gladys.on('connected', async () => {
     // this, upgrading would leave that device orphaned and discover a new one.
     await adoptExistingDevices(gladys, config);
 
-    // 2) (Re)publish the devices as soon as we are connected. They report
-    // their own status when no location is configured yet.
+    // 2) (Re)publish the device as soon as we are connected. It reports its
+    // own status when the location is still missing.
     if (!(await publishDevices())) {
       stopPolling();
       return;
