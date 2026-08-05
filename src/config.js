@@ -158,14 +158,20 @@ export function isConfigured(config) {
 }
 
 /**
- * Stable identifier of the observed location, used to build the device
- * `external_id`. It must NOT change when the user only renames the location,
- * otherwise Gladys would see a brand new device and the history would be lost.
+ * Identifier of the observed location as versions up to 1.1.1 built the device
+ * `external_id` from.
  *
- * Rounded to ~10 m: re-running the address search on the same street must not
- * orphan the device the user already added to a room over a metre of jitter.
+ * It is NOT the device identity any more, and that was the bug: the location is
+ * configuration, so deriving the identity from it turned every address change
+ * into a brand new device — the old one had to be deleted, its history with it
+ * (see `src/devices/identity.js`). It survives for one job only: recognizing
+ * the devices those versions created, so their identity can be inherited
+ * instead of orphaned.
+ *
+ * Rounded to ~10 m, as it was then, so the recognition matches what was
+ * actually published.
  * @param {ReturnType<typeof normalizeConfig>} config
  */
-export function locationId(config) {
+export function legacyLocationId(config) {
   return `latlon-${Number(config.latitude).toFixed(4)}_${Number(config.longitude).toFixed(4)}`;
 }

@@ -7,6 +7,7 @@ import {
   findBlueprintByDevice,
 } from '../src/devices/index.js';
 import { FEATURE, MIN_REFRESH_SECONDS } from '../src/devices/droughtZone.js';
+import { deviceIds } from '../src/devices/identity.js';
 import { normalizeConfig } from '../src/config.js';
 import { createFakeGladys, zonesFixture } from './helpers/fakeGladys.js';
 
@@ -115,10 +116,31 @@ test('findBlueprintByDevice routes an external_id back to its owner blueprint', 
   }
 });
 
-test('findBlueprintByDevice returns undefined for a device of another location', () => {
+test('the device keeps its external_id when the watched location changes', () => {
+  // The bug this pins: the id used to carry the coordinates, so a new address
+  // meant a NEW device — the old one had to be deleted, history included.
   const gladys = createFakeGladys();
-  const otherLocation = normalizeConfig({ latitude: 45.764, longitude: 4.8357 });
-  const staleId = droughtZone.deviceExternalId(gladys, otherLocation);
+  const moved = normalizeConfig({ ...config, latitude: 45.764, longitude: 4.8357 });
+  const [before] = buildDiscoveredDevices(gladys, config);
+  const [after] = buildDiscoveredDevices(gladys, moved);
+
+  assert.equal(after.external_id, before.external_id, 'the same device follows the address');
+  assert.deepEqual(
+    after.features.map((f) => f.external_id),
+    before.features.map((f) => f.external_id),
+    'and so do its features, or their history would restart',
+  );
+  // The refresh of the device created before the move still reaches us.
+  assert.equal(
+    findBlueprintByDevice(gladys, { external_id: before.external_id }, moved),
+    droughtZone,
+  );
+});
+
+test('findBlueprintByDevice returns undefined for a device that is not ours', () => {
+  const gladys = createFakeGladys();
+  // A leftover published by a version that keyed the id on the coordinates.
+  const staleId = gladys.externalIds('drought-zone', 'latlon-45.7640_4.8357').device;
   assert.equal(findBlueprintByDevice(gladys, { external_id: staleId }, config), undefined);
 });
 
@@ -167,7 +189,7 @@ test('onPoll publishes the overall level, the text and every water type', async 
   await droughtZone.onPoll(gladys, config);
 
   const byFeature = new Map(gladys.published.map((p) => [p.featureExternalId, p]));
-  const ids = gladys.externalIds('drought-zone', 'latlon-48.8566_2.3522');
+  const ids = deviceIds(gladys, 'drought-zone');
 
   assert.equal(byFeature.get(ids.feature(FEATURE.LEVEL)).state, 3);
   assert.equal(byFeature.get(ids.feature(FEATURE.LEVEL_SUP)).state, 2);
@@ -181,7 +203,7 @@ test('a crise is published as 3, never as a value Gladys renders "Inconnu"', asy
   stubVigieau([{ type: 'SUP', niveauGravite: 'crise' }]);
   await droughtZone.onPoll(gladys, config);
 
-  const ids = gladys.externalIds('drought-zone', 'latlon-48.8566_2.3522');
+  const ids = deviceIds(gladys, 'drought-zone');
   const byFeature = new Map(gladys.published.map((p) => [p.featureExternalId, p]));
   assert.equal(byFeature.get(ids.feature(FEATURE.LEVEL)).state, 3);
   // The exact wording survives where it matters.
@@ -193,7 +215,7 @@ test('onPoll publishes a clear "no restriction" when nothing is in force', async
   stubVigieau([], 404);
   await droughtZone.onPoll(gladys, config);
 
-  const ids = gladys.externalIds('drought-zone', 'latlon-48.8566_2.3522');
+  const ids = deviceIds(gladys, 'drought-zone');
   const byFeature = new Map(gladys.published.map((p) => [p.featureExternalId, p]));
   assert.equal(byFeature.get(ids.feature(FEATURE.LEVEL)).state, 0);
   assert.equal(byFeature.get(ids.feature(FEATURE.LEVEL_TEXT)).text, 'Pas de restriction');
@@ -206,7 +228,7 @@ test('onPoll leaves the level untouched rather than publishing a false all-clear
   stubVigieau([{ type: 'SUP', niveauGravite: 'niveau_martien' }]);
   await droughtZone.onPoll(gladys, config);
 
-  const ids = gladys.externalIds('drought-zone', 'latlon-48.8566_2.3522');
+  const ids = deviceIds(gladys, 'drought-zone');
   const publishedIds = gladys.published.map((p) => p.featureExternalId);
   assert.ok(!publishedIds.includes(ids.feature(FEATURE.LEVEL)), 'a stale value beats a wrong one');
   assert.ok(!publishedIds.includes(ids.feature(FEATURE.LEVEL_SUP)));

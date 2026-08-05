@@ -65,9 +65,10 @@ sont exposés séparément, en plus du niveau global.
 > l'intégration l'indique dans son écran de configuration. C'est voulu : mieux
 > vaut pas d'appareil qu'un appareil rattaché à un lieu vide.
 
-> Si vous changez de lieu après coup (nouvelle adresse), Gladys découvre un
-> **nouvel** appareil : ajoutez-le, puis supprimez l'ancien. Renommer
-> simplement le lieu ne change rien à l'appareil existant.
+> Si vous changez de lieu après coup (nouvelle adresse, ou coordonnées saisies
+> à la main), l'appareil **existant vous suit** : il conserve son nom, son
+> historique, ses pièces et ses scènes, et rend compte du nouveau point. Rien à
+> supprimer, rien à rajouter.
 
 ## Pourquoi une adresse et pas un code postal
 
@@ -142,6 +143,14 @@ vérifiez-la d'un coup d'œil avant de continuer.
   ignorée sans message. Depuis, les deux séparateurs fonctionnent (`48,8566`
   comme `48.8566`). Mettez l'intégration à jour, puis ressaisissez la
   coordonnée — ou, plus simple, utilisez **« Rechercher mon adresse »**.
+- **Deux appareils « Vigilance sécheresse » après un changement d'adresse** —
+  c'était le cas jusqu'à la version 1.1.1 : l'identifiant de l'appareil était
+  construit à partir des coordonnées, si bien que chaque adresse créait un
+  appareil de plus et que le précédent cessait de se rafraîchir. Désormais
+  l'appareil suit l'adresse. Après la mise à jour, l'intégration reprend
+  l'appareil que vous aviez déjà ajouté, historique compris — la ligne de log
+  `Keeping the existing identity of drought-zone` indique lequel. Les appareils
+  restés d'une ancienne adresse peuvent être supprimés dans Gladys.
 - **« Pas de valeur récente » sur toutes les fonctionnalités** — juste après
   l'ajout de l'appareil, c'est normal quelques secondes : Gladys ignore les
   valeurs publiées avant que l'appareil n'existe. L'intégration détecte la

@@ -62,9 +62,10 @@ separately, in addition to the overall level.
 > says so in its Configuration screen. That is deliberate: no device beats a
 > device pinned to an empty location.
 
-> If you change the location later (a new address), Gladys discovers a **new**
-> device: add it, then delete the old one. Merely renaming the location leaves
-> the existing device untouched.
+> If you change the location later (a new address, or coordinates typed by
+> hand), the **existing device follows it**: it keeps its name, its history, its
+> rooms and its scenes, and simply reports on the new point. There is nothing to
+> delete and nothing to add again.
 
 ## Why an address and not a postal code
 
@@ -135,6 +136,13 @@ check it at a glance before moving on.
   and a value it refused was dropped with no message. Both separators work now
   (`48.8566` as well as `48,8566`). Update the integration, then type the
   coordinate again — or simply use **"Search for my address"**.
+- **Two "Vigilance sécheresse" devices after changing the address** — that was
+  the case up to version 1.1.1: the device id was built from the coordinates, so
+  every address created its own device and the previous one stopped refreshing.
+  The device now follows the address. After the update, the integration keeps
+  the device you already created, history included — the log line
+  `Keeping the existing identity of drought-zone` says which one. Any other
+  device left over from an older address can be deleted in Gladys.
 - **"No recent value" on every feature** — right after adding the device this
   is normal for a few seconds: Gladys drops the states published before the
   device existed. The integration notices the creation and refreshes straight

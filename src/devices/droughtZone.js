@@ -16,7 +16,7 @@ import {
   DEVICE_FEATURE_CATEGORIES,
   DEVICE_FEATURE_TYPES,
 } from '@gladysassistant/integration-sdk';
-import { locationId } from '../config.js';
+import { deviceIds } from './identity.js';
 import {
   AMBIGUOUS_COMMUNE,
   fetchZones,
@@ -94,12 +94,15 @@ function failureMessage(err) {
 export const droughtZone = {
   key: DEVICE_TYPE,
 
-  deviceExternalId(gladys, config) {
-    return gladys.externalIds(DEVICE_TYPE, locationId(config)).device;
+  // The identity does NOT depend on the configuration: the same device follows
+  // the user from one address to the next, keeping its history and its place in
+  // the rooms and scenes (see src/devices/identity.js).
+  deviceExternalId(gladys) {
+    return deviceIds(gladys, DEVICE_TYPE).device;
   },
 
   buildDevice(gladys, config) {
-    const ids = gladys.externalIds(DEVICE_TYPE, locationId(config));
+    const ids = deviceIds(gladys, DEVICE_TYPE);
     return {
       name: `Vigilance sécheresse — ${config.location_name}`,
       external_id: ids.device,
@@ -170,7 +173,7 @@ export const droughtZone = {
   },
 
   async onPoll(gladys, config) {
-    const ids = gladys.externalIds(DEVICE_TYPE, locationId(config));
+    const ids = deviceIds(gladys, DEVICE_TYPE);
     logger.info(`Polling VigiEau for ${config.location_name}...`);
 
     // ------------------------------------------------------------------ //
