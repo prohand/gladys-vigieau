@@ -47,6 +47,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
+          cache: npm
+
+      # Needed only for Prettier below: the bump step reformats the manifest,
+      # and we want the project's OWN Prettier version, the one CI checks with.
+      - name: Install dependencies
+        run: npm ci
 
       - name: Bump version and update the manifest
         id: bump
@@ -70,6 +76,11 @@ jobs:
             '.version = $version | .docker_image = $image' \
             gladys-assistant-integration.json > "$tmp"
           mv "$tmp" gladys-assistant-integration.json
+
+          # jq and npm both write their own formatting, which is NOT Prettier's:
+          # without this, every release lands a commit that fails the
+          # `npm run format:check` gate of ci.yml on the very next push.
+          npx prettier --write gladys-assistant-integration.json package.json
 
           echo "version=${new_version}" >> "$GITHUB_OUTPUT"
 
