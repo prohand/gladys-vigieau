@@ -3,19 +3,34 @@
 //
 // It reproduces the only surface the device modules rely on:
 //   - externalIds(type, platformId) -> { device, feature(key) }
+//   - getDevices()                   -> the devices the user created
 //   - publishState / publishStates   -> record calls so tests can assert them
 //   - setConnectionStatus            -> record calls so tests can assert them
 // This lets us test the pure "wiring" logic (discovery payloads, dispatch)
 // without a running Gladys server or a real WebSocket.
 // -----------------------------------------------------------------------------
 
-export function createFakeGladys() {
+/**
+ * @param {object} [options]
+ * @param {Array<{ external_id: string }>} [options.devices] devices already
+ *   created by the user, as `GET /device` returns them
+ * @param {Error} [options.getDevicesError] make getDevices fail, to test the
+ *   degraded path
+ */
+export function createFakeGladys({ devices = [], getDevicesError = null } = {}) {
   const published = [];
   const connectionStatuses = [];
 
   return {
     published,
     connectionStatuses,
+
+    async getDevices() {
+      if (getDevicesError) {
+        throw getDevicesError;
+      }
+      return devices;
+    },
 
     externalIds(type, platformId) {
       const device = `${type}:${platformId}`;

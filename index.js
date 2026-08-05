@@ -25,8 +25,10 @@ import {
 import { describeAddress, resolveAddress } from './src/address.js';
 import {
   DEVICE_BLUEPRINTS,
+  adoptExistingDevices,
   buildDiscoveredDevices,
   findBlueprintByDevice,
+  forgetDeletedDevice,
 } from './src/devices/index.js';
 
 const gladys = new GladysIntegration();
@@ -131,16 +133,31 @@ gladys.onDeviceCreated(async (device) => {
 gladys.onPoll(async (device) => {
   const blueprint = findBlueprintByDevice(gladys, device, config);
   if (!blueprint || typeof blueprint.onPoll !== 'function') {
-    // Happens when the user changed the observed location: the device created
-    // earlier keeps the external_id of the PREVIOUS location and is now an
-    // orphan. Deleting it in Gladys and adding the new one fixes it.
+    // The device identity no longer depends on the location, so this is not a
+    // location change any more: it is a leftover device from a version that
+    // published one device per address, next to the one we publish now. It can
+    // safely be deleted in Gladys.
     logger.warn(
-      `onPoll ignored: ${device.external_id} does not match the current location. ` +
-        'Delete this device in Gladys and add the one discovered for the new location.',
+      `onPoll ignored: ${device.external_id} is not the device this integration publishes. ` +
+        'It is a leftover from an older version, you can delete it in Gladys.',
     );
     return;
   }
   await blueprint.onPoll(gladys, config);
+});
+
+// --- The user deleted the device in Gladys -----------------------------------
+// If it was the device whose identity we inherited (an install upgraded from a
+// version that keyed the external_id on the coordinates), keep publishing under
+// the stable identity instead of an id that no longer exists.
+gladys.onDeviceDeleted(async (device) => {
+  if (!forgetDeletedDevice(device.external_id)) {
+    return;
+  }
+  logger.info(`onDeviceDeleted -> ${device.external_id}, re-publishing the stable device`);
+  // Never throws out of the handler: publishDevices already reported the
+  // reason through setConnectionStatus.
+  await publishDevices().catch(() => {});
 });
 
 // --- Manifest actions: buttons in the Configuration screen -------------------
@@ -199,9 +216,11 @@ gladys.onAction('rechercher_adresse', async (fields) => {
   await gladys.setConnectionStatus(true).catch(() => {});
 
   const point = `${match.latitude.toFixed(5)}, ${match.longitude.toFixed(5)}`;
+  // The device keeps its identity across a location change, so an existing one
+  // simply follows the new address — nothing to delete, nothing to re-add.
   return {
-    en: `Location set to ${describeAddress(match)} — ${point}. The device is in the Discovery tab.`,
-    fr: `Lieu défini sur ${describeAddress(match)} — ${point}. L’appareil est dans l’onglet Découverte.`,
+    en: `Location set to ${describeAddress(match)} — ${point}. The device now watches this address; add it from the Discovery tab if it is not created yet.`,
+    fr: `Lieu défini sur ${describeAddress(match)} — ${point}. L’appareil suit désormais cette adresse ; ajoutez-le depuis l’onglet Découverte s’il n’existe pas encore.`,
   };
 });
 
@@ -209,8 +228,9 @@ gladys.onAction('rechercher_adresse', async (fields) => {
 gladys.onConfigUpdated(async (newConfig) => {
   logger.info('onConfigUpdated -> new configuration received');
   config = normalizeConfig(newConfig);
-  // Re-publish the devices: the name and the external_id itself depend on the
-  // configured location.
+  // Re-publish the devices: the name depends on the configured location. The
+  // external_id deliberately does NOT, so the device already created keeps
+  // reporting on the new address instead of being replaced by another one.
   // publishDiscoveredDevices is idempotent (upsert by external_id).
   if (await publishDevices()) {
     // Restart the timers: both the location and the interval may have changed.
@@ -242,8 +262,13 @@ gladys.on('connected', async () => {
       await gladys.setConfig(patch);
     }
 
+    // 1 ter) Inherit the identity of the device the user already created. The
+    // versions up to 1.1.1 built the external_id from the coordinates; without
+    // this, upgrading would leave that device orphaned and discover a new one.
+    await adoptExistingDevices(gladys, config);
+
     // 2) (Re)publish the device as soon as we are connected. It reports its
-    // own status when the mandatory INSEE code is still missing.
+    // own status when the location is still missing.
     if (!(await publishDevices())) {
       stopPolling();
       return;

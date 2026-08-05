@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   normalizeConfig,
-  locationId,
+  legacyLocationId,
   hasCoordinates,
   isConfigured,
   formatCoordinate,
@@ -37,10 +37,10 @@ test('the remembered address is informational and starts empty', () => {
   assert.equal(normalizeConfig().address_label, '');
   const config = normalizeConfig({ address_label: '12 Rue des Lilas 82000 Montauban' });
   assert.equal(config.address_label, '12 Rue des Lilas 82000 Montauban');
-  // It must never take part in the identity of the device.
+  // It must never take part in the location id either.
   assert.equal(
-    locationId(normalizeConfig({ latitude: 1, longitude: 2, address_label: 'a' })),
-    locationId(normalizeConfig({ latitude: 1, longitude: 2, address_label: 'b' })),
+    legacyLocationId(normalizeConfig({ latitude: 1, longitude: 2, address_label: 'a' })),
+    legacyLocationId(normalizeConfig({ latitude: 1, longitude: 2, address_label: 'b' })),
   );
 });
 
@@ -91,7 +91,7 @@ test('a coordinate typed with a comma is the same point as with a dot', () => {
   assert.equal(comma.latitude, 48.8566);
   assert.equal(comma.longitude, 2.3522);
   assert.deepEqual(comma, dot);
-  assert.equal(locationId(comma), locationId(dot));
+  assert.equal(legacyLocationId(comma), legacyLocationId(dot));
 });
 
 test('a negative or space-padded coordinate survives both separators', () => {
@@ -142,28 +142,31 @@ test('isConfigured requires a geocoded point', () => {
   assert.equal(isConfigured(normalizeConfig({ latitude: 48.85, longitude: 2.35 })), true);
 });
 
-// --- Stable device identity --------------------------------------------------
+// --- Recognizing the devices published by the versions <= 1.1.1 --------------
+// Those versions built the device external_id from this id, and that WAS the
+// bug: each address got its own device. It survives to recognize — and adopt —
+// the devices they created, so it must reproduce them exactly.
 
-test('locationId is built from the coordinates, which is what is queried', () => {
+test('legacyLocationId reproduces the id those versions published', () => {
   const config = normalizeConfig({ latitude: 48.8566, longitude: 2.3522 });
-  assert.equal(locationId(config), 'latlon-48.8566_2.3522');
+  assert.equal(legacyLocationId(config), 'latlon-48.8566_2.3522');
 });
 
-test('locationId is stable against a sub-metre coordinate jitter', () => {
-  const a = locationId(normalizeConfig({ latitude: 48.85661, longitude: 2.35221 }));
-  const b = locationId(normalizeConfig({ latitude: 48.856612, longitude: 2.352214 }));
-  assert.equal(a, b, 'the device external_id must survive a tiny coordinate change');
+test('legacyLocationId keeps its ~10 m rounding', () => {
+  const a = legacyLocationId(normalizeConfig({ latitude: 48.85661, longitude: 2.35221 }));
+  const b = legacyLocationId(normalizeConfig({ latitude: 48.856612, longitude: 2.352214 }));
+  assert.equal(a, b, 'a sub-metre jitter published the same id');
 });
 
-test('locationId changes when the location really moves', () => {
-  const paris = locationId(normalizeConfig({ latitude: 48.8566, longitude: 2.3522 }));
-  const lyon = locationId(normalizeConfig({ latitude: 45.764, longitude: 4.8357 }));
+test('legacyLocationId changes when the location really moves', () => {
+  const paris = legacyLocationId(normalizeConfig({ latitude: 48.8566, longitude: 2.3522 }));
+  const lyon = legacyLocationId(normalizeConfig({ latitude: 45.764, longitude: 4.8357 }));
   assert.notEqual(paris, lyon);
 });
 
-test('locationId ignores a mere rename of the location', () => {
+test('legacyLocationId ignores a mere rename of the location', () => {
   const point = { latitude: 48.8566, longitude: 2.3522 };
-  const before = locationId(normalizeConfig({ ...point, location_name: 'Maison' }));
-  const after = locationId(normalizeConfig({ ...point, location_name: 'Résidence' }));
-  assert.equal(before, after, 'renaming must not orphan the device');
+  const before = legacyLocationId(normalizeConfig({ ...point, location_name: 'Maison' }));
+  const after = legacyLocationId(normalizeConfig({ ...point, location_name: 'Résidence' }));
+  assert.equal(before, after);
 });

@@ -184,9 +184,11 @@ sitting at the root of the default branch).
 
 - Requires **Node.js ≥ 20** (uses the built-in global `fetch`; no HTTP
   dependency).
-- The device `external_id` is derived from the watched location, not from its
-  name: renaming a location keeps the device and its history, moving it creates
-  a new one.
+- The device `external_id` does not depend on the watched location: changing the
+  address (or the coordinates) updates the existing device, which keeps its
+  history, its rooms and its scenes. A device created by a version up to 1.1.1,
+  whose `external_id` carried the coordinates, is adopted on the first start
+  after the update — nothing to delete, nothing to re-add.
 - VigiEau data is provided for information only; in case of doubt the
   prefectoral decree published by your prefecture prevails.
 

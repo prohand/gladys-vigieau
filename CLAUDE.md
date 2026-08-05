@@ -54,23 +54,44 @@ no business logic. Everything else lives under `src/`:
   `onPoll`, `refresh`, `startPolling` and the two per-device manifest actions.
 - **`src/devices/index.js`** — the blueprint registry. `index.js` only ever talks to the registry, so
   adding a device type means adding a file and one array entry.
+- **`src/devices/identity.js`** — which `external_id` a device keeps for life. Holds the stable
+  platform id and the adoption of the devices created by ≤ 1.1.1 (see below).
 - **`src/vigieau.js`** — VigiEau driver. Deliberately split: `fetchZones()` is the only impure part,
   `summarize()` / `toSeverityLevel()` are pure and carry all the mapping logic, which is why the
   severity rules are cheap to test.
 - **`src/address.js`** — Base Adresse Nationale driver, free-text address → WGS-84 point.
-- **`src/config.js`** — defaults, normalization, and `locationId()`, which derives the device
-  `external_id`.
+- **`src/config.js`** — defaults, normalization, and `legacyLocationId()`, which only reproduces the
+  `external_id` of the devices published by ≤ 1.1.1 so they can be recognized.
 
-A blueprint exposes: `key`, `deviceExternalId(gladys, config)`, `buildDevice(gladys, config)`, and
+A blueprint exposes: `key`, `deviceExternalId(gladys)`, `buildDevice(gladys, config)`, and
 optionally `onPoll`, `refresh`, `startPolling`, `actions`.
+
+### The device identity does not depend on the configuration
+
+Gladys matches devices, features and states by `external_id`. Up to 1.1.1 it carried the coordinates
+(`ext:vigieau:drought-zone:latlon-48.8566_2.3522`), so changing the address changed the device's
+identity: Discovery offered a second device, the one already in a room went silent, and the user had
+to delete it and lose its history. The location is configuration, not identity — this integration
+watches ONE location, so the platform id is the constant `STABLE_PLATFORM_ID` and moving the address
+only moves where the same device looks.
+
+`adoptExistingDevices()` runs on every connection, before publishing: it reads `gladys.getDevices()`
+and, when a device of ours already exists under an older coordinate-based id, keeps publishing under
+**its** external_id (features included — they exist under that prefix). That is the whole upgrade
+path: nothing to delete, nothing to re-add. Several leftovers → the one matching the configured
+location wins; none matching → publish the stable identity rather than pick a history at random.
+`forgetDeletedDevice()` (wired to `onDeviceDeleted`) drops an adoption when the user deletes that
+device, so the next publish offers the stable identity again.
+
+Never derive `external_id` from anything the user can change in the Configuration screen.
 
 ### The location is a point, never a commune
 
 `latitude`/`longitude` ARE the location, geocoded from the address typed in the `rechercher_adresse`
 action. There is deliberately no INSEE commune code: `GET /api/zones?commune=` answers `409` as soon
 as the commune spans several zones of one water type, and no retry fixes that — a point always falls
-inside exactly one zone per type. `locationId()` is built from the rounded coordinates, so the
-device's `external_id` matches the query that feeds it.
+inside exactly one zone per type. The coordinates are only the query — the device `external_id` is
+deliberately independent of them (see above).
 
 Empty coordinates are `null`, never `0`: `Number('')` is `0`, a valid latitude in the Gulf of Guinea.
 
