@@ -16,7 +16,7 @@ import {
   describeLocations,
   locationAtPosition,
   positionOf,
-  selectedLocation,
+  clampPosition,
   hasCoordinates,
   legacyLocations,
   locationQuery,
@@ -194,21 +194,29 @@ test('positionOf is the number the user reads in the "lieux" field', () => {
   assert.equal(positionOf([paris, lyon], 'nope'), 0);
 });
 
-test('the selection falls back to the first location, never to nothing', () => {
-  assert.equal(selectedLocation([paris, lyon], 'loc-2'), lyon);
-  // An id left over from a location that has since been deleted must not leave
-  // the Configuration screen editing a location that does not exist.
-  assert.equal(selectedLocation([paris, lyon], 'loc-deleted'), paris);
-  assert.equal(selectedLocation([paris, lyon], undefined), paris);
-  assert.equal(selectedLocation([], 'loc-1'), null);
+test('the selected position is always inside the list', () => {
+  // The dropdown always offers ten entries — the manifest is a file — so a
+  // position the list does not reach is one click away at all times, and must
+  // never leave the screen editing a location that does not exist.
+  assert.equal(clampPosition([paris, lyon], '2'), 2);
+  assert.equal(clampPosition([paris, lyon], '7'), 2, 'past the end: the last one');
+  assert.equal(clampPosition([paris], '2'), 1);
+  assert.equal(clampPosition([paris, lyon], '0'), 1);
+  assert.equal(clampPosition([paris, lyon], undefined), 1);
+  assert.equal(clampPosition([paris, lyon], 'nope'), 1);
+  assert.equal(clampPosition([], '3'), 1, 'nothing to point at, but still a valid option');
 });
 
 test('describeLocations numbers the list and marks the selected one', () => {
-  const summary = describeLocations([paris, lyon], 'loc-2');
+  const summary = describeLocations([paris, lyon], 2);
   assert.match(summary, /1\. Maison/);
   assert.match(summary, /▶ 2\. Jardin/);
   assert.doesNotMatch(summary, /▶ 1\./, 'only the selected location is marked');
-  assert.equal(describeLocations([], 'loc-1'), '', 'nothing to describe, nothing shown');
+  assert.match(
+    describeLocations([], 1),
+    /Aucun lieu configuré/,
+    'the one place the screen can say the list is empty',
+  );
 });
 
 // --- What the VigiEau driver is handed ---------------------------------------

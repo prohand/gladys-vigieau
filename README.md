@@ -36,13 +36,17 @@ Several locations can be watched — a house, a second home, an allotment garden
 are rarely under the same prefectoral decree — and each one publishes **its own
 device**, up to ten.
 
-Five buttons are available in the Configuration screen: **Ajouter un lieu**
-(geocodes an address and adds a location watching that point),
-**Sélectionner un lieu** (the single dropdown that points the name/address/
-coordinates fields at one of them, so they can be edited and saved),
-**Supprimer le lieu sélectionné**, **Tester la connexion VigiEau** (live check,
-shows the current level of every location) and **Afficher les restrictions en
-vigueur** (lists the restricted usages and links the decree, per location).
+The Configuration screen is three sections: **Pour commencer** (what VigiEau is,
+and its two links), **Le lieu à surveiller** — its own dropdown, followed by the
+name / address / latitude / longitude of the location it points at, editable and
+saved by the ordinary Save — and **Réglages généraux** (profile and refresh
+interval, shared by every location).
+
+Four buttons: **Ajouter un lieu** (geocodes an address and adds a location
+watching that point), **Supprimer un lieu** (its own, independent dropdown plus a
+confirmation), **Tester la connexion VigiEau** (live check, shows the current
+level of every location) and **Afficher les restrictions en vigueur** (lists the
+restricted usages and links the decree, per location).
 
 User documentation, re-hosted by Gladys and linked from the Configuration
 screen: [`docs/fr.md`](./docs/fr.md) — [`docs/en.md`](./docs/en.md).
@@ -67,15 +71,15 @@ type, which no retry can fix. A point always falls inside exactly one zone per
 type. An address that matches several candidates with no clear winner is never
 guessed — the action lists them and asks for a more precise query.
 
-**Where the list lives, and why one dropdown.** A `config_schema` is a fixed set
-of fields with no repeatable one, and a `select` only takes the options written
-in the manifest, so a list the user builds at runtime cannot be a form field: it
-lives under the off-schema `locations` key, which the core documents as free
-internal storage of the integration. The Configuration screen therefore carries
-**one** dropdown, in the "Select a location" action, whose options are
-_positions_ in that list — the `Lieux surveillés` field is what maps a position
-to a name. The four fields below it mirror the selected location, so its
-information is displayed, editable and saved by the ordinary Save button.
+**Where the list lives, and why the dropdowns offer numbers.** A `config_schema`
+is a fixed set of fields with no repeatable one, and a `select` only takes the
+options written in the manifest, so a list the user builds at runtime cannot be
+a form field: it lives under the off-schema `locations` key, which the core
+documents as free internal storage of the integration. The dropdowns therefore
+offer _positions_ in that list, and the `Lieux surveillés` field is what maps a
+position to a name — a dropdown showing the names would need the core's
+`source: "devices"`, which is refused with a 422 by every released Gladys
+(checked at the `v4.84.4` tag: `getDynamicOptions` exists only on master).
 
 A few decisions are worth knowing about:
 

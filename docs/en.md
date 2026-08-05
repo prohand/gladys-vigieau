@@ -62,31 +62,46 @@ separately, in addition to the overall level.
 > Until an address has been geocoded, no device is offered. That is deliberate:
 > no device beats a device pinned to an empty location.
 
-### Viewing, editing or deleting a location
+### Viewing and editing a location
 
-The **"Watched locations"** field at the top of the screen lists your locations,
-numbered, with their address and coordinates. The **selected** one is marked
-with a ▶.
+The **"The location to watch"** section has its own dropdown. Right below it,
+the **"Watched locations"** field lists your locations, numbered, with their
+address and coordinates; the one on display is marked with a ▶. That is where
+you read which location "Location 2" is.
 
-1. Pick its number in the dropdown of the **"Select a location"** action and run
-   it. The message tells you which location it is.
+- **No location?** the field says so and points you at "Add a location".
+- **One location?** it is selected and shown by default.
+- **Several?** the first one is shown; pick another in the dropdown.
+
+1. Pick the location number, then click **"Save the configuration"**.
 2. **Reload the page (F5)**: the **Name of the selected location**, **Address**,
    **Latitude** and **Longitude** fields now show its information.
-3. Change what you want and **Save**:
+3. Change what you want and **Save** again:
    - a new **name** renames the location (its device keeps its history);
    - a new **address** is geocoded and moves the point;
    - typing **latitude and longitude** yourself takes precedence over the
      address. Both decimal separators are accepted: `48.8566` and `48,8566` are
      the same point.
-4. To delete that location, tick **"I confirm the deletion"** in the
-   **"Delete the selected location"** action and run it. Run unticked, it only
-   tells you which location would go.
+
+   Reload the page to see the result (the address it settled on, the recomputed
+   coordinates).
 
 > **Why reload the page?** Gladys pushes nothing to a Configuration screen that
-> is already open: after selecting, adding or deleting a location, the fields
+> is already open, and the answer to a save is prepared before the integration
+> has even reacted. After switching location, adding or deleting, the fields
 > keep showing the previous one until you reload. Saving that stale screen is
 > harmless — the integration knows what it was showing and only applies what you
 > really changed — but you will not see the right values before F5.
+
+> If you switch location **and** edit a field in the same save, the edit is
+> applied to the location that was on display — the one you were looking at —
+> and the section then moves on to the new one. Nothing is lost.
+
+### Deleting a location
+
+The **"Delete a location"** action has **its own** dropdown, independent of the
+one above: pick the location number, tick **"I confirm the deletion"** and run
+it. Run unticked, it only tells you which location would go.
 
 > Changing a location's address does not create a second device: the **existing
 > device follows it**, with its history, its rooms and its scenes. Deleting a
@@ -125,12 +140,10 @@ check it at a glance before moving on.
 ## Actions
 
 - **Add a location (search for an address)** — geocodes the address, creates the
-  location and selects it. See "Why an address and not a postal code" above.
-- **Select a location** — the only dropdown on the screen: it puts the chosen
-  location into the fields above, where you can view and edit it, and points the
-  deletion at it. Reload the page afterwards.
-- **Delete the selected location** — stops watching it, after confirmation. Its
-  Gladys device stays: delete it yourself.
+  location and shows it in "The location to watch". Reload the page to see it in
+  the fields. See "Why an address and not a postal code" above.
+- **Delete a location** — stops watching the location picked in this action's own
+  dropdown, after confirmation. Its Gladys device stays: delete it yourself.
 - **Test the VigiEau connection (all locations)** — runs a live request and
   shows the current level of every location, for the three water types. Use it
   right after the configuration to check that your locations are covered.
@@ -176,9 +189,16 @@ check it at a glance before moving on.
   device left over from an older address can be deleted in Gladys.
 - **The fields still show the previous location** — reload the page (F5).
   Gladys pushes nothing to a Configuration screen that is already open: after
-  selecting, adding or deleting a location, the fields keep what they had
-  loaded. Saving that stale screen breaks nothing — only what you really changed
-  is applied — but the values on screen are only right after the reload.
+  switching location, adding or deleting, the fields keep what they had loaded.
+  Saving that stale screen breaks nothing — only what you really changed is
+  applied — but the values on screen are only right after the reload. The
+  integration cannot reload the page for you: nothing in Gladys lets an
+  integration refresh an open configuration screen.
+- **The dropdown shows "Location 1", "Location 2"… instead of the names** — that
+  is a Gladys limitation, not a choice: the options of a dropdown are written in
+  the integration manifest, hence fixed, and the only dynamic source Gladys
+  defines is not active server-side yet (checked at version 4.84.4). The
+  **"Watched locations"** field gives the number → name mapping.
 - **A device that stopped refreshing after a location was deleted** — that is
   expected: an integration cannot delete a Gladys device, it can only stop
   offering it. Delete it in Gladys.

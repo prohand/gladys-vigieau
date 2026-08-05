@@ -63,34 +63,50 @@ sont exposés séparément, en plus du niveau global.
 > Tant qu'aucune adresse n'a été géocodée, aucun appareil n'est proposé. C'est
 > voulu : mieux vaut pas d'appareil qu'un appareil rattaché à un lieu vide.
 
-### Consulter, modifier ou supprimer un lieu
+### Consulter et modifier un lieu
 
-Le champ **« Lieux surveillés »**, en haut de l'écran, liste vos lieux numérotés,
-avec leur adresse et leurs coordonnées. Le lieu **sélectionné** y est marqué
-d'un ▶.
+La section **« Le lieu à surveiller »** a sa propre liste déroulante. Juste en
+dessous, le champ **« Lieux surveillés »** liste vos lieux numérotés avec leur
+adresse et leurs coordonnées ; le lieu affiché y est marqué d'un ▶. C'est là que
+vous lisez à quel lieu correspond « Lieu 2 ».
 
-1. Choisissez son numéro dans la liste déroulante de l'action
-   **« Sélectionner un lieu »** et lancez l'action. Le message affiché vous
-   confirme de quel lieu il s'agit.
+- **Aucun lieu ?** le champ vous le dit et vous renvoie vers « Ajouter un lieu ».
+- **Un seul lieu ?** il est sélectionné et affiché d'office.
+- **Plusieurs lieux ?** le premier est affiché ; choisissez-en un autre dans la
+  liste déroulante.
+
+1. Choisissez le numéro du lieu, puis cliquez sur
+   **« Enregistrer la configuration »**.
 2. **Rechargez la page (F5)** : les champs **Nom du lieu sélectionné**,
-   **Adresse**, **Latitude** et **Longitude** affichent désormais ses
-   informations.
-3. Modifiez ce que vous voulez et **Enregistrez** :
+   **Adresse**, **Latitude** et **Longitude** affichent ses informations.
+3. Modifiez ce que vous voulez et **Enregistrez** à nouveau :
    - changer le **nom** renomme le lieu (son appareil conserve son historique) ;
    - saisir une **nouvelle adresse** la géocode et déplace le point ;
    - saisir vous-même **latitude et longitude** l'emporte sur l'adresse. Les deux
      séparateurs décimaux sont acceptés : `48,8566` comme `48.8566` désignent le
      même point.
-4. Pour supprimer ce lieu, cochez **« Je confirme la suppression »** dans
-   l'action **« Supprimer le lieu sélectionné »** et lancez-la. Lancée sans
-   cocher, elle se contente de vous dire quel lieu serait supprimé.
+
+   Rechargez la page pour voir le résultat (l'adresse retenue, les coordonnées
+   recalculées).
 
 > **Pourquoi recharger la page ?** Gladys n'envoie rien à un écran de
-> configuration déjà ouvert : après avoir sélectionné, ajouté ou supprimé un
-> lieu, les champs continuent d'afficher le précédent jusqu'au rechargement.
-> Enregistrer cet écran périmé est sans danger — l'intégration sait ce qu'il
-> affichait et n'applique que ce que vous avez réellement modifié — mais vous ne
-> verrez les bonnes valeurs qu'après un F5.
+> configuration déjà ouvert, et la réponse à un enregistrement est préparée
+> avant même que l'intégration ait réagi. Après avoir changé de lieu, ajouté ou
+> supprimé, les champs continuent donc d'afficher le précédent jusqu'au
+> rechargement. Enregistrer cet écran périmé est sans danger — l'intégration
+> sait ce qu'il affichait et n'applique que ce que vous avez réellement
+> modifié — mais vous ne verrez les bonnes valeurs qu'après un F5.
+
+> Si vous changez de lieu **et** modifiez un champ dans le même enregistrement,
+> la modification est appliquée au lieu qui était affiché — celui que vous étiez
+> en train de regarder — puis la section passe au nouveau. Rien n'est perdu.
+
+### Supprimer un lieu
+
+L'action **« Supprimer un lieu »** a **sa propre** liste déroulante,
+indépendante de celle du haut : choisissez le numéro du lieu, cochez
+**« Je confirme la suppression »** et lancez l'action. Lancée sans cocher, elle
+se contente de vous dire quel lieu serait supprimé.
 
 > Changer l'adresse d'un lieu ne crée pas un nouvel appareil : l'appareil
 > **existant vous suit**, avec son historique, ses pièces et ses scènes. En
@@ -130,13 +146,11 @@ vérifiez-la d'un coup d'œil avant de continuer.
 ## Actions
 
 - **Ajouter un lieu (rechercher une adresse)** — géocode l'adresse, crée le lieu
-  et le sélectionne. Voir « Pourquoi une adresse et pas un code postal » plus
-  haut.
-- **Sélectionner un lieu** — la seule liste déroulante de l'écran : elle place le
-  lieu choisi dans les champs ci-dessus, où vous pouvez le consulter et le
-  modifier, et y pointe la suppression. Rechargez la page ensuite.
-- **Supprimer le lieu sélectionné** — retire le lieu de la surveillance, après
-  confirmation. Son appareil Gladys, lui, reste : supprimez-le vous-même.
+  et l'affiche dans « Le lieu à surveiller ». Rechargez la page pour le voir
+  dans les champs. Voir « Pourquoi une adresse et pas un code postal » plus haut.
+- **Supprimer un lieu** — retire de la surveillance le lieu choisi dans la liste
+  déroulante de cette action, après confirmation. Son appareil Gladys, lui,
+  reste : supprimez-le vous-même.
 - **Tester la connexion VigiEau (tous les lieux)** — effectue une requête en
   direct et affiche le niveau actuel de chaque lieu, pour les trois types d'eau.
   À utiliser juste après la configuration pour vérifier que les lieux sont bien
@@ -187,10 +201,18 @@ vérifiez-la d'un coup d'œil avant de continuer.
   restés d'une ancienne adresse peuvent être supprimés dans Gladys.
 - **Les champs affichent encore le lieu précédent** — rechargez la page (F5).
   Gladys n'envoie rien à un écran de configuration déjà ouvert : après avoir
-  sélectionné, ajouté ou supprimé un lieu, les champs gardent ce qu'ils avaient
+  changé de lieu, ajouté ou supprimé, les champs gardent ce qu'ils avaient
   chargé. Enregistrer cet écran périmé ne casse rien — seul ce que vous avez
   réellement modifié est appliqué — mais les valeurs affichées, elles, ne
-  seront justes qu'après le rechargement.
+  seront justes qu'après le rechargement. L'intégration ne peut pas recharger
+  la page à votre place : rien, dans Gladys, ne permet à une intégration de
+  rafraîchir un écran de configuration ouvert.
+- **La liste déroulante affiche « Lieu 1 », « Lieu 2 »… et pas les noms** — c'est
+  une limite de Gladys, pas un choix : les options d'une liste déroulante sont
+  écrites dans le fichier de description de l'intégration, donc figées, et la
+  seule source dynamique prévue par Gladys n'est pas encore active côté serveur
+  (vérifié sur la version 4.84.4). Le champ **« Lieux surveillés »** donne la
+  correspondance numéro → nom.
 - **Un appareil qui ne se rafraîchit plus après une suppression de lieu** —
   c'est attendu : une intégration ne peut pas supprimer un appareil Gladys, elle
   peut seulement cesser de le proposer. Supprimez-le dans Gladys.

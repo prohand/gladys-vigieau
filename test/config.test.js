@@ -23,21 +23,27 @@ function stored(...locations) {
 }
 
 test('normalizeConfig returns the defaults when called with no argument', () => {
-  assert.deepEqual(normalizeConfig(), { ...DEFAULT_CONFIG, locations: [], selectedId: '' });
+  assert.deepEqual(normalizeConfig(), {
+    ...DEFAULT_CONFIG,
+    locations: [],
+    selectedPosition: 1,
+    selectedId: '',
+  });
 });
 
-test('the selected location is resolved to an id that really exists', () => {
+test('the "lieu" dropdown IS the selection, and always lands inside the list', () => {
   const locations = stored(
     { id: 'loc-a', name: 'Maison', latitude: '48.8', longitude: '2.3' },
     { id: 'loc-b', name: 'Jardin', latitude: '43.6', longitude: '1.4' },
   ).map((location, index) => ({ ...location, id: index === 0 ? 'loc-a' : 'loc-b' }));
 
-  assert.equal(normalizeConfig({ locations, selected_location: 'loc-b' }).selectedId, 'loc-b');
-  // A stale id — the location it named has been deleted — falls back to the
-  // first one rather than leaving every editing action pointed at nothing.
-  assert.equal(normalizeConfig({ locations, selected_location: 'loc-gone' }).selectedId, 'loc-a');
-  assert.equal(normalizeConfig({ locations }).selectedId, 'loc-a');
+  assert.equal(normalizeConfig({ locations, lieu: '2' }).selectedId, 'loc-b');
+  // The dropdown always offers ten entries — the manifest is a file — so a
+  // position the list does not reach is one click away at all times.
+  assert.equal(normalizeConfig({ locations, lieu: '9' }).selectedId, 'loc-b');
+  assert.equal(normalizeConfig({ locations }).selectedId, 'loc-a', 'the first one by default');
   assert.equal(normalizeConfig({ locations: [] }).selectedId, '');
+  assert.equal(normalizeConfig({ locations: [] }).selectedPosition, 1);
 });
 
 test('readDetailFields hands back the four mirror fields as trimmed text', () => {

@@ -33,10 +33,10 @@ import { formatCoordinate, toCoordinate } from './coordinates.js';
 // `config_schema`: see the header.
 export const LOCATIONS_KEY = 'locations';
 
-// Config key holding the id of the location the Configuration screen is
-// currently pointed at. Off-schema too: it holds a generated id, which no
-// static `select` could ever offer as an option.
-export const SELECTED_KEY = 'selected_location';
+// The config_schema `select` that points the "Le lieu à surveiller" section at
+// one entry of the list. Its value is a 1-based POSITION, as a string, because
+// a manifest can only hold static options — see `locationAtPosition`.
+export const SELECTION_FIELD = 'lieu';
 
 // Identifier of the location an install created before 1.3.0. It is the
 // platform id the single device was published under, so keeping it as the id
@@ -170,22 +170,9 @@ export function findLocationById(locations = [], id) {
 }
 
 /**
- * The location the Configuration screen is pointed at.
- *
- * Falls back to the first one rather than to nothing: an id left over from a
- * location the user has since deleted must not leave the screen editing a
- * location that does not exist.
- * @param {Array<object>} locations
- * @param {unknown} selectedId - the stored `selected_location`
- * @returns {object | null}
- */
-export function selectedLocation(locations = [], selectedId) {
-  return findLocationById(locations, String(selectedId ?? '')) ?? locations[0] ?? null;
-}
-
-/**
- * The location a 1-based POSITION designates — what the `lieu` select of the
- * "select a location" action carries.
+ * The location a 1-based POSITION designates — what the two `lieu` selects
+ * carry: the one of the "Le lieu à surveiller" section, and the one of the
+ * delete action.
  *
  * The options of a `select` are static (the manifest is a file), so they can
  * only be positions: "Lieu 1", "Lieu 2"... The `lieux` field of the
@@ -201,6 +188,25 @@ export function locationAtPosition(locations = [], position) {
     return null;
   }
   return locations[index] ?? null;
+}
+
+/**
+ * The position the Configuration screen is really pointed at.
+ *
+ * Always inside the list: a position left over from a location the user has
+ * since deleted — or a `lieu` the manifest offers but nothing fills yet — must
+ * not leave the screen editing a location that does not exist. `1` when there
+ * is nothing to point at, which is what the manifest default says too.
+ * @param {Array<object>} locations
+ * @param {unknown} position - the stored `lieu`
+ * @returns {number}
+ */
+export function clampPosition(locations = [], position) {
+  const parsed = Number.parseInt(String(position ?? ''), 10);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    return 1;
+  }
+  return Math.min(parsed, Math.max(locations.length, 1));
 }
 
 /** The 1-based position of a location, or 0 when it is not in the list. */
@@ -309,13 +315,16 @@ export function describeLocation(location) {
  * @param {Array<object>} locations
  * @param {string} [selectedId]
  */
-export function describeLocations(locations = [], selectedId = '') {
+export function describeLocations(locations = [], selectedPosition = 0) {
   if (locations.length === 0) {
-    return '';
+    // Not empty: this field is the only place the Configuration screen can say
+    // anything, and "there is nothing here yet" is exactly what a user opening
+    // it for the first time needs to read.
+    return 'Aucun lieu configuré — ajoutez-en un avec l’action « Ajouter un lieu » ci-dessous.';
   }
   return locations
     .map((location, index) => {
-      const mark = location.id === selectedId ? '▶ ' : '';
+      const mark = index + 1 === selectedPosition ? '▶ ' : '';
       return `${mark}${index + 1}. ${describeLocation(location)}`;
     })
     .join('   |   ');

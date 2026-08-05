@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { DEVICE_BLUEPRINTS } from '../src/devices/index.js';
 import { DEFAULT_CONFIG, DETAIL_FIELDS, PROFILES } from '../src/config.js';
-import { LOCATIONS_KEY, MAX_LOCATIONS, SELECTED_KEY } from '../src/locations.js';
+import { LOCATIONS_KEY, MAX_LOCATIONS, SELECTION_FIELD } from '../src/locations.js';
 import { createLocationEditor, SUMMARY_FIELD } from '../src/locationEditor.js';
 
 const manifest = JSON.parse(
@@ -24,7 +24,7 @@ const packageJson = JSON.parse(await readFile(new URL('../package.json', import.
 // hand, so adding one there cannot silently skip the manifest.
 const REGISTRY_LEVEL_ACTIONS = Object.keys(
   createLocationEditor({
-    getConfig: () => ({ locations: [], selectedId: '' }),
+    getConfig: () => ({ locations: [], selectedPosition: 1, selectedId: '' }),
     setConfig: async () => {},
     onLocationsChanged: async () => {},
   }).actions,
@@ -92,36 +92,59 @@ test('every registered handler is declared in the manifest', () => {
 // field: it lives under off-schema keys, and one dropdown points the mirror
 // fields at the entry the user wants to look at.
 
-test('neither the list nor the selection is a config_schema field', () => {
+test('the location list is not a config_schema field', () => {
   const keys = manifest.config_schema.map((f) => f.key);
-  for (const key of [LOCATIONS_KEY, SELECTED_KEY]) {
-    assert.ok(
-      !keys.includes(key),
-      `"${key}" is free internal storage of the integration; declaring it would 422 every save`,
+  assert.ok(
+    !keys.includes(LOCATIONS_KEY),
+    'an off-schema key is free internal storage; declaring it would 422 every save',
+  );
+});
+
+test('each part that needs one has its OWN location dropdown', () => {
+  // The "Le lieu a surveiller" section and the delete action pick a location
+  // independently: deleting is not "get rid of whatever I am looking at".
+  const sectionPicker = configField(SELECTION_FIELD);
+  const deletePicker = (action('supprimer_lieu').fields ?? []).find((f) => f.key === 'lieu');
+  assert.ok(sectionPicker, 'the section carries the selector of the fields below it');
+  assert.ok(deletePicker, 'the delete action carries its own');
+
+  for (const field of [sectionPicker, deletePicker]) {
+    assert.equal(field.type, 'select');
+    assert.equal(field.required, true);
+    assert.equal(field.default, '1', 'the first location, which is what is shown by default');
+    // Static options, because that is all a manifest can hold: they are
+    // POSITIONS in the list, and the `lieux` field is what maps a position to
+    // a name. One option per location the integration accepts.
+    assert.deepEqual(
+      field.options.map((option) => option.value),
+      Array.from({ length: MAX_LOCATIONS }, (unused, index) => String(index + 1)),
+      'a dropdown and MAX_LOCATIONS must not drift apart',
     );
   }
 });
 
-test('ONE dropdown selects the location, and it offers positions', () => {
-  const field = (action('selectionner_lieu').fields ?? []).find((f) => f.key === 'lieu');
-  assert.ok(field, 'the whole point of the screen is that single dropdown');
-  assert.equal(field.type, 'select');
-  assert.equal(field.required, true);
-  // Static options, because that is all a manifest can hold: they are
-  // POSITIONS in the list, and the `lieux` field is what maps a position to a
-  // name. One option per location the integration accepts, no more, no less.
-  assert.deepEqual(
-    field.options.map((option) => option.value),
-    Array.from({ length: MAX_LOCATIONS }, (_, index) => String(index + 1)),
-    'the dropdown and MAX_LOCATIONS must not drift apart',
+test('the selector of the section sits in the section it belongs to', () => {
+  const keys = manifest.config_schema.map((f) => f.key);
+  assert.ok(
+    keys.indexOf('lieu_section') < keys.indexOf(SELECTION_FIELD),
+    'the dropdown belongs under the "Le lieu a surveiller" heading',
+  );
+  assert.ok(
+    keys.indexOf(SELECTION_FIELD) < keys.indexOf('settings_section'),
+    'and above the general settings, which are not about one location',
   );
 });
 
-test('it is the ONLY dropdown that designates a location', () => {
-  // What this rewrite is about: four actions each carrying their own location
-  // picker is what the previous attempt did, and it made the screen unusable.
-  const pickers = allFields().filter((f) => f.key === 'lieu');
-  assert.equal(pickers.length, 1, 'a second location picker means a second thing to keep in sync');
+test('"Pour commencer" carries the presentation and its two links, nothing else', () => {
+  const intro = configField('intro');
+  assert.equal(intro.type, 'section');
+  assert.deepEqual(
+    (intro.links ?? []).map((link) => link.url),
+    ['https://vigieau.gouv.fr', 'https://api.vigieau.beta.gouv.fr/swagger'],
+  );
+  // Everything about picking a location moved to its own section: this one
+  // says what VigiEau is, and stops there.
+  assert.doesNotMatch(intro.description.fr, /liste deroulante|F5|rechargez/i);
 });
 
 test('NO field takes its options from a core-defined dynamic source', () => {
@@ -158,16 +181,15 @@ test('adding a location only ever asks for an address', () => {
   );
 });
 
-test('deleting takes a confirmation and nothing else', () => {
-  // It works on the SELECTED location — no picker of its own — so the only
-  // thing standing between a stray click and a lost location is the checkbox.
+test('deleting takes its own location plus a confirmation', () => {
   const remove = action('supprimer_lieu');
   assert.deepEqual(
     (remove.fields ?? []).map((f) => f.key),
-    ['confirmation'],
+    ['lieu', 'confirmation'],
   );
-  assert.equal(remove.fields[0].type, 'boolean');
-  assert.equal(remove.fields[0].default, false, 'never armed by default');
+  const confirmation = remove.fields[1];
+  assert.equal(confirmation.type, 'boolean');
+  assert.equal(confirmation.default, false, 'never armed by default');
 });
 
 test('the query actions take no field at all', () => {
@@ -231,7 +253,13 @@ test('the fields mirroring the selected location store no setting of their own',
 
 test('the global settings keep their defaults in DEFAULT_CONFIG', () => {
   for (const field of manifest.config_schema) {
-    if (field.type === 'section' || MIRROR_FIELDS.includes(field.key)) {
+    // The selector is not a setting either: it points at a list entry, and
+    // `normalizeConfig` derives `selectedPosition` from it.
+    if (
+      field.type === 'section' ||
+      MIRROR_FIELDS.includes(field.key) ||
+      field.key === SELECTION_FIELD
+    ) {
       continue;
     }
     assert.ok(field.key in DEFAULT_CONFIG, `DEFAULT_CONFIG is missing "${field.key}"`);
@@ -359,6 +387,10 @@ test('the intro comes before the settings it explains', () => {
   assert.ok(
     keys.indexOf(SUMMARY_FIELD) < keys.indexOf('location_name'),
     'the list of locations has to be read before the fields that mirror one of them',
+  );
+  assert.ok(
+    keys.indexOf('intro') < keys.indexOf('lieu_section'),
+    'what VigiEau is comes before which location to watch',
   );
 });
 

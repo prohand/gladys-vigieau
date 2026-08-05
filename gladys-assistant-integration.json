@@ -20,8 +20,8 @@
         "fr": "Pour commencer"
       },
       "description": {
-        "en": "VigiEau is the French government service publishing the drought alert level and the water restrictions in force at a given address. The API is free and needs no account. You can watch several locations — a house, a second home, an allotment garden are rarely under the same prefectoral decree — and each one gets its own device. Add a location with \"Add a location\" below, then pick the one you want to look at with \"Select a location\": its name, address and coordinates appear in the fields below, where you can edit them and save.",
-        "fr": "VigiEau est le service de l'État qui publie le niveau de vigilance sécheresse et les restrictions d'eau en vigueur à une adresse donnée. L'API est gratuite et ne demande aucun compte. Vous pouvez surveiller plusieurs lieux — une maison, une résidence secondaire, un jardin relèvent rarement du même arrêté préfectoral — et chacun donne son propre appareil. Ajoutez un lieu avec « Ajouter un lieu » ci-dessous, puis choisissez celui que vous voulez consulter avec « Sélectionner un lieu » : son nom, son adresse et ses coordonnées apparaissent dans les champs ci-dessous, où vous pouvez les modifier et enregistrer."
+        "en": "VigiEau is the French government service publishing the drought alert level and the water restrictions in force at a given address. The API is free and needs no account: just tell the integration which location to watch.",
+        "fr": "VigiEau est le service de l'État qui publie le niveau de vigilance sécheresse et les restrictions d'eau en vigueur à une adresse donnée. L'API est gratuite et ne demande aucun compte : indiquez simplement le lieu à surveiller."
       },
       "links": [
         {
@@ -41,6 +41,104 @@
       ]
     },
     {
+      "key": "lieu_section",
+      "type": "section",
+      "label": {
+        "en": "The location to watch",
+        "fr": "Le lieu à surveiller"
+      },
+      "description": {
+        "en": "Pick the location whose information you want to see below. The numbers are the ones of the list underneath. IMPORTANT: choosing another one takes effect when you click \"Save the configuration\" — and the fields only show it after the page is reloaded (F5), because Gladys never pushes anything to a configuration screen that is already open.",
+        "fr": "Choisissez le lieu dont vous voulez voir les informations ci-dessous. Les numéros sont ceux de la liste juste en dessous. IMPORTANT : le changement prend effet quand vous cliquez sur « Enregistrer la configuration » — et les champs ne l'affichent qu'après rechargement de la page (F5), car Gladys n'envoie jamais rien à un écran de configuration déjà ouvert."
+      }
+    },
+    {
+      "key": "lieu",
+      "type": "select",
+      "label": {
+        "en": "Selected location",
+        "fr": "Lieu sélectionné"
+      },
+      "description": {
+        "en": "The position of the location in the list below. Save the configuration to apply the change, then reload the page.",
+        "fr": "La position du lieu dans la liste ci-dessous. Enregistrez la configuration pour appliquer le changement, puis rechargez la page."
+      },
+      "required": true,
+      "default": "1",
+      "options": [
+        {
+          "value": "1",
+          "label": {
+            "en": "Location 1",
+            "fr": "Lieu 1"
+          }
+        },
+        {
+          "value": "2",
+          "label": {
+            "en": "Location 2",
+            "fr": "Lieu 2"
+          }
+        },
+        {
+          "value": "3",
+          "label": {
+            "en": "Location 3",
+            "fr": "Lieu 3"
+          }
+        },
+        {
+          "value": "4",
+          "label": {
+            "en": "Location 4",
+            "fr": "Lieu 4"
+          }
+        },
+        {
+          "value": "5",
+          "label": {
+            "en": "Location 5",
+            "fr": "Lieu 5"
+          }
+        },
+        {
+          "value": "6",
+          "label": {
+            "en": "Location 6",
+            "fr": "Lieu 6"
+          }
+        },
+        {
+          "value": "7",
+          "label": {
+            "en": "Location 7",
+            "fr": "Lieu 7"
+          }
+        },
+        {
+          "value": "8",
+          "label": {
+            "en": "Location 8",
+            "fr": "Lieu 8"
+          }
+        },
+        {
+          "value": "9",
+          "label": {
+            "en": "Location 9",
+            "fr": "Lieu 9"
+          }
+        },
+        {
+          "value": "10",
+          "label": {
+            "en": "Location 10",
+            "fr": "Lieu 10"
+          }
+        }
+      ]
+    },
+    {
       "key": "lieux",
       "type": "string",
       "label": {
@@ -48,8 +146,8 @@
         "fr": "Lieux surveillés (▶ = sélectionné)"
       },
       "description": {
-        "en": "Filled in by the integration, do not edit: the numbers are the ones the \"Select a location\" dropdown offers. Reload the page (F5) after adding, selecting or deleting a location to see it up to date.",
-        "fr": "Renseigné par l'intégration, ne le modifiez pas : les numéros sont ceux que propose la liste déroulante « Sélectionner un lieu ». Rechargez la page (F5) après avoir ajouté, sélectionné ou supprimé un lieu pour le voir à jour."
+        "en": "Filled in by the integration, do not edit: the numbers are the ones the dropdowns offer, above and in \"Delete a location\". Reload the page (F5) after adding, selecting or deleting a location to see it up to date — a Save can only answer here, never on screen.",
+        "fr": "Renseigné par l'intégration, ne le modifiez pas : les numéros sont ceux que proposent les listes déroulantes, ci-dessus et dans « Supprimer un lieu ». Rechargez la page (F5) après avoir ajouté, sélectionné ou supprimé un lieu pour le voir à jour — un enregistrement ne peut répondre qu'ici, jamais à l'écran."
       },
       "required": false,
       "default": "",
@@ -128,6 +226,18 @@
       "placeholder": {
         "en": "2.3522",
         "fr": "2,3522"
+      }
+    },
+    {
+      "key": "settings_section",
+      "type": "section",
+      "label": {
+        "en": "General settings",
+        "fr": "Réglages généraux"
+      },
+      "description": {
+        "en": "These two settings apply to every watched location.",
+        "fr": "Ces deux réglages s’appliquent à tous les lieux surveillés."
       }
     },
     {
@@ -241,14 +351,14 @@
       ]
     },
     {
-      "key": "selectionner_lieu",
+      "key": "supprimer_lieu",
       "label": {
-        "en": "Select a location (to view, edit or delete it)",
-        "fr": "Sélectionner un lieu (pour le consulter, le modifier ou le supprimer)"
+        "en": "Delete a location",
+        "fr": "Supprimer un lieu"
       },
       "description": {
-        "en": "Puts the chosen location into the fields above, where it can be edited and saved, and points \"Delete the selected location\" at it. The numbers are the ones of the \"Watched locations\" field. Reload the page (F5) afterwards to see the fields refreshed.",
-        "fr": "Place le lieu choisi dans les champs ci-dessus, où il peut être modifié puis enregistré, et y pointe « Supprimer le lieu sélectionné ». Les numéros sont ceux du champ « Lieux surveillés ». Rechargez ensuite la page (F5) pour voir les champs à jour."
+        "en": "Stops watching the location you pick here — this dropdown is its own, independent of the one in \"The location to watch\". Its Gladys device is not deleted (an integration cannot do that): delete it yourself if you no longer want it.",
+        "fr": "Arrête de surveiller le lieu choisi ici — cette liste déroulante lui est propre, indépendante de celle de « Le lieu à surveiller ». Son appareil Gladys n’est pas supprimé (une intégration ne peut pas le faire) : supprimez-le vous-même si vous n’en voulez plus."
       },
       "timeout_seconds": 15,
       "fields": [
@@ -256,42 +366,88 @@
           "key": "lieu",
           "type": "select",
           "label": {
-            "en": "Location",
-            "fr": "Lieu"
+            "en": "Location to delete",
+            "fr": "Lieu à supprimer"
           },
           "description": {
-            "en": "The position of the location in the \"Watched locations\" field above.",
-            "fr": "La position du lieu dans le champ « Lieux surveillés » ci-dessus."
+            "en": "The position of the location in the \"Watched locations\" field.",
+            "fr": "La position du lieu dans le champ « Lieux surveillés »."
           },
           "required": true,
           "default": "1",
           "options": [
-            { "value": "1", "label": { "en": "Location 1", "fr": "Lieu 1" } },
-            { "value": "2", "label": { "en": "Location 2", "fr": "Lieu 2" } },
-            { "value": "3", "label": { "en": "Location 3", "fr": "Lieu 3" } },
-            { "value": "4", "label": { "en": "Location 4", "fr": "Lieu 4" } },
-            { "value": "5", "label": { "en": "Location 5", "fr": "Lieu 5" } },
-            { "value": "6", "label": { "en": "Location 6", "fr": "Lieu 6" } },
-            { "value": "7", "label": { "en": "Location 7", "fr": "Lieu 7" } },
-            { "value": "8", "label": { "en": "Location 8", "fr": "Lieu 8" } },
-            { "value": "9", "label": { "en": "Location 9", "fr": "Lieu 9" } },
-            { "value": "10", "label": { "en": "Location 10", "fr": "Lieu 10" } }
+            {
+              "value": "1",
+              "label": {
+                "en": "Location 1",
+                "fr": "Lieu 1"
+              }
+            },
+            {
+              "value": "2",
+              "label": {
+                "en": "Location 2",
+                "fr": "Lieu 2"
+              }
+            },
+            {
+              "value": "3",
+              "label": {
+                "en": "Location 3",
+                "fr": "Lieu 3"
+              }
+            },
+            {
+              "value": "4",
+              "label": {
+                "en": "Location 4",
+                "fr": "Lieu 4"
+              }
+            },
+            {
+              "value": "5",
+              "label": {
+                "en": "Location 5",
+                "fr": "Lieu 5"
+              }
+            },
+            {
+              "value": "6",
+              "label": {
+                "en": "Location 6",
+                "fr": "Lieu 6"
+              }
+            },
+            {
+              "value": "7",
+              "label": {
+                "en": "Location 7",
+                "fr": "Lieu 7"
+              }
+            },
+            {
+              "value": "8",
+              "label": {
+                "en": "Location 8",
+                "fr": "Lieu 8"
+              }
+            },
+            {
+              "value": "9",
+              "label": {
+                "en": "Location 9",
+                "fr": "Lieu 9"
+              }
+            },
+            {
+              "value": "10",
+              "label": {
+                "en": "Location 10",
+                "fr": "Lieu 10"
+              }
+            }
           ]
-        }
-      ]
-    },
-    {
-      "key": "supprimer_lieu",
-      "label": {
-        "en": "Delete the selected location",
-        "fr": "Supprimer le lieu sélectionné"
-      },
-      "description": {
-        "en": "Stops watching the selected location. Its Gladys device is not deleted — an integration cannot do that — so delete it yourself if you no longer want it.",
-        "fr": "Arrête de surveiller le lieu sélectionné. Son appareil Gladys n'est pas supprimé — une intégration ne peut pas le faire — supprimez-le vous-même si vous n'en voulez plus."
-      },
-      "timeout_seconds": 15,
-      "fields": [
+        },
         {
           "key": "confirmation",
           "type": "boolean",

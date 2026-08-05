@@ -24,9 +24,11 @@
 // -----------------------------------------------------------------------------
 
 import {
+  clampPosition,
   legacyLocations,
+  locationAtPosition,
   normalizeLocations,
-  selectedLocation,
+  SELECTION_FIELD,
   usableLocations,
 } from './locations.js';
 
@@ -70,7 +72,9 @@ export function normalizeConfig(raw = {}) {
   const locations = Array.isArray(raw.locations)
     ? normalizeLocations(raw.locations)
     : legacyLocations(raw);
-  const selected = selectedLocation(locations, raw.selected_location);
+  // The `lieu` select of the "Le lieu à surveiller" section IS the selection:
+  // its value is a position in the list, kept inside it whatever was stored.
+  const selectedPosition = clampPosition(locations, raw[SELECTION_FIELD]);
   return {
     ...DEFAULT_CONFIG,
     ...raw,
@@ -78,9 +82,10 @@ export function normalizeConfig(raw = {}) {
     profil: PROFILES.includes(profil) ? profil : DEFAULT_CONFIG.profil,
     poll_frequency: Number(raw.poll_frequency ?? DEFAULT_CONFIG.poll_frequency),
     locations,
-    // Never an id that is not in the list: the editing actions all work on
-    // `selectedId`, and one pointing at nothing would silently do nothing.
-    selectedId: selected?.id ?? '',
+    selectedPosition,
+    // Never an id that is not in the list: the mirror fields describe this
+    // location, and one pointing at nothing would silently edit the wrong one.
+    selectedId: locationAtPosition(locations, selectedPosition)?.id ?? '',
   };
 }
 

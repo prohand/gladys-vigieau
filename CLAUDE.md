@@ -82,26 +82,39 @@ one, and a `select` only takes the options written in the manifest. It lives und
 `locations` key (next to `selected_location`), which `setIntegrationConfig` documents as free
 internal storage of the integration — JSON-encoded, handed back parsed by `getConfig()`.
 
-**How the user picks one.** ONE dropdown, in the `selectionner_lieu` action form, whose static
-options are POSITIONS in the list ("Lieu 1"… "Lieu 10"); the `lieux` config field, written by the
-integration, is what maps a position to a name. The four config fields below it (`location_name`,
-`address_label`, `latitude`, `longitude`) MIRROR the selected location: the integration writes them,
-the user edits them, and the ordinary Save writes the edit back into the list.
+**How the user picks one.** The Configuration screen is three sections. "Pour commencer" presents
+VigiEau and stops there. "Le lieu à surveiller" carries its OWN `lieu` dropdown (the `select` of the
+same name) followed by the four fields that MIRROR the location it points at — `location_name`,
+`address_label`, `latitude`, `longitude`: the integration writes them, the user edits them, and
+"Enregistrer la configuration" writes the edit back into the list. "Réglages généraux" holds what is
+not about one location. The delete action carries a SECOND, independent dropdown, so removing a
+location never depends on what the section above happens to be showing.
+
+Both dropdowns offer POSITIONS ("Lieu 1"… "Lieu 10"), and the `lieux` config field — written by the
+integration — is what maps a position to a name. `lieu` IS the selection: `normalizeConfig` derives
+`selectedPosition`/`selectedId` from it, clamped into the list, and `commit()` rewrites it when it
+points past the end.
 
 Two constraints forced this shape, and neither is negotiable:
 
-- **A `select` is validated against the manifest's static `options`.** The core's only dynamic source,
-  `source: "devices"`, has no server-side implementation in any released Gladys —
-  `getDynamicOptions` landed on master after 4.84.4 — so every value such a dropdown offers is
-  refused with a 422 in `runAction` before the command reaches the container. A previous attempt
-  shipped it and every action carrying it failed with "L'action a échoué". A test fails the build if
-  any field declares a `source` again.
-- **The Configuration screen displays NOTHING an integration says about a Save.**
-  `setConnectionStatus` is rendered on the Supervision page and inside an `oauth2` field, nowhere
-  else; only an ACTION's result message is shown, under its button. That is why selecting is an
-  action and not a config field: it has to be able to answer "Lieu 2 « Jardin », reload the page".
-  A Save that could not do what was asked carries its reason in the `lieux` field instead, which the
-  next page load shows.
+- **A `select` is validated against the manifest's static `options`, so a dropdown can NEVER show
+  the location names.** Checked at the `v4.84.4` tag itself, not on master:
+  `externalIntegration.getDynamicOptions.js` does not exist there, and `validateConfigValue` reads
+  `(field.options || []).map(o => o.value)`. The core's only dynamic source, `source: "devices"`,
+  is therefore refused with a 422 in `runAction`/`saveConfigFromFront` before the command reaches
+  the container — a previous attempt shipped it and every action carrying it failed with "L'action
+  a échoué". A test fails the build if any field declares a `source` again, and another one runs
+  every declared option through the real `validateConfigValue` with no dynamic options.
+- **The Configuration screen displays NOTHING an integration says about a Save, and nothing can
+  refresh it.** `setConnectionStatus` is rendered on the Supervision page and inside an `oauth2`
+  field, nowhere else; only an ACTION's result message is shown, under its button. The page listens
+  to exactly two websocket events (`STATUS_CHANGED`, `CONNECTION_STATUS_UPDATED`) and neither
+  re-reads the config; `runAction` does not call `loadData()`; and `saveConfigFromFront` returns
+  `getConfigForFront()` right after a **fire-and-forget** `sendMessage` (its own JSDoc says so), so
+  the answer the front refreshes its fields from is read BEFORE this container has reacted. There is
+  no way to refresh the screen in real time, and no way to reload it — the user presses F5. A Save
+  that could not do what was asked carries its reason in the `lieux` field, which the next page load
+  shows.
 
 ### The stale form, and why `staleFields` exists
 
@@ -119,6 +132,12 @@ mirror fields are therefore rewritten (and the guard re-armed) on that path too,
 of an unreloaded page is as harmless as the first. It stops only when form and store agree, which is
 what a reload achieves. `test/locationEditor.test.js` models the browser faithfully — the form keeps
 what it sent — and every one of those tests fails if the guard is removed.
+
+The dropdown and the mirror fields travel in the SAME Save, so a user can move the selection and
+edit at once. `shownPosition` (in memory, seeded by `sync()` on connection) is what tells a move
+from an ordinary Save — the core sends the new configuration, never the old. The edits are then
+applied to the location the screen WAS showing, because that is what they describe, and the section
+moves on to the newly chosen one.
 
 ### The device identity does not depend on the configuration
 
@@ -249,9 +268,8 @@ The traps, each pinned by a test in `test/manifest.test.js`:
   server-side implementation in any released Gladys, so the only usable options are the static ones,
   which is why the location dropdown offers positions and lives in an action form.
 
-Manifest actions are registered per key. The read-only ones live in `blueprint.actions`; the three
-that EDIT the list (`rechercher_adresse`, `selectionner_lieu`, `supprimer_lieu`) come from
-`createLocationEditor()` because they write the config back and re-publish the catalog, which is not
+Manifest actions are registered per key. The read-only ones live in `blueprint.actions`; the two
+that EDIT the list (`rechercher_adresse`, `supprimer_lieu`) come from `createLocationEditor()` because they write the config back and re-publish the catalog, which is not
 a device's business. `test/manifest.test.js` reads `REGISTRY_LEVEL_ACTIONS` off that factory, so a
 handler added there cannot silently skip the manifest.
 

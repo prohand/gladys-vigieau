@@ -55,6 +55,7 @@ function createHarness(stored = {}) {
     config: () => config,
     locations: () => config.locations,
     selected: () => config.locations.find((location) => location.id === config.selectedId),
+    position: () => config.selectedPosition,
     /**
      * What an open Configuration screen would send back on the next Save.
      *
@@ -70,9 +71,17 @@ function createHarness(stored = {}) {
       config = normalizeConfig(raw);
       return editor.applyFormEdits();
     },
+    /** Move the section's dropdown, then Save — one and the same request. */
+    selectAndSave: (position, edits = {}) => {
+      form = { ...form, ...edits, lieu: String(position) };
+      raw = { ...raw, ...form };
+      config = normalizeConfig(raw);
+      return editor.applyFormEdits();
+    },
     /** Remember what the screen is currently showing (it loads on page load). */
     reload: () => {
       form = {
+        lieu: raw.lieu ?? '1',
         location_name: raw.location_name ?? '',
         address_label: raw.address_label ?? '',
         latitude: raw.latitude ?? '',
@@ -90,6 +99,13 @@ let form = {};
 function harness(stored = {}) {
   const h = createHarness(stored);
   h.reload();
+  // The connection seeds the position the open tab was loaded with, exactly as
+  // index.js does before publishing anything.
+  h.editor.sync();
+  h.reload();
+  // Only what a test triggers itself is interesting; the connection write is
+  // setup.
+  h.writes.length = 0;
   return h;
 }
 
@@ -137,12 +153,12 @@ const JARDIN = {
   longitude: '4.8357',
 };
 
-/** A stored configuration whose mirror fields already show `selected`. */
-function installed(locations, selectedId = locations[0].id) {
-  const selected = locations.find((location) => location.id === selectedId);
+/** A stored configuration whose mirror fields already show position `at`. */
+function installed(locations, at = 1) {
+  const selected = locations[at - 1];
   return {
     locations,
-    selected_location: selectedId,
+    lieu: String(at),
     location_name: selected.name,
     address_label: selected.address_label,
     latitude: selected.latitude,
@@ -233,9 +249,9 @@ test('the list is capped, and says how to make room', async () => {
 
 // --- Selecting ---------------------------------------------------------------
 
-test('selectionner_lieu points the mirror fields at the chosen position', async () => {
+test('the section dropdown points the mirror fields at the chosen position', async () => {
   const h = harness(installed([MAISON, JARDIN]));
-  const message = await h.editor.actions.selectionner_lieu({ lieu: '2' });
+  const message = await h.selectAndSave(2);
 
   assert.equal(h.selected().name, 'Jardin');
   assert.equal(h.raw().location_name, 'Jardin');
@@ -247,24 +263,55 @@ test('selectionner_lieu points the mirror fields at the chosen position', async 
   assert.match(message.fr, /F5/);
 });
 
-test('a position past the end of the list is refused, with the list', async () => {
+test('a position past the end of the list falls back inside it', async () => {
+  // The dropdown always offers ten entries — the manifest is a file — so
+  // "Lieu 4" with one location configured is one click away at all times.
   const h = harness(installed([MAISON]));
-  const message = await h.editor.actions.selectionner_lieu({ lieu: '4' });
-  assert.equal(h.selected().name, 'Maison', 'the selection did not move');
-  assert.match(message.fr, /pas de lieu/);
-  assert.match(message.fr, /Maison/, 'what does exist is shown');
+  await h.selectAndSave(4);
+  assert.equal(h.selected().name, 'Maison', 'never left pointing past the end');
+  assert.equal(h.position(), 1);
+  assert.equal(h.raw().lieu, '1', 'and the dropdown is put back where it belongs');
 });
 
-test('selecting says there is nothing to select yet', async () => {
+test('with no location at all the field says to create one', async () => {
   const h = harness();
-  const message = await h.editor.actions.selectionner_lieu({ lieu: '1' });
-  assert.match(message.fr, /Aucun lieu/);
+  await h.editor.sync();
+  assert.match(h.raw()[SUMMARY_FIELD], /Aucun lieu configuré/);
+  assert.match(h.raw()[SUMMARY_FIELD], /Ajouter un lieu/);
+});
+
+test('a single location is selected and shown by default', async () => {
+  const h = harness({ locations: [MAISON] });
+  await h.editor.sync();
+  assert.equal(h.position(), 1);
+  assert.equal(h.raw().location_name, 'Maison');
+  assert.match(h.raw()[SUMMARY_FIELD], /▶ 1\. Maison/);
+});
+
+test('with several locations the first one is shown by default', async () => {
+  const h = harness({ locations: [MAISON, JARDIN] });
+  await h.editor.sync();
+  assert.equal(h.position(), 1);
+  assert.equal(h.raw().location_name, 'Maison');
+});
+
+test('moving the dropdown and editing at once applies the edit where it was made', async () => {
+  // The mirror fields the same Save carries describe the location the screen
+  // was SHOWING, not the one just picked: dropping the edit would lose work,
+  // applying it to the new location would corrupt it.
+  const h = harness(installed([MAISON, JARDIN]));
+  await h.selectAndSave(2, { location_name: 'Maison principale' });
+
+  assert.equal(h.locations()[0].name, 'Maison principale', 'the edit landed on Maison');
+  assert.equal(h.locations()[1].name, 'Jardin', 'Jardin was not renamed');
+  assert.equal(h.position(), 2, 'and the section moved on to Jardin');
+  assert.equal(h.raw().location_name, 'Jardin');
 });
 
 // --- Editing through the mirror fields ---------------------------------------
 
 test('renaming the selected location through the form keeps its device', async () => {
-  const h = harness(installed([MAISON, JARDIN], 'loc-jardin'));
+  const h = harness(installed([MAISON, JARDIN], 2));
   const message = await h.saveForm({ location_name: 'Potager' });
 
   assert.equal(h.locations()[1].name, 'Potager');
@@ -372,7 +419,7 @@ test('clearing the address keeps the point and drops its description', async () 
 
 test('saving the form left over from a selection does NOT overwrite the new location', async () => {
   const h = harness(installed([MAISON, JARDIN]));
-  await h.editor.actions.selectionner_lieu({ lieu: '2' });
+  await h.selectAndSave(2);
   // No reload: the browser is still showing Maison's name and address.
   await h.saveForm();
 
@@ -384,7 +431,7 @@ test('saving the form left over from a selection does NOT overwrite the new loca
 
 test('an edit made on the stale form still reaches the selected location', async () => {
   const h = harness(installed([MAISON, JARDIN]));
-  await h.editor.actions.selectionner_lieu({ lieu: '2' });
+  await h.selectAndSave(2);
   // The user did not reload, but they did type: only what they touched is an
   // edit, the rest is the old location showing through.
   await h.saveForm({ location_name: 'Potager' });
@@ -401,7 +448,7 @@ test('a SECOND save of the same stale form is still neutralized', async () => {
   // just stored, the tab keeps showing them, and a guard cleared here would
   // let the second Save write the previous location's point onto this one.
   const h = harness(installed([MAISON, JARDIN]));
-  await h.editor.actions.selectionner_lieu({ lieu: '2' });
+  await h.selectAndSave(2);
   await h.saveForm();
   await h.saveForm();
 
@@ -413,7 +460,7 @@ test('a SECOND save of the same stale form is still neutralized', async () => {
 
 test('an edit made two saves after a selection still lands on the right location', async () => {
   const h = harness(installed([MAISON, JARDIN]));
-  await h.editor.actions.selectionner_lieu({ lieu: '2' });
+  await h.selectAndSave(2);
   await h.saveForm();
   await h.saveForm({ location_name: 'Potager' });
 
@@ -423,7 +470,7 @@ test('an edit made two saves after a selection still lands on the right location
 
 test('the snapshot is used once: the next save is an ordinary one', async () => {
   const h = harness(installed([MAISON, JARDIN]));
-  await h.editor.actions.selectionner_lieu({ lieu: '2' });
+  await h.selectAndSave(2);
   await h.saveForm();
   h.reload(); // the user finally pressed F5
   await h.saveForm({ location_name: 'Potager' });
@@ -434,8 +481,8 @@ test('the snapshot is used once: the next save is an ordinary one', async () => 
 
 test('two selections in a row keep protecting what the screen really shows', async () => {
   const h = harness(installed([MAISON, JARDIN]));
-  await h.editor.actions.selectionner_lieu({ lieu: '2' });
-  await h.editor.actions.selectionner_lieu({ lieu: '1' });
+  await h.selectAndSave(2);
+  await h.selectAndSave(1);
   await h.saveForm();
 
   assert.equal(h.locations()[0].name, 'Maison');
@@ -443,8 +490,8 @@ test('two selections in a row keep protecting what the screen really shows', asy
 });
 
 test('saving after a delete does not resurrect the deleted location', async () => {
-  const h = harness(installed([MAISON, JARDIN], 'loc-jardin'));
-  await h.editor.actions.supprimer_lieu({ confirmation: true });
+  const h = harness(installed([MAISON, JARDIN], 2));
+  await h.editor.actions.supprimer_lieu({ lieu: '2', confirmation: true });
   // The form still holds Jardin's name and address.
   await h.saveForm();
 
@@ -456,16 +503,16 @@ test('saving after a delete does not resurrect the deleted location', async () =
 // --- Deleting ----------------------------------------------------------------
 
 test('supprimer_lieu asks for a confirmation, and names what it would delete', async () => {
-  const h = harness(installed([MAISON, JARDIN], 'loc-jardin'));
-  const message = await h.editor.actions.supprimer_lieu({});
+  const h = harness(installed([MAISON, JARDIN], 2));
+  const message = await h.editor.actions.supprimer_lieu({ lieu: '2' });
   assert.equal(h.locations().length, 2, 'nothing is deleted on a stray click');
   assert.match(message.fr, /Jardin/);
   assert.match(message.fr, /confirme/);
 });
 
-test('supprimer_lieu removes the selected location and selects another', async () => {
-  const h = harness(installed([MAISON, JARDIN], 'loc-jardin'));
-  const message = await h.editor.actions.supprimer_lieu({ confirmation: true });
+test('supprimer_lieu removes the location ITS OWN dropdown names', async () => {
+  const h = harness(installed([MAISON, JARDIN], 2));
+  const message = await h.editor.actions.supprimer_lieu({ lieu: '2', confirmation: true });
 
   assert.deepEqual(
     h.locations().map((location) => location.id),
@@ -478,27 +525,48 @@ test('supprimer_lieu removes the selected location and selects another', async (
   assert.equal(h.republished(), 1);
 });
 
+test('deleting another location leaves the section on the one it was showing', async () => {
+  // Positions shift when an entry goes: a selection that silently slid onto its
+  // neighbour would be edited by mistake on the next Save.
+  const h = harness(installed([MAISON, JARDIN], 2));
+  await h.editor.actions.supprimer_lieu({ lieu: '1', confirmation: true });
+
+  assert.deepEqual(
+    h.locations().map((location) => location.name),
+    ['Jardin'],
+  );
+  assert.equal(h.selected().name, 'Jardin', 'still Jardin, now at position 1');
+  assert.equal(h.raw().lieu, '1');
+});
+
 test('deleting the last location empties the mirror fields', async () => {
   const h = harness(installed([MAISON]));
-  await h.editor.actions.supprimer_lieu({ confirmation: true });
+  await h.editor.actions.supprimer_lieu({ lieu: '1', confirmation: true });
 
   assert.equal(h.locations().length, 0);
   assert.equal(h.raw().location_name, '');
   assert.equal(h.raw().latitude, '');
-  assert.equal(h.raw()[SUMMARY_FIELD], '');
+  assert.match(h.raw()[SUMMARY_FIELD], /Aucun lieu configuré/);
 });
 
 test('deleting says there is nothing to delete', async () => {
   const h = harness();
-  const message = await h.editor.actions.supprimer_lieu({ confirmation: true });
+  const message = await h.editor.actions.supprimer_lieu({ lieu: '1', confirmation: true });
   assert.match(message.fr, /Aucun lieu/);
+});
+
+test('deleting a position the list does not reach is refused', async () => {
+  const h = harness(installed([MAISON]));
+  const message = await h.editor.actions.supprimer_lieu({ lieu: '3', confirmation: true });
+  assert.equal(h.locations().length, 1, 'nothing was deleted');
+  assert.match(message.fr, /pas de lieu/);
 });
 
 test('an empty list never creates a location out of the form', async () => {
   // The fields still hold what the deleted location had; saving them must not
   // bring it back.
   const h = harness(installed([MAISON]));
-  await h.editor.actions.supprimer_lieu({ confirmation: true });
+  await h.editor.actions.supprimer_lieu({ lieu: '1', confirmation: true });
   await h.saveForm({ location_name: 'Maison', latitude: '48.8566', longitude: '2.3522' });
   assert.equal(h.locations().length, 0);
 });
@@ -506,7 +574,7 @@ test('an empty list never creates a location out of the form', async () => {
 // --- Connection --------------------------------------------------------------
 
 test('sync writes the screen without touching the list nor re-publishing', async () => {
-  const h = harness({ locations: [MAISON, JARDIN], selected_location: 'loc-jardin' });
+  const h = harness({ locations: [MAISON, JARDIN], lieu: '2' });
   await h.editor.sync();
 
   assert.equal(h.raw().location_name, 'Jardin');
