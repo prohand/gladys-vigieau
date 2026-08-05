@@ -16,7 +16,12 @@
 // -----------------------------------------------------------------------------
 
 import { GladysIntegration, logger } from '@gladysassistant/integration-sdk';
-import { isConfigured, normalizeConfig } from './src/config.js';
+import {
+  formatCoordinate,
+  isConfigured,
+  legacyCoordinatePatch,
+  normalizeConfig,
+} from './src/config.js';
 import { describeAddress, resolveAddress } from './src/address.js';
 import {
   DEVICE_BLUEPRINTS,
@@ -178,10 +183,13 @@ gladys.onAction('rechercher_adresse', async (fields) => {
 
   // Write the coordinates into our own configuration, then re-publish: the
   // device shows up in the Discovery screen right away, no copy-paste.
+  // They go in as TEXT: the fields are declared `string` so that a typed dot
+  // survives a French browser (see toCoordinate), and the core rejects a number
+  // under a `string` field.
   const resolved = {
     address_label: match.label,
-    latitude: match.latitude,
-    longitude: match.longitude,
+    latitude: formatCoordinate(match.latitude),
+    longitude: formatCoordinate(match.longitude),
   };
   await gladys.setConfig(resolved);
   config = normalizeConfig({ ...config, ...resolved });
@@ -221,7 +229,18 @@ gladys.onConfigUpdated(async (newConfig) => {
 gladys.on('connected', async () => {
   try {
     // 1) Fetch the configuration filled in by the user.
-    config = normalizeConfig(await gladys.getConfig());
+    const rawConfig = await gladys.getConfig();
+    config = normalizeConfig(rawConfig);
+
+    // 1 bis) Coordinates stored as numbers by a version that declared the
+    // fields `number` are rewritten as text. Left alone, the first Save on the
+    // Configuration screen would fail as a whole: the front sends the untouched
+    // stored value back and the core refuses a number under a `string` field.
+    const patch = legacyCoordinatePatch(rawConfig);
+    if (Object.keys(patch).length > 0) {
+      logger.info('Migrating the stored coordinates to text');
+      await gladys.setConfig(patch);
+    }
 
     // 2) (Re)publish the device as soon as we are connected. It reports its
     // own status when the mandatory INSEE code is still missing.

@@ -216,6 +216,37 @@ test('both coordinates are mandatory and ship no default', () => {
   }
 });
 
+test('the coordinates are text fields, so a typed dot survives the browser', () => {
+  // A `number` field is an <input type="number">, whose value the browser
+  // sanitizes against ITS OWN locale: a French browser turns "48.8566" into an
+  // empty string and the front then drops the key from the payload it saves.
+  // The range that `min`/`max` used to enforce is checked in src/config.js.
+  for (const key of ['latitude', 'longitude']) {
+    const field = manifest.config_schema.find((f) => f.key === key);
+    assert.equal(field.type, 'string', `"${key}" must accept both decimal separators`);
+    assert.equal(field.min, undefined, 'min/max are number-only in the store schema');
+    assert.equal(field.max, undefined, 'min/max are number-only in the store schema');
+  }
+});
+
+test('the coordinate examples use the separator of the language they are shown in', () => {
+  // The example is the first thing the user copies: showing "48.8566" to a
+  // French user is telling them to type the separator their own browser used
+  // to refuse.
+  const separators = { fr: ',', en: '.' };
+  for (const key of ['latitude', 'longitude']) {
+    const { placeholder } = manifest.config_schema.find((f) => f.key === key);
+    for (const [language, separator] of Object.entries(separators)) {
+      assert.ok(placeholder[language], `"${key}": no ${language} placeholder`);
+      assert.equal(
+        placeholder[language].replace(/\d/g, ''),
+        separator,
+        `"${key}": the ${language} example must use "${separator}"`,
+      );
+    }
+  }
+});
+
 test('the configuration screen explains the postal-code trap', () => {
   const help = manifest.config_schema.find((f) => f.key === 'address_help');
   assert.ok(help, 'a section explains what the location is');

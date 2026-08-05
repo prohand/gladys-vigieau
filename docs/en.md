@@ -48,6 +48,8 @@ separately, in addition to the overall level.
    town) and confirm: the **latitude** and **longitude** are filled in for you,
    and the address it settled on is kept in **"Last address searched"** so you
    can see at a glance where the device is looking.
+   If you rather type the coordinates yourself — read off a map, say — both
+   decimal separators are accepted: `48.8566` and `48,8566` are the same point.
 4. Pick your **user profile**: household, company, local authority or farm.
    Restrictions differ per profile, and VigiEau returns the ones that apply to
    yours.
@@ -128,6 +130,11 @@ check it at a glance before moving on.
   4. Check that the container is actually running: a Docker image that cannot
      be pulled (`manifest unknown`) stops the integration from starting, and
      nothing is ever published.
+- **A latitude or longitude typed by hand is not saved** — that was the case up
+  to version 1.1.1: the fields only took the decimal separator of your browser,
+  and a value it refused was dropped with no message. Both separators work now
+  (`48.8566` as well as `48,8566`). Update the integration, then type the
+  coordinate again — or simply use **"Search for my address"**.
 - **"No recent value" on every feature** — right after adding the device this
   is normal for a few seconds: Gladys drops the states published before the
   device existed. The integration notices the creation and refreshes straight

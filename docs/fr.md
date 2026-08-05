@@ -48,6 +48,9 @@ sont exposés séparément, en plus du niveau global.
    renseignées à votre place, et l'adresse retenue est conservée dans
    **« Dernière adresse recherchée »** pour que vous sachiez d'un coup d'œil où
    l'appareil regarde.
+   Si vous préférez saisir les coordonnées vous-même — relevées sur une carte,
+   par exemple — les deux séparateurs décimaux sont acceptés : `48,8566` comme
+   `48.8566` désignent le même point.
 4. Choisissez votre **profil d'usager** : particulier, entreprise, collectivité
    ou exploitation agricole. Les restrictions ne sont pas les mêmes pour tous, et
    VigiEau renvoie celles qui s'appliquent au vôtre.
@@ -133,6 +136,12 @@ vérifiez-la d'un coup d'œil avant de continuer.
   4. Vérifiez que le conteneur tourne bien : une image Docker introuvable
      (`manifest unknown`) empêche l'intégration de démarrer, et rien n'est
      jamais publié.
+- **La latitude ou la longitude saisie à la main ne reste pas enregistrée** —
+  c'était le cas jusqu'à la version 1.1.1 : les champs n'acceptaient que le
+  séparateur décimal de votre navigateur, et une valeur qu'il refusait était
+  ignorée sans message. Depuis, les deux séparateurs fonctionnent (`48,8566`
+  comme `48.8566`). Mettez l'intégration à jour, puis ressaisissez la
+  coordonnée — ou, plus simple, utilisez **« Rechercher mon adresse »**.
 - **« Pas de valeur récente » sur toutes les fonctionnalités** — juste après
   l'ajout de l'appareil, c'est normal quelques secondes : Gladys ignore les
   valeurs publiées avant que l'appareil n'existe. L'intégration détecte la
