@@ -13,16 +13,6 @@ levels as devices.
 It is **not** part of the Gladys core: it can only publish devices/states and read its own
 configuration. Anything the core UI does with that data is outside this repo's control.
 
-**It cannot read the Gladys house.** `Paramètres → Maison` stores a latitude/longitude
-(`server/models/house.js`), but nothing reachable from a container exposes them: the integration
-host API (`/api/integration/v1/*`, 21 routes, `server/api/routes.js`) has no house route, and
-`/api/v1/house` is `authenticated: true`, i.e. a **user** JWT — `session.validateAccessToken`
-requires `audience: 'user'` while an integration token carries `audience: 'integration'`.
-`getDevices()` includes `room`, but `getStandardDeviceIncludes()` does not nest the house, so the
-room only carries a `house_id`. Importing the house coordinates therefore needs a core PR
-(a `GET /api/integration/v1/house` + an SDK method); do not spend time looking for a client-side
-trick, there is none.
-
 ## Commands
 
 ```bash
@@ -64,104 +54,60 @@ no business logic. Everything else lives under `src/`:
   `onPoll`, `refresh`, `startPolling` and the two per-device manifest actions.
 - **`src/devices/index.js`** — the blueprint registry. `index.js` only ever talks to the registry, so
   adding a device type means adding a file and one array entry.
-- **`src/devices/identity.js`** — which `external_id` a device keeps for life. Builds it from the
-  location's own id and holds the adoption of the device created by ≤ 1.1.1 (see below).
-- **`src/locations.js`** — the watched locations: the list, its edits, and the migration of the
-  single pre-1.3.0 location. Read its header before touching anything about where they are stored.
-- **`src/locationActions.js`** — the four buttons that edit that list. Everything it needs is
-  injected (`getConfig`, `saveLocations`, `resolveDevice`), so it is tested without a Gladys.
+- **`src/devices/identity.js`** — which `external_id` a device keeps for life. Holds the stable
+  platform id and the adoption of the devices created by ≤ 1.1.1 (see below).
 - **`src/vigieau.js`** — VigiEau driver. Deliberately split: `fetchZones()` is the only impure part,
   `summarize()` / `toSeverityLevel()` are pure and carry all the mapping logic, which is why the
   severity rules are cheap to test.
 - **`src/address.js`** — Base Adresse Nationale driver, free-text address → WGS-84 point.
-- **`src/coordinates.js`** — `toCoordinate()` / `formatCoordinate()`, in their own module so
-  `locations.js` can parse a coordinate without a cycle through `config.js`.
 - **`src/config.js`** — defaults, normalization, and `legacyLocationId()`, which only reproduces the
   `external_id` of the devices published by ≤ 1.1.1 so they can be recognized.
 
-A blueprint exposes: `key`, `deviceExternalIds(gladys, config)`, `buildDevices(gladys, config)`, and
-optionally `onPoll(gladys, config, externalId)`, `refresh`, `startPolling`, `actions`,
-`locationForDevice`. Everything is plural: one device per watched location.
-
-### The location list cannot be a config_schema field
-
-The integration watches SEVERAL locations, and the user builds that list at runtime. Nothing in a
-manifest can hold it: a `config_schema` is a fixed set of fields, and a `select` takes either the
-static `options` written in the manifest or the core's own `source: "devices"` — there is no
-repeatable field type and no way to generate options from our own state.
-
-So the list lives under the **off-schema `locations` key**. `externalIntegration.setIntegrationConfig`
-validates only the keys the schema declares and documents the others as "a free internal storage of
-the integration, never displayed in the UI": stored JSON-encoded in `t_variable`, handed back parsed
-by `getConfig()`. `getConfigForFront` skips them and `saveConfigFromFront` 422s any key it does not
-find in the schema, so the Configuration screen can neither show nor clobber the list.
-
-Everything the user does to it goes through **manifest actions**, whose mini-forms the core DOES
-render dynamically — including a `select` with `source: "devices"`, resolved at render time to the
-integration's own created devices (label = device name, value = external_id). That select is the
-"which location?" picker of `modifier_lieu`, `supprimer_lieu`, `test_vigieau` and
-`show_restrictions`.
-
-Two consequences worth remembering:
-
-- the dropdown only lists devices the user has **already created** from the Discovery screen, so a
-  location added and not yet created is not in it — hence the `nom` fallback on `supprimer_lieu`
-  and the update-by-name behaviour of `ajouter_lieu`;
-- an integration cannot delete a Gladys device. `supprimer_lieu` stops publishing it and says so;
-  the user deletes the device.
+A blueprint exposes: `key`, `deviceExternalId(gladys)`, `buildDevice(gladys, config)`, and
+optionally `onPoll`, `refresh`, `startPolling`, `actions`.
 
 ### The device identity does not depend on the configuration
 
 Gladys matches devices, features and states by `external_id`. Up to 1.1.1 it carried the coordinates
 (`ext:vigieau:drought-zone:latlon-48.8566_2.3522`), so changing the address changed the device's
 identity: Discovery offered a second device, the one already in a room went silent, and the user had
-to delete it and lose its history. The location is configuration, not identity — so the platform id
-is the location's **own generated id** (`newLocationId()`, random, never reused after a delete since
-the device it belonged to may still exist in Gladys), and moving or renaming a location only moves
-where that same device looks.
-
-The migrated pre-1.3.0 location keeps the id its device was published under, `FIRST_LOCATION_ID`
-(= `STABLE_PLATFORM_ID` = `location`), so upgrading moves no external_id at all.
+to delete it and lose its history. The location is configuration, not identity — this integration
+watches ONE location, so the platform id is the constant `STABLE_PLATFORM_ID` and moving the address
+only moves where the same device looks.
 
 `adoptExistingDevices()` runs on every connection, before publishing: it reads `gladys.getDevices()`
-and, when a leftover of ours exists under an older coordinate-based id, keeps publishing the FIRST
-location under **its** external_id (features included — they exist under that prefix). Only the first
-location can inherit: the versions that keyed the id on the coordinates published exactly one device.
-Devices already sitting on a configured location id are not leftovers and are filtered out. Several
-leftovers → the one matching the first location wins; none matching → publish the location's own
-identity rather than pick a history at random. `forgetDeletedDevice()` (wired to `onDeviceDeleted`)
-drops an adoption when the user deletes that device.
+and, when a device of ours already exists under an older coordinate-based id, keeps publishing under
+**its** external_id (features included — they exist under that prefix). That is the whole upgrade
+path: nothing to delete, nothing to re-add. Several leftovers → the one matching the configured
+location wins; none matching → publish the stable identity rather than pick a history at random.
+`forgetDeletedDevice()` (wired to `onDeviceDeleted`) drops an adoption when the user deletes that
+device, so the next publish offers the stable identity again.
 
 Never derive `external_id` from anything the user can change in the Configuration screen.
 
-### A location is a point, never a commune
+### The location is a point, never a commune
 
-`latitude`/`longitude` ARE a location, geocoded from the address typed in the `ajouter_lieu` /
-`modifier_lieu` actions. There is deliberately no INSEE commune code: `GET /api/zones?commune=` answers `409` as soon
+`latitude`/`longitude` ARE the location, geocoded from the address typed in the `rechercher_adresse`
+action. There is deliberately no INSEE commune code: `GET /api/zones?commune=` answers `409` as soon
 as the commune spans several zones of one water type, and no retry fixes that — a point always falls
 inside exactly one zone per type. The coordinates are only the query — the device `external_id` is
 deliberately independent of them (see above).
 
 Empty coordinates are `null`, never `0`: `Number('')` is `0`, a valid latitude in the Gulf of Guinea.
 
-**They are stored and typed as TEXT, not as numbers** (`type: "string"` on the action fields, parsed
-by `toCoordinate()`). A `number` field is rendered as an `<input type="number">`, and the browser
+**They are stored as TEXT, not as numbers** (`type: "string"` in the manifest, parsed by
+`toCoordinate()`). A `number` field is rendered as an `<input type="number">`, and the browser
 sanitizes that input against **its own locale**: on a French browser `48.8566` is not a number, so
-`e.target.value` is `''`, and the front drops the key from the payload it sends (it skips a `NaN`) —
-the coordinate silently keeps its previous value. A text field hands the integration exactly what was
-typed, and `toCoordinate()` accepts the comma and the dot alike. Two consequences: the range
-`min`/`max` used to enforce is checked in `src/coordinates.js` (`min`/`max` are number-only in the
-store schema), and what `serializeLocations()` writes back is text.
+`e.target.value` is `''`, and the Configuration screen drops the key from the payload it saves
+(`saveConfig` skips a `NaN`) — the coordinate silently keeps its previous value. A text field hands
+the integration exactly what was typed, and `toCoordinate()` accepts the comma and the dot alike.
+Two consequences: the range `min`/`max` used to enforce is checked in `src/config.js` (`min`/`max`
+are number-only in the store schema), and anything written back with `setConfig` must be a string —
+hence `formatCoordinate()`. `legacyCoordinatePatch()` rewrites the numbers stored by ≤ 1.1.1, whose
+first Save would otherwise 422 as a whole.
 
-The numeric coordinates stored by ≤ 1.1.1 need no rewrite any more: `latitude`/`longitude` left the
-`config_schema` entirely, so the front never sends them back and nothing can 422 on them. They are
-read once by `legacyLocations()`, whatever their JSON type. (`legacyCoordinatePatch()` was deleted
-with them.)
-
-`isConfigured()` gates discovery: it is true as soon as ONE location is usable. With none,
-`publishDevices()` publishes nothing and reports why through `setConnectionStatus` — a device pinned
-to an empty location is worse than no device. A location whose coordinates are unusable is kept in
-the list (so the user can fix it) but publishes no device.
+`isConfigured()` gates discovery. With no location, `publishDevices()` publishes nothing and reports
+why through `setConnectionStatus` — a device pinned to an empty location is worse than no device.
 
 The geocoder answers GeoJSON: `coordinates[0]` is the **longitude**, `[1]` the latitude. Swapping
 them moves the location by hundreds of kilometres in silence.
@@ -185,12 +131,10 @@ fallback. `toSeverityLevel()` normalizes accents, case and separators, so both v
 
 ### Refresh loop
 
-The devices declare **no `poll_frequency`** and the integration runs its own `setInterval`
+The device declares **no `poll_frequency`** and the integration runs its own `setInterval`
 (`startPolling`), refreshing immediately then every `poll_frequency` seconds, floored at
-`MIN_REFRESH_SECONDS` (300). One cycle covers EVERY location, in parallel, and one failure never
-stops the others — a badly geocoded garden must not silence the house; the status names the location
-that failed. `blueprint.refresh()` never throws — a rejection inside a timer callback would take the
-container down — and reports outages through `setConnectionStatus`.
+`MIN_REFRESH_SECONDS` (300). `blueprint.refresh()` never throws — a rejection inside a timer callback
+would take the container down — and reports outages through `setConnectionStatus`.
 
 ## Gladys core constraints that are not obvious
 
@@ -226,20 +170,7 @@ Each of these caused a real bug. The core sources are worth cloning when in doub
   risque". Dashboards and scenes use `getDeviceFeatureName`, which does show the real name — but only
   when another feature shares the same `type`. Nothing here can change those labels.
 - **Publish-time validation lives in `externalIntegration.setDiscoveredDevices.js`** — read it before
-  adding a field to the device payload. It only requires the `ext:<selector>:` prefix on the device
-  and feature `external_id`s, and caps the batch at `MAX_DISCOVERED_DEVICES` (2000).
-- **A `select` config field cannot hold an optional or a stale value** — `validateConfigValue`
-  rejects anything not in the option list, `''` included, and the front's `<select>` offers an empty
-  option whose value is `''`; the integration cannot write `null` under a select either. With
-  `source: "devices"`, deleting the last device would therefore make the stored value invalid and
-  **422 the whole Save**. That is why the location picker is an ACTION field, never a config field:
-  an action's value is transient and validated against the live device list at run time. (Explicitly
-  choosing the blank option of an optional action select still 422s — the core validates before we
-  see it. Leaving it untouched sends nothing, which is the normal path.)
-- **Keys outside the `config_schema` are free internal storage** — `setIntegrationConfig` skips
-  validation for them, stores them JSON-encoded, and `getConfigForFront` never exposes them. This is
-  the only place a runtime-built list can live (see the `locations` key above). Keys must match
-  `[a-z0-9_]` and must not start with `gladys_`.
+  adding a field to the device payload.
 
 ## Manifest gotchas
 
@@ -252,14 +183,10 @@ The traps, each pinned by a test in `test/manifest.test.js`:
 - a `select` takes static `options` or the core's `source: "devices"` — there is no dynamic source,
   which is why the commune "selector" is an action with its own form rather than a dropdown.
 
-Manifest actions are registered per key. The read-only ones live in `blueprint.actions`; the four
-that EDIT the location list (`ajouter_lieu`, `modifier_lieu`, `supprimer_lieu`, `lister_lieux`) are
-registered directly in `index.js` because they write the config back (`setConfig`) and re-publish the
-catalog. `test/manifest.test.js` keeps `REGISTRY_LEVEL_ACTIONS` in sync — update it when adding
+Manifest actions are registered per key. Most live in `blueprint.actions`; `rechercher_adresse` is
+registered directly in `index.js` because it writes the config back (`setConfig`) and re-publishes
+the catalog. `test/manifest.test.js` keeps `REGISTRY_LEVEL_ACTIONS` in sync — update it when adding
 another registry-level action.
-
-An action field is a `configField`: same types, same rules, and `source: "devices"` works there too
-(`runAction` resolves the dynamic options before validating). `timeout_seconds` is capped at 120.
 
 ## Releasing
 

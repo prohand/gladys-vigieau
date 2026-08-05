@@ -20,7 +20,7 @@
 // -----------------------------------------------------------------------------
 
 import { createLogger } from '@gladysassistant/integration-sdk';
-import { hasCoordinates } from './locations.js';
+import { hasCoordinates } from './config.js';
 
 const logger = createLogger({ name: 'vigieau' });
 
@@ -136,7 +136,6 @@ export function zoneSeverity(zone) {
  * zone per type.
  *
  * @param {{ latitude: number|null, longitude: number|null, profil: string }} config
- *   one watched location plus the global profile, as `locationQuery()` builds it
  */
 export function buildZonesUrl(config) {
   if (!hasCoordinates(config)) {
@@ -157,8 +156,7 @@ export function buildZonesUrl(config) {
  * Any other non-2xx is propagated — the caller decides whether to keep the last
  * known values or to report the integration as disconnected.
  *
- * @param {{ latitude: number, longitude: number, profil: string }} config - one
- *   watched location plus the global profile, as `locationQuery()` builds it
+ * @param {{ commune: string, latitude: number, longitude: number, profil: string }} config
  * @returns {Promise<Array<object>>} the raw zones, as returned by the API
  */
 export async function fetchZones(config) {

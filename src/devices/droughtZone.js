@@ -1,16 +1,14 @@
 // -----------------------------------------------------------------------------
 // Device type: DROUGHT ZONE ("vigilance sécheresse")
 //
-// ONE virtual device PER WATCHED LOCATION, carrying read-only sensors refreshed
-// by polling:
+// One virtual device per observed location, carrying read-only sensors
+// refreshed by polling:
 //   - the overall severity level (0 to 3), the one to use in scenes;
 //   - the same level for each water type (surface, groundwater, drinking water);
 //   - the official French wording of the level, for dashboards and notifications.
 //
 // There is no hardware here: the "work" is an HTTP call to the VigiEau API,
-// isolated in `src/vigieau.js`. The list of locations lives in the
-// configuration (`src/locations.js`); this file turns each of them into a
-// device and keeps them refreshed.
+// isolated in `src/vigieau.js`.
 // -----------------------------------------------------------------------------
 
 import {
@@ -19,7 +17,6 @@ import {
   DEVICE_FEATURE_TYPES,
 } from '@gladysassistant/integration-sdk';
 import { deviceIds } from './identity.js';
-import { locationQuery, usableLocations } from '../locations.js';
 import {
   AMBIGUOUS_COMMUNE,
   fetchZones,
@@ -79,157 +76,61 @@ function severityFeature(externalId, name) {
  * but a location that is not precise enough, and "VigiEau HTTP 409" tells
  * nobody that a street address is the way out.
  * @param {unknown} err
- * @param {string} locationName
  */
-function failureMessage(err, locationName) {
+function failureMessage(err) {
   if (err?.code === AMBIGUOUS_COMMUNE) {
     return {
-      en: `${locationName}: VigiEau cannot tell which zone applies here. Search again with a more precise address (street and number).`,
-      fr: `${locationName} : VigiEau n'arrive pas à déterminer la zone applicable ici. Relancez la recherche avec une adresse plus précise (rue et numéro).`,
+      en: 'VigiEau cannot tell which zone applies here. Search again with a more precise address (street and number).',
+      fr: "VigiEau n'arrive pas à déterminer la zone applicable ici. Relancez la recherche avec une adresse plus précise (rue et numéro).",
     };
   }
-  const reason = String(err?.message ?? err).slice(0, 120);
+  const reason = String(err?.message ?? err).slice(0, 150);
   return {
-    en: `${locationName}: VigiEau refresh failed: ${reason}`,
-    fr: `${locationName} : le rafraîchissement VigiEau a échoué : ${reason}`,
+    en: `VigiEau refresh failed: ${reason}`,
+    fr: `Le rafraîchissement VigiEau a échoué : ${reason}`,
   };
-}
-
-/**
- * The location a device external_id belongs to.
- * @returns {object | undefined}
- */
-function locationForDevice(gladys, config, externalId) {
-  return config.locations.find(
-    (location) => deviceIds(gladys, DEVICE_TYPE, location.id).device === externalId,
-  );
-}
-
-/**
- * Read VigiEau for ONE location and publish its states.
- * Throws on an unreadable answer — `refresh` is what never throws.
- */
-async function pollLocation(gladys, config, location) {
-  const ids = deviceIds(gladys, DEVICE_TYPE, location.id);
-  logger.info(`Polling VigiEau for ${location.name}...`);
-
-  // ------------------------------------------------------------------ //
-  // DO THE WORK: read the current drought status from the VigiEau API.
-  // ------------------------------------------------------------------ //
-  const zones = await fetchZones(locationQuery(config, location));
-  const { level, levelsByType, restrictedUsages } = summarize(zones);
-
-  logger.info(
-    `Read ${location.name}: level=${level ?? 'unknown'} (${ZONE_TYPES.map(
-      (type) => `${type}=${levelsByType[type] ?? '?'}`,
-    ).join(' ')}), ${restrictedUsages.length} restricted usage(s)`,
-  );
-
-  // An unknown level is never published: keeping the last known value beats
-  // telling a watering scene that everything is fine when we simply could
-  // not read the severity.
-  const states = [];
-  if (level !== null) {
-    states.push(
-      { device_feature_external_id: ids.feature(FEATURE.LEVEL), state: toGladysRisk(level) },
-      // The text keeps the exact official wording, "Crise" included, which
-      // the squeezed numeric scale can no longer tell from "Alerte renforcée".
-      { device_feature_external_id: ids.feature(FEATURE.LEVEL_TEXT), text: severityLabel(level) },
-    );
-  }
-  for (const type of ZONE_TYPES) {
-    if (levelsByType[type] !== null) {
-      states.push({
-        device_feature_external_id: ids.feature(TYPE_FEATURES[type].key),
-        state: toGladysRisk(levelsByType[type]),
-      });
-    }
-  }
-
-  if (states.length === 0) {
-    throw new Error('VigiEau answered with no severity we could understand');
-  }
-
-  // Publish every value in a single request (batch, up to 100).
-  await gladys.publishStates(states);
-}
-
-/**
- * The locations an action targets: the one behind the selected device, or all
- * of them when the selector was left empty.
- *
- * The selector is a `select` fed by the core's `devices` source, so its value
- * is the external_id of a device the user has actually created. A location
- * added but not yet created in the Discovery screen is therefore not in the
- * dropdown — which is exactly why leaving it empty means "all of them".
- * @throws {Error} when the selected device is not one of ours
- */
-function targetLocations(gladys, config, fields = {}) {
-  const selected = fields.appareil;
-  const locations = usableLocations(config.locations);
-  if (!selected) {
-    return locations;
-  }
-  const location = locationForDevice(gladys, config, selected);
-  if (!location) {
-    throw new Error('This device is not one of the locations this integration watches');
-  }
-  return [location];
 }
 
 export const droughtZone = {
   key: DEVICE_TYPE,
 
-  // The identities do NOT depend on the coordinates: a location keeps its
-  // device across an address change, with its history and its place in the
-  // rooms and scenes (see src/devices/identity.js).
-  deviceExternalIds(gladys, config) {
-    return usableLocations(config.locations).map(
-      (location) => deviceIds(gladys, DEVICE_TYPE, location.id).device,
-    );
+  // The identity does NOT depend on the configuration: the same device follows
+  // the user from one address to the next, keeping its history and its place in
+  // the rooms and scenes (see src/devices/identity.js).
+  deviceExternalId(gladys) {
+    return deviceIds(gladys, DEVICE_TYPE).device;
   },
 
-  /**
-   * The location a device external_id watches, so the actions whose form
-   * carries a `devices` select know what the user picked.
-   * @returns {object | undefined}
-   */
-  locationForDevice(gladys, config, externalId) {
-    return locationForDevice(gladys, config, externalId);
-  },
-
-  buildDevices(gladys, config) {
-    return usableLocations(config.locations).map((location) => {
-      const ids = deviceIds(gladys, DEVICE_TYPE, location.id);
-      return {
-        name: `Vigilance sécheresse — ${location.name}`,
-        external_id: ids.device,
-        // NO poll_frequency on purpose: Gladys only accepts a fixed enum of
-        // intervals, in milliseconds, capped at one minute (60000). Polling a
-        // public government API 1440 times a day for a decree that changes at
-        // most once a day would be absurd, so this integration drives its own
-        // refresh instead — see startPolling below.
-        features: [
-          severityFeature(ids.feature(FEATURE.LEVEL), 'Niveau de vigilance sécheresse'),
-          {
-            name: 'Niveau (texte)',
-            external_id: ids.feature(FEATURE.LEVEL_TEXT),
-            category: DEVICE_FEATURE_CATEGORIES.TEXT,
-            type: DEVICE_FEATURE_TYPES.TEXT.TEXT,
-            // Meaningless for a label, but the core column is NOT NULL and has
-            // no default: a feature without min/max is refused at creation time.
-            min: 0,
-            max: 0,
-            read_only: true,
-            has_feedback: false,
-            keep_history: false, // a label, not a measure: nothing to chart
-          },
-          ...ZONE_TYPES.map((type) =>
-            severityFeature(ids.feature(TYPE_FEATURES[type].key), TYPE_FEATURES[type].name),
-          ),
-        ],
-      };
-    });
+  buildDevice(gladys, config) {
+    const ids = deviceIds(gladys, DEVICE_TYPE);
+    return {
+      name: `Vigilance sécheresse — ${config.location_name}`,
+      external_id: ids.device,
+      // NO poll_frequency on purpose: Gladys only accepts a fixed enum of
+      // intervals, in milliseconds, capped at one minute (60000). Polling a
+      // public government API 1440 times a day for a decree that changes at
+      // most once a day would be absurd, so this integration drives its own
+      // refresh instead — see startPolling below.
+      features: [
+        severityFeature(ids.feature(FEATURE.LEVEL), 'Niveau de vigilance sécheresse'),
+        {
+          name: 'Niveau (texte)',
+          external_id: ids.feature(FEATURE.LEVEL_TEXT),
+          category: DEVICE_FEATURE_CATEGORIES.TEXT,
+          type: DEVICE_FEATURE_TYPES.TEXT.TEXT,
+          // Meaningless for a label, but the core column is NOT NULL and has
+          // no default: a feature without min/max is refused at creation time.
+          min: 0,
+          max: 0,
+          read_only: true,
+          has_feedback: false,
+          keep_history: false, // a label, not a measure: nothing to chart
+        },
+        ...ZONE_TYPES.map((type) =>
+          severityFeature(ids.feature(TYPE_FEATURES[type].key), TYPE_FEATURES[type].name),
+        ),
+      ],
+    };
   },
 
   // Manifest actions owned by this device type (see the `actions` field of
@@ -237,88 +138,83 @@ export const droughtZone = {
   // the Configuration screen; the resolved message (string or multi-language
   // object) is displayed under the button, a thrown error is displayed too.
   actions: {
-    async test_vigieau(gladys, { fields, config }) {
-      const locations = targetLocations(gladys, config, fields);
-      if (locations.length === 0) {
-        return {
-          en: 'No location to test yet. Add one with "Add a location".',
-          fr: 'Aucun lieu à tester pour l’instant. Ajoutez-en un avec « Ajouter un lieu ».',
-        };
-      }
-      logger.info(`Action test_vigieau -> live request for ${locations.length} location(s)`);
-      const results = await Promise.all(
-        locations.map(async (location) => {
-          const { level, levelsByType } = summarize(
-            await fetchZones(locationQuery(config, location)),
-          );
-          const detail = ZONE_TYPES.map((type) => `${type}: ${levelsByType[type] ?? '?'}`).join(
-            ', ',
-          );
-          return {
-            en: `${location.name}: ${severityLabel(level, 'en')} (${detail})`,
-            fr: `${location.name} : ${severityLabel(level, 'fr')} (${detail})`,
-          };
-        }),
-      );
+    async test_vigieau(gladys, { config }) {
+      logger.info('Action test_vigieau -> live request to the VigiEau API');
+      const { level, levelsByType } = summarize(await fetchZones(config));
+      const detail = ZONE_TYPES.map((type) => `${type}: ${levelsByType[type] ?? '?'}`).join(', ');
       return {
-        en: `VigiEau OK — ${results.map((result) => result.en).join(' | ')}.`,
-        fr: `VigiEau OK — ${results.map((result) => result.fr).join(' | ')}.`,
+        en: `VigiEau OK — current level: ${severityLabel(level, 'en')} (${detail}).`,
+        fr: `VigiEau OK — niveau actuel : ${severityLabel(level, 'fr')} (${detail}).`,
       };
     },
 
-    async show_restrictions(gladys, { fields, config }) {
-      const locations = targetLocations(gladys, config, fields);
-      if (locations.length === 0) {
+    async show_restrictions(gladys, { config }) {
+      logger.info('Action show_restrictions -> live request to the VigiEau API');
+      const { restrictedUsages, arrete } = summarize(await fetchZones(config));
+      if (restrictedUsages.length === 0) {
         return {
-          en: 'No location configured yet. Add one with "Add a location".',
-          fr: 'Aucun lieu configuré pour l’instant. Ajoutez-en un avec « Ajouter un lieu ».',
+          en: 'No water usage is restricted at this location right now.',
+          fr: "Aucun usage de l'eau n'est restreint à cette adresse actuellement.",
         };
       }
-      logger.info(`Action show_restrictions -> live request for ${locations.length} location(s)`);
-      const lines = await Promise.all(
-        locations.map(async (location) => {
-          const { restrictedUsages, arrete } = summarize(
-            await fetchZones(locationQuery(config, location)),
-          );
-          if (restrictedUsages.length === 0) {
-            return {
-              en: `${location.name}: no restricted usage`,
-              fr: `${location.name} : aucun usage restreint`,
-            };
-          }
-          // The message is displayed under the button: keep it short, and point
-          // at the decree for the exact wording.
-          const names = restrictedUsages
-            .slice(0, 6)
-            .map((usage) => usage.nom)
-            .join(', ');
-          const more = restrictedUsages.length > 6 ? `, +${restrictedUsages.length - 6}` : '';
-          const decree = arrete?.cheminFichier ? ` — ${arrete.cheminFichier}` : '';
-          return {
-            en: `${location.name}: ${restrictedUsages.length} restricted usage(s): ${names}${more}${decree}`,
-            fr: `${location.name} : ${restrictedUsages.length} usage(s) restreint(s) : ${names}${more}${decree}`,
-          };
-        }),
-      );
+      // The message is displayed under the button: keep it short, and point at
+      // the decree for the exact wording.
+      const names = restrictedUsages
+        .slice(0, 8)
+        .map((usage) => usage.nom)
+        .join(', ');
+      const more = restrictedUsages.length > 8 ? `, +${restrictedUsages.length - 8}` : '';
+      const decree = arrete?.cheminFichier ? ` — ${arrete.cheminFichier}` : '';
       return {
-        en: lines.map((line) => line.en).join(' | '),
-        fr: lines.map((line) => line.fr).join(' | '),
+        en: `${restrictedUsages.length} restricted usage(s): ${names}${more}.${decree}`,
+        fr: `${restrictedUsages.length} usage(s) restreint(s) : ${names}${more}.${decree}`,
       };
     },
   },
 
-  /**
-   * Refresh ONE device, on the poll request Gladys sends for it.
-   * @param {string} externalId - external_id of the device to refresh
-   */
-  async onPoll(gladys, config, externalId) {
-    const location = locationForDevice(gladys, config, externalId);
-    if (!location) {
-      // Routed here by findBlueprintByDevice, so this cannot normally happen;
-      // failing loudly beats polling an arbitrary location.
-      throw new Error(`No location watches the device ${externalId}`);
+  async onPoll(gladys, config) {
+    const ids = deviceIds(gladys, DEVICE_TYPE);
+    logger.info(`Polling VigiEau for ${config.location_name}...`);
+
+    // ------------------------------------------------------------------ //
+    // DO THE WORK: read the current drought status from the VigiEau API.
+    // ------------------------------------------------------------------ //
+    const zones = await fetchZones(config);
+    const { level, levelsByType, restrictedUsages } = summarize(zones);
+
+    logger.info(
+      `Read: level=${level ?? 'unknown'} (${ZONE_TYPES.map(
+        (type) => `${type}=${levelsByType[type] ?? '?'}`,
+      ).join(' ')}), ${restrictedUsages.length} restricted usage(s)`,
+    );
+
+    // An unknown level is never published: keeping the last known value beats
+    // telling a watering scene that everything is fine when we simply could
+    // not read the severity.
+    const states = [];
+    if (level !== null) {
+      states.push(
+        { device_feature_external_id: ids.feature(FEATURE.LEVEL), state: toGladysRisk(level) },
+        // The text keeps the exact official wording, "Crise" included, which
+        // the squeezed numeric scale can no longer tell from "Alerte renforcée".
+        { device_feature_external_id: ids.feature(FEATURE.LEVEL_TEXT), text: severityLabel(level) },
+      );
     }
-    await pollLocation(gladys, config, location);
+    for (const type of ZONE_TYPES) {
+      if (levelsByType[type] !== null) {
+        states.push({
+          device_feature_external_id: ids.feature(TYPE_FEATURES[type].key),
+          state: toGladysRisk(levelsByType[type]),
+        });
+      }
+    }
+
+    if (states.length === 0) {
+      throw new Error('VigiEau answered with no severity we could understand');
+    }
+
+    // Publish every value in a single request (batch, up to 100).
+    await gladys.publishStates(states);
   },
 
   /**
@@ -326,15 +222,14 @@ export const droughtZone = {
    *
    * Gladys' own polling is not usable here: `poll_frequency` is a fixed enum
    * of intervals in milliseconds whose slowest value is one minute, while a
-   * prefectoral decree changes once a day at most. So the devices declare no
+   * prefectoral decree changes once a day at most. So the device declares no
    * poll_frequency and we run our own timer at the configured interval.
    *
    * @returns {() => void} cleanup, to stop the timer on disconnection
    */
   startPolling(gladys, config) {
     const intervalMs = Math.max(MIN_REFRESH_SECONDS, config.poll_frequency) * 1000;
-    const count = usableLocations(config.locations).length;
-    logger.info(`Refreshing ${count} location(s) every ${Math.round(intervalMs / 1000)} s`);
+    logger.info(`Refreshing VigiEau every ${Math.round(intervalMs / 1000)} s`);
 
     // Refresh straight away: waiting a full hour for the first value would
     // leave the freshly added device empty on the dashboard.
@@ -344,48 +239,18 @@ export const droughtZone = {
   },
 
   /**
-   * One refresh cycle over every location, which NEVER throws: an outage
-   * inside a timer callback would become an unhandled rejection and take the
-   * container down. The outcome is reported in the Configuration screen
-   * instead, and the next cycle simply tries again.
-   *
-   * One location failing does not stop the others: a 409 on a badly geocoded
-   * address must not silence the drought level of the house.
+   * One refresh cycle that NEVER throws: an outage inside a timer callback
+   * would become an unhandled rejection and take the container down. The
+   * outcome is reported in the Configuration screen instead, and the next
+   * cycle simply tries again.
    */
   async refresh(gladys, config) {
-    const locations = usableLocations(config.locations);
-    const outcomes = await Promise.all(
-      locations.map(async (location) => {
-        try {
-          await pollLocation(gladys, config, location);
-          return null;
-        } catch (err) {
-          logger.error(`VigiEau refresh failed for ${location.name}`, err);
-          return failureMessage(err, location.name);
-        }
-      }),
-    );
-
-    const failures = outcomes.filter(Boolean);
-    if (failures.length === 0) {
-      await gladys.setConnectionStatus(true).catch(() => {});
-      return;
+    try {
+      await droughtZone.onPoll(gladys, config);
+      await gladys.setConnectionStatus(true);
+    } catch (err) {
+      logger.error('VigiEau refresh failed', err);
+      await gladys.setConnectionStatus(false, failureMessage(err)).catch(() => {});
     }
-    // Only the first reason is spelled out: the status line is one line, and
-    // two stack traces in it help nobody.
-    const [first] = failures;
-    const others =
-      failures.length > 1
-        ? {
-            en: ` (+${failures.length - 1} other location(s) failing)`,
-            fr: ` (+${failures.length - 1} autre(s) lieu(x) en échec)`,
-          }
-        : { en: '', fr: '' };
-    await gladys
-      .setConnectionStatus(false, {
-        en: `${first.en}${others.en}`,
-        fr: `${first.fr}${others.fr}`,
-      })
-      .catch(() => {});
   },
 };
