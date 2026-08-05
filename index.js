@@ -28,6 +28,7 @@ import {
   adoptExistingDevices,
   buildDiscoveredDevices,
   findBlueprintByDevice,
+  findLocationByDevice,
   forgetDeletedDevice,
 } from './src/devices/index.js';
 
@@ -195,14 +196,14 @@ for (const blueprint of DEVICE_BLUEPRINTS) {
 // the catalog, which is this file's business.
 //
 // They are also the only way to offer a location manager at all — a
-// `config_schema` holds a fixed set of fields and no repeatable one, so a list
-// the user builds at runtime cannot be a form field, while an action's
-// mini-form IS rendered from the manifest. Each of them designates a location
-// by its NAME: the core's `devices` select renders a dropdown but no released
-// Gladys can validate its value (see src/locationActions.js).
+// `config_schema` holds a fixed set of fields and a `select` only takes static
+// options or the core's `devices` source, so a list the user builds at runtime
+// cannot be a form field. An action's mini-form, on the other hand, IS rendered
+// from the manifest and its `devices` select is resolved at run time.
 const locationActions = createLocationActions({
   getConfig: () => config,
   saveLocations,
+  resolveDevice: (externalId) => findLocationByDevice(gladys, externalId, config),
 });
 for (const [actionKey, handler] of Object.entries(locationActions)) {
   gladys.onAction(actionKey, (fields) => handler(fields));
