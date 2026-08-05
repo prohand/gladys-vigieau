@@ -74,6 +74,17 @@ device's `external_id` matches the query that feeds it.
 
 Empty coordinates are `null`, never `0`: `Number('')` is `0`, a valid latitude in the Gulf of Guinea.
 
+**They are stored as TEXT, not as numbers** (`type: "string"` in the manifest, parsed by
+`toCoordinate()`). A `number` field is rendered as an `<input type="number">`, and the browser
+sanitizes that input against **its own locale**: on a French browser `48.8566` is not a number, so
+`e.target.value` is `''`, and the Configuration screen drops the key from the payload it saves
+(`saveConfig` skips a `NaN`) — the coordinate silently keeps its previous value. A text field hands
+the integration exactly what was typed, and `toCoordinate()` accepts the comma and the dot alike.
+Two consequences: the range `min`/`max` used to enforce is checked in `src/config.js` (`min`/`max`
+are number-only in the store schema), and anything written back with `setConfig` must be a string —
+hence `formatCoordinate()`. `legacyCoordinatePatch()` rewrites the numbers stored by ≤ 1.1.1, whose
+first Save would otherwise 422 as a whole.
+
 `isConfigured()` gates discovery. With no location, `publishDevices()` publishes nothing and reports
 why through `setConnectionStatus` — a device pinned to an empty location is worse than no device.
 
@@ -115,6 +126,13 @@ Each of these caused a real bug. The core sources are worth cloning when in doub
   timer: a drought decree changes once a day, and one minute is the slowest interval the core offers.
 - **Every feature needs an explicit numeric `min` and `max`** — `t_device_feature.min/max` are
   `NOT NULL` with no default. Publishing passes, then the user's "add device" click fails.
+- **A `number` config field is locale-dependent, and a value it rejects is dropped in silence** —
+  `ConfigSchemaForm.jsx` renders `<input type="number">` and reads `e.target.value`, which the
+  browser has already sanitized in its own locale (a French one refuses `48.8566`); `saveConfig`
+  (`config-page/index.js`) then leaves a `NaN` out of the payload, and the partial server-side merge
+  keeps the old value. A decimal a user has to type belongs in a `string` field, parsed here. The
+  types must match at the other end too: `validateConfigValue` 422s a number written under a
+  `string` field, and vice versa.
 - **The core silently drops states for a feature that does not exist yet**
   (`externalIntegration.saveStates.js`). States published before the user adds the device go nowhere,
   which is why `index.js` listens to `onDeviceCreated` and refreshes immediately.

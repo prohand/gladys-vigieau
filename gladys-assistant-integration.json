@@ -62,8 +62,8 @@
         "fr": "Le lieu à surveiller"
       },
       "description": {
-        "en": "The location is a precise point, not a postal code: a postal code covers several communes, and one commune can span several restriction zones — which is exactly when VigiEau refuses to answer and asks for a street. Click \"Search for my address\" below, type your address, and the latitude and longitude are filled in for you. If several addresses match without a clear winner, be more precise and search again.",
-        "fr": "Le lieu est un point précis, pas un code postal : un code postal couvre plusieurs communes, et une commune peut relever de plusieurs zones de restriction — c'est justement le cas où VigiEau refuse de répondre et réclame une rue. Cliquez sur « Rechercher mon adresse » ci-dessous, saisissez votre adresse, et la latitude et la longitude sont renseignées à votre place. Si plusieurs adresses correspondent sans évidence, précisez et relancez la recherche."
+        "en": "The location is a precise point, not a postal code: a postal code covers several communes, and one commune can span several restriction zones — which is exactly when VigiEau refuses to answer and asks for a street. Click \"Search for my address\" below, type your address, and the latitude and longitude are filled in for you. If several addresses match without a clear winner, be more precise and search again. If you rather type the coordinates yourself, a dot and a comma work equally well.",
+        "fr": "Le lieu est un point précis, pas un code postal : un code postal couvre plusieurs communes, et une commune peut relever de plusieurs zones de restriction — c'est justement le cas où VigiEau refuse de répondre et réclame une rue. Cliquez sur « Rechercher mon adresse » ci-dessous, saisissez votre adresse, et la latitude et la longitude sont renseignées à votre place. Si plusieurs adresses correspondent sans évidence, précisez et relancez la recherche. Si vous préférez saisir les coordonnées vous-même, la virgule et le point fonctionnent aussi bien l'un que l'autre."
       },
       "links": [
         {
@@ -102,40 +102,36 @@
     },
     {
       "key": "latitude",
-      "type": "number",
+      "type": "string",
       "label": {
         "en": "Latitude",
         "fr": "Latitude"
       },
       "description": {
-        "en": "Filled in by the \"Search for my address\" button. WGS-84.",
-        "fr": "Renseignée par le bouton « Rechercher mon adresse ». WGS-84."
+        "en": "Filled in by the \"Search for my address\" button. WGS-84, between -90 and 90. Both decimal separators are accepted: 48.8566 or 48,8566.",
+        "fr": "Renseignée par le bouton « Rechercher mon adresse ». WGS-84, entre -90 et 90. Les deux séparateurs décimaux sont acceptés : 48,8566 ou 48.8566."
       },
       "required": true,
-      "min": -90,
-      "max": 90,
       "placeholder": {
         "en": "48.8566",
-        "fr": "48.8566"
+        "fr": "48,8566"
       }
     },
     {
       "key": "longitude",
-      "type": "number",
+      "type": "string",
       "label": {
         "en": "Longitude",
         "fr": "Longitude"
       },
       "description": {
-        "en": "Filled in by the \"Search for my address\" button. WGS-84.",
-        "fr": "Renseignée par le bouton « Rechercher mon adresse ». WGS-84."
+        "en": "Filled in by the \"Search for my address\" button. WGS-84, between -180 and 180. Both decimal separators are accepted: 2.3522 or 2,3522.",
+        "fr": "Renseignée par le bouton « Rechercher mon adresse ». WGS-84, entre -180 et 180. Les deux séparateurs décimaux sont acceptés : 2,3522 ou 2.3522."
       },
       "required": true,
-      "min": -180,
-      "max": 180,
       "placeholder": {
         "en": "2.3522",
-        "fr": "2.3522"
+        "fr": "2,3522"
       }
     },
     {

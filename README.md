@@ -81,6 +81,13 @@ A few decisions are worth knowing about:
   been geocoded, discovery returns nothing and the Configuration screen says
   why — better than a device pinned to an empty location that the user would
   have to delete by hand.
+- **The coordinates are stored as text, and both decimal separators work.** A
+  `number` config field renders an `<input type="number">`, whose value the
+  browser sanitizes in its own locale: on a French browser `48.8566` is not a
+  number, the front leaves the key out of the payload it saves, and the
+  coordinate silently keeps its old value. A `string` field hands the
+  integration exactly what was typed; `toCoordinate()` reads `48,8566` and
+  `48.8566` alike and checks the WGS-84 range itself.
 - **The numeric scale stops at 3 because Gladys' does.** A `risk`/`integer`
   feature is rendered through the core's own label set (`BADGE_VALUE_CONVERTERS`
   in `BadgeNumberDeviceValue.jsx`), which maps `0-3` and shows **"Inconnu"** for
