@@ -9,6 +9,8 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { DEVICE_BLUEPRINTS } from '../src/devices/index.js';
 import { DEFAULT_CONFIG, PROFILES } from '../src/config.js';
+import { LOCATIONS_KEY } from '../src/locations.js';
+import { createLocationActions } from '../src/locationActions.js';
 
 const manifest = JSON.parse(
   await readFile(new URL('../gladys-assistant-integration.json', import.meta.url), 'utf8'),
@@ -16,23 +18,56 @@ const manifest = JSON.parse(
 
 const packageJson = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
 
-// Actions registered outside the blueprints, in index.js: the commune search
-// writes the configuration back and re-publishes the catalog, which is not a
-// device's business.
-const REGISTRY_LEVEL_ACTIONS = ['rechercher_adresse'];
+// Actions registered outside the blueprints, in index.js: the ones that EDIT
+// the location list write the configuration back and re-publish the catalog,
+// which is not a device's business. Read off the factory rather than listed by
+// hand, so adding one there cannot silently skip the manifest.
+const REGISTRY_LEVEL_ACTIONS = Object.keys(
+  createLocationActions({
+    getConfig: () => ({}),
+    saveLocations: async () => {},
+    resolveDevice: () => undefined,
+  }),
+);
+
+// The store schema only accepts these widget types — 'text' is NOT one of them,
+// the free-text widget is called 'string'. Getting it wrong is rejected at
+// indexing time, long after the code looks fine locally.
+const ALLOWED_FIELD_TYPES = [
+  'string',
+  'number',
+  'boolean',
+  'select',
+  'multi_select',
+  'secret',
+  'oauth2',
+  'section',
+];
+
+/** Every field of the manifest, config fields and action fields alike. */
+function allFields() {
+  return [
+    ...manifest.config_schema,
+    ...(manifest.actions ?? []).flatMap((action) => action.fields ?? []),
+  ];
+}
+
+function action(key) {
+  return (manifest.actions ?? []).find((a) => a.key === key);
+}
 
 test('every manifest action has a registered handler', () => {
   const handled = new Set([
     ...DEVICE_BLUEPRINTS.flatMap((bp) => Object.keys(bp.actions ?? {})),
     ...REGISTRY_LEVEL_ACTIONS,
   ]);
-  for (const action of manifest.actions ?? []) {
-    assert.ok(handled.has(action.key), `manifest action "${action.key}" has no handler`);
+  for (const declared of manifest.actions ?? []) {
+    assert.ok(handled.has(declared.key), `manifest action "${declared.key}" has no handler`);
   }
 });
 
 test('every registered handler is declared in the manifest', () => {
-  const declared = new Set((manifest.actions ?? []).map((action) => action.key));
+  const declared = new Set((manifest.actions ?? []).map((a) => a.key));
   for (const key of [
     ...DEVICE_BLUEPRINTS.flatMap((bp) => Object.keys(bp.actions ?? {})),
     ...REGISTRY_LEVEL_ACTIONS,
@@ -41,43 +76,107 @@ test('every registered handler is declared in the manifest', () => {
   }
 });
 
-test('the address search action carries the form it needs', () => {
-  const action = (manifest.actions ?? []).find((a) => a.key === 'rechercher_adresse');
-  assert.ok(action, 'the coordinates are filled in by an action, not by hand');
-  assert.deepEqual(
-    (action.fields ?? []).map((f) => f.key),
-    ['adresse'],
+// --- The location manager ----------------------------------------------------
+// The locations are a list the user builds at runtime. A config_schema is a
+// fixed set of fields and a `select` only takes static options or the core's
+// `devices` source, so the list cannot be a form field: it lives under the
+// off-schema `locations` key and is edited through these actions.
+
+test('the location list is NOT a config_schema field', () => {
+  const keys = manifest.config_schema.map((f) => f.key);
+  assert.ok(
+    !keys.includes(LOCATIONS_KEY),
+    'an off-schema key is free internal storage; declaring it would 422 every save',
   );
-  assert.equal(action.fields[0].type, 'string');
 });
 
-test('the configuration remembers the address the point came from', () => {
-  const field = manifest.config_schema.find((f) => f.key === 'address_label');
-  assert.ok(field, 'the user must be able to see WHERE the device is looking');
-  assert.equal(field.type, 'string');
-  assert.notEqual(field.required, true, 'purely informational');
+test('adding a location takes a name and a way to locate it', () => {
+  const add = action('ajouter_lieu');
+  assert.ok(add, 'the locations are added by an action, not by hand');
+  assert.deepEqual(
+    (add.fields ?? []).map((f) => f.key),
+    ['nom', 'adresse', 'latitude', 'longitude'],
+  );
+  assert.equal(add.fields[0].required, true, 'a device cannot be named after nothing');
+  for (const key of ['adresse', 'latitude', 'longitude']) {
+    const field = add.fields.find((f) => f.key === key);
+    assert.notEqual(field.required, true, 'an address OR a pair of coordinates, never both');
+  }
+});
+
+test('editing and deleting a location are driven by a device selector', () => {
+  // This is the only dynamic list the core offers: `source: "devices"` fills
+  // the dropdown with the integration's own devices (label = device name,
+  // value = external_id), resolved when the form is rendered.
+  for (const key of ['modifier_lieu', 'supprimer_lieu']) {
+    const field = (action(key).fields ?? []).find((f) => f.key === 'appareil');
+    assert.ok(field, `"${key}" needs a device selector`);
+    assert.equal(field.type, 'select');
+    assert.equal(field.source, 'devices');
+    assert.equal(field.options, undefined, 'a source and static options are mutually exclusive');
+    assert.equal(field.default, undefined, 'a default is not allowed with a source');
+  }
+});
+
+test('a location can be deleted before its device has ever been created', () => {
+  // The `devices` source only lists devices the user has ADDED from the
+  // Discovery screen: a location added and not yet created is not in the
+  // dropdown, and must still be removable.
+  const remove = action('supprimer_lieu');
+  const byName = (remove.fields ?? []).find((f) => f.key === 'nom');
+  assert.ok(byName, 'deleting by name is the way out');
+  assert.equal(byName.type, 'string');
+  assert.notEqual(byName.required, true);
+  assert.notEqual(
+    (remove.fields ?? []).find((f) => f.key === 'appareil').required,
+    true,
+    'either field alone is enough, so neither can be required',
+  );
+});
+
+test('the query actions can be narrowed down to one location', () => {
+  for (const key of ['test_vigieau', 'show_restrictions']) {
+    const field = (action(key).fields ?? []).find((f) => f.key === 'appareil');
+    assert.ok(field, `"${key}" should be targetable`);
+    assert.equal(field.source, 'devices');
+    assert.notEqual(field.required, true, 'left empty, they cover every location');
+  }
 });
 
 test('no INSEE commune code is asked for any more', () => {
   // The commune path answers 409 whenever a commune spans several zones of the
   // same type; a geocoded point never does.
-  const keys = manifest.config_schema.map((f) => f.key);
-  assert.ok(!keys.includes('commune'), 'the location is a point, not a commune code');
+  const keys = allFields().map((f) => f.key);
+  assert.ok(!keys.includes('commune'), 'a location is a point, not a commune code');
   assert.ok(!('commune' in DEFAULT_CONFIG));
 });
 
-test('action fields obey the same rules as the config fields', () => {
-  for (const action of manifest.actions ?? []) {
-    for (const field of action.fields ?? []) {
-      assert.ok(ALLOWED_FIELD_TYPES.includes(field.type), `bad type on "${field.key}"`);
-      assert.ok(field.label?.en && field.label?.fr, `"${field.key}" needs both labels`);
-      if (field.placeholder !== undefined) {
-        assert.equal(
-          typeof field.placeholder,
-          'object',
-          `"${field.key}": placeholder is an object`,
-        );
-      }
+// --- Field rules -------------------------------------------------------------
+
+test('every field uses a widget type the store accepts', () => {
+  for (const field of allFields()) {
+    assert.ok(
+      ALLOWED_FIELD_TYPES.includes(field.type),
+      `field "${field.key}" has the unsupported type "${field.type}"`,
+    );
+  }
+});
+
+test('every field carries both labels', () => {
+  for (const field of allFields()) {
+    assert.ok(field.label?.en && field.label?.fr, `"${field.key}" needs both labels`);
+  }
+});
+
+test('placeholders are multi-language objects, never bare strings', () => {
+  for (const field of allFields()) {
+    if (field.placeholder !== undefined) {
+      assert.equal(
+        typeof field.placeholder,
+        'object',
+        `"${field.key}": placeholder must be an object`,
+      );
+      assert.ok(field.placeholder.en, `"${field.key}": placeholder needs an English text`);
     }
   }
 });
@@ -140,13 +239,13 @@ test('section fields are purely presentational', () => {
 test('every label and description is translated in French and English', () => {
   const texts = [
     manifest.description,
-    ...manifest.config_schema.flatMap((f) => [
+    ...allFields().flatMap((f) => [
       f.label,
       f.description,
       ...(f.options ?? []).map((o) => o.label),
       ...(f.links ?? []).map((l) => l.label),
     ]),
-    ...(manifest.actions ?? []).map((a) => a.label),
+    ...(manifest.actions ?? []).flatMap((a) => [a.label, a.description]),
   ].filter(Boolean);
 
   for (const text of texts) {
@@ -163,42 +262,6 @@ test('the manifest version matches package.json and the Docker image tag', () =>
   );
 });
 
-// The store schema only accepts these widget types — 'text' is NOT one of them,
-// the free-text widget is called 'string'. Getting it wrong is rejected at
-// indexing time, long after the code looks fine locally.
-const ALLOWED_FIELD_TYPES = [
-  'string',
-  'number',
-  'boolean',
-  'select',
-  'multi_select',
-  'secret',
-  'oauth2',
-  'section',
-];
-
-test('every config field uses a widget type the store accepts', () => {
-  for (const field of manifest.config_schema) {
-    assert.ok(
-      ALLOWED_FIELD_TYPES.includes(field.type),
-      `field "${field.key}" has the unsupported type "${field.type}"`,
-    );
-  }
-});
-
-test('placeholders are multi-language objects, never bare strings', () => {
-  for (const field of manifest.config_schema) {
-    if (field.placeholder !== undefined) {
-      assert.equal(
-        typeof field.placeholder,
-        'object',
-        `"${field.key}": placeholder must be an object`,
-      );
-      assert.ok(field.placeholder.en, `"${field.key}": placeholder needs an English text`);
-    }
-  }
-});
-
 test('the catalog description stays within the 100-character store limit', () => {
   for (const [language, text] of Object.entries(manifest.description)) {
     assert.ok(text.length >= 10, `description.${language} is too short`);
@@ -206,26 +269,20 @@ test('the catalog description stays within the 100-character store limit', () =>
   }
 });
 
-test('both coordinates are mandatory and ship no default', () => {
-  // A default latitude/longitude would silently watch Paris on a fresh install.
-  for (const key of ['latitude', 'longitude']) {
-    const field = manifest.config_schema.find((f) => f.key === key);
-    assert.equal(field.required, true, `"${key}" is the location itself`);
-    assert.equal(field.default, undefined, `"${key}" must start empty`);
-    assert.equal(DEFAULT_CONFIG[key], null, `DEFAULT_CONFIG.${key} means "left empty"`);
-  }
-});
+// --- Coordinates -------------------------------------------------------------
 
 test('the coordinates are text fields, so a typed dot survives the browser', () => {
   // A `number` field is an <input type="number">, whose value the browser
   // sanitizes against ITS OWN locale: a French browser turns "48.8566" into an
-  // empty string and the front then drops the key from the payload it saves.
-  // The range that `min`/`max` used to enforce is checked in src/config.js.
-  for (const key of ['latitude', 'longitude']) {
-    const field = manifest.config_schema.find((f) => f.key === key);
-    assert.equal(field.type, 'string', `"${key}" must accept both decimal separators`);
+  // empty string and the front then drops the key from the payload it sends.
+  // The range that `min`/`max` used to enforce is checked in src/coordinates.js.
+  const coordinates = allFields().filter((f) => ['latitude', 'longitude'].includes(f.key));
+  assert.ok(coordinates.length > 0, 'typing the coordinates by hand is still possible');
+  for (const field of coordinates) {
+    assert.equal(field.type, 'string', `"${field.key}" must accept both decimal separators`);
     assert.equal(field.min, undefined, 'min/max are number-only in the store schema');
     assert.equal(field.max, undefined, 'min/max are number-only in the store schema');
+    assert.equal(field.default, undefined, 'a default coordinate would silently watch Paris');
   }
 });
 
@@ -234,14 +291,14 @@ test('the coordinate examples use the separator of the language they are shown i
   // French user is telling them to type the separator their own browser used
   // to refuse.
   const separators = { fr: ',', en: '.' };
-  for (const key of ['latitude', 'longitude']) {
-    const { placeholder } = manifest.config_schema.find((f) => f.key === key);
+  const coordinates = allFields().filter((f) => ['latitude', 'longitude'].includes(f.key));
+  for (const field of coordinates) {
     for (const [language, separator] of Object.entries(separators)) {
-      assert.ok(placeholder[language], `"${key}": no ${language} placeholder`);
+      assert.ok(field.placeholder?.[language], `"${field.key}": no ${language} placeholder`);
       assert.equal(
-        placeholder[language].replace(/\d/g, ''),
+        field.placeholder[language].replace(/\d/g, ''),
         separator,
-        `"${key}": the ${language} example must use "${separator}"`,
+        `"${field.key}": the ${language} example must use "${separator}"`,
       );
     }
   }
@@ -249,18 +306,18 @@ test('the coordinate examples use the separator of the language they are shown i
 
 test('the configuration screen explains the postal-code trap', () => {
   const help = manifest.config_schema.find((f) => f.key === 'address_help');
-  assert.ok(help, 'a section explains what the location is');
+  assert.ok(help, 'a section explains what a location is');
   assert.equal(help.type, 'section');
   assert.ok(help.links?.length >= 1);
   assert.match(help.description.fr, /code postal/);
   assert.match(help.description.en, /postal code/);
 });
 
-test('the help section comes before the fields it explains', () => {
+test('the help section comes before the settings it explains', () => {
   const keys = manifest.config_schema.map((f) => f.key);
   assert.ok(
-    keys.indexOf('address_help') < keys.indexOf('latitude'),
-    'the note is useless once the user has already filled the fields in',
+    keys.indexOf('address_help') < keys.indexOf('profil'),
+    'the note is useless once the user has already scrolled past it',
   );
 });
 

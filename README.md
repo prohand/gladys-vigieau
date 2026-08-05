@@ -16,8 +16,9 @@ and the
 
 ## What it exposes
 
-One device per watched location — `Vigilance sécheresse — <location>` — with five
-read-only features:
+**One device per watched location** — `Vigilance sécheresse — <location>` — with
+five read-only features each. You can watch a house, a second home and an
+allotment garden side by side: they are rarely under the same prefectoral decree.
 
 | Feature                        | Category / type  | Value                                         |
 | ------------------------------ | ---------------- | --------------------------------------------- |
@@ -32,11 +33,12 @@ name — `0` Pas de risque, `1` Faible, `2` Moyen, `3` Élevé. VigiEau has five
 levels, so `crise` shares `3` with `alerte renforcée`; the text feature keeps
 the exact official wording to tell them apart.
 
-Three buttons are available in the Configuration screen: **Rechercher mon
-adresse** (geocodes an address and fills in the coordinates),
-**Tester la connexion VigiEau** (live check, shows the current level) and
-**Afficher les restrictions en vigueur** (lists the restricted usages and links
-the decree).
+The Configuration screen holds the whole location manager, as buttons:
+**Ajouter un lieu** (geocodes an address and creates its device), **Modifier un
+lieu** and **Supprimer un lieu** (both driven by a dropdown listing your
+devices), **Lister les lieux surveillés**, plus **Tester la connexion VigiEau**
+and **Afficher les restrictions en vigueur** — the last two covering every
+location, or just the one you pick.
 
 User documentation, re-hosted by Gladys and linked from the Configuration
 screen: [`docs/fr.md`](./docs/fr.md) — [`docs/en.md`](./docs/en.md).
@@ -49,18 +51,17 @@ interval, with the user profile (`particulier`, `entreprise`, `collectivite`,
 each with its own `niveauGravite`, the decree in force and the list of
 restricted usages.
 
-The location is a **geocoded point**. The user types an address in the
-**"Search for my address"** action, the integration resolves it on the official
+Each location is a **geocoded point**. The user types an address in the
+**"Add a location"** action, the integration resolves it on the official
 [Base Adresse Nationale](https://adresse.data.gouv.fr) (`GET /search`) — the
-same geocoder vigieau.gouv.fr uses — and writes the latitude and longitude back
-with `setConfig()`, re-publishing the catalog on the spot. The address it
-settled on is kept in the `address_label` config field — purely informational,
-so the user can see where the device is looking without decoding two decimals. There is no INSEE
-commune code: querying VigiEau by commune answers `409` as soon as the commune
-spans several zones of one water type, which no retry can fix. A point always
-falls inside exactly one zone per type. An address that matches several
-candidates with no clear winner is never guessed — the action lists them and
-asks for a more precise query.
+same geocoder vigieau.gouv.fr uses — and stores the point, re-publishing the
+catalog on the spot. The address it settled on is kept next to the coordinates,
+purely informational, so the user can see where each device is looking without
+decoding two decimals. There is no INSEE commune code: querying VigiEau by
+commune answers `409` as soon as the commune spans several zones of one water
+type, which no retry can fix. A point always falls inside exactly one zone per
+type. An address that matches several candidates with no clear winner is never
+guessed — the action lists them and asks for a more precise query.
 
 A few decisions are worth knowing about:
 
@@ -77,14 +78,26 @@ A few decisions are worth knowing about:
   wording the integration does not know, the affected level is left at its last
   known value and a warning is logged, rather than publishing a `0` that would
   tell a watering scene everything is fine in the middle of a crisis.
-- **No device is published before the location is known.** Until an address has
+- **No device is published before its location is known.** Until an address has
   been geocoded, discovery returns nothing and the Configuration screen says
   why — better than a device pinned to an empty location that the user would
   have to delete by hand.
-- **The coordinates are stored as text, and both decimal separators work.** A
-  `number` config field renders an `<input type="number">`, whose value the
+- **The location list is not a configuration field, and cannot be.** A
+  `config_schema` is a fixed set of fields, and a `select` only takes the
+  options written in the manifest or the core's own `devices` source: nothing
+  there can hold a list the user builds at runtime. The list therefore lives
+  under the off-schema `locations` key — which the core explicitly treats as
+  free internal storage of the integration — and is edited through the action
+  forms, which the core does render dynamically. The same `devices` source is
+  what fills the "which location?" dropdown of the edit, delete and test
+  buttons.
+- **One failing location never silences the others.** A refresh cycle covers
+  every location; a badly geocoded garden is reported by name in the
+  Configuration screen while the house keeps reporting.
+- **The coordinates are stored and typed as text, and both decimal separators
+  work.** A `number` field renders an `<input type="number">`, whose value the
   browser sanitizes in its own locale: on a French browser `48.8566` is not a
-  number, the front leaves the key out of the payload it saves, and the
+  number, the front leaves the key out of the payload it sends, and the
   coordinate silently keeps its old value. A `string` field hands the
   integration exactly what was typed; `toCoordinate()` reads `48,8566` and
   `48.8566` alike and checks the WGS-84 range itself.
@@ -109,10 +122,14 @@ A few decisions are worth knowing about:
 ├─ src/
 │  ├─ devices/
 │  │  ├─ index.js                    #   device registry
+│  │  ├─ identity.js                 #   which external_id a device keeps for life
 │  │  └─ droughtZone.js              #   the drought device: features + polling + actions
+│  ├─ locations.js                   # the watched locations: the list and its edits
+│  ├─ locationActions.js             # the buttons that add / edit / delete them
 │  ├─ vigieau.js                     # VigiEau API driver + severity mapping (pure part)
 │  ├─ address.js                     # geocoder driver: address -> lat/lon
-│  └─ config.js                      # config defaults, normalization, stable location id
+│  ├─ coordinates.js                 # parsing/formatting one WGS-84 coordinate
+│  └─ config.js                      # config defaults and normalization
 ├─ docs/
 │  ├─ en.md                          # user documentation, re-hosted by Gladys and
 │  └─ fr.md                          #   linked from the Configuration screen
@@ -184,11 +201,15 @@ sitting at the root of the default branch).
 
 - Requires **Node.js ≥ 20** (uses the built-in global `fetch`; no HTTP
   dependency).
-- The device `external_id` does not depend on the watched location: changing the
-  address (or the coordinates) updates the existing device, which keeps its
-  history, its rooms and its scenes. A device created by a version up to 1.1.1,
-  whose `external_id` carried the coordinates, is adopted on the first start
-  after the update — nothing to delete, nothing to re-add.
+- A device `external_id` is built on its location's own generated id, never on
+  the coordinates: moving or renaming a location updates the existing device,
+  which keeps its history, its rooms and its scenes. A device created by a
+  version up to 1.1.1, whose `external_id` carried the coordinates, is adopted
+  on the first start after the update — nothing to delete, nothing to re-add,
+  and the single location it watched becomes the first entry of the list under
+  the very id it was published with.
+- Deleting a location stops the integration from offering its device, but does
+  not delete the device: an integration cannot. Delete it in Gladys afterwards.
 - VigiEau data is provided for information only; in case of doubt the
   prefectoral decree published by your prefecture prevails.
 
