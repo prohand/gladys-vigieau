@@ -73,6 +73,13 @@ you read which location "Location 2" is.
 - **One location?** it is selected and shown by default.
 - **Several?** the first one is shown; pick another in the dropdown.
 
+> The dropdown always offers **ten entries**, "Location 1" to "Location 10",
+> however many locations you created: its options are written in the
+> integration manifest, which the integration cannot change. Only the first
+> numbers mean something — the "Watched locations" field tells you which. Pick
+> one that does not exist and nothing changes, with the field explaining why on
+> the next page load.
+
 1. Pick the location number, then click **"Save the configuration"**.
 2. **Reload the page (F5)**: the **Name of the selected location**, **Address**,
    **Latitude** and **Longitude** fields now show its information.
@@ -102,6 +109,16 @@ you read which location "Location 2" is.
 The **"Delete a location"** action has **its own** dropdown, independent of the
 one above: pick the location number, tick **"I confirm the deletion"** and run
 it. Run unticked, it only tells you which location would go.
+
+What happens to the device depends on what you had done with it:
+
+- **You never added it** (it was only offered in the Discovery tab): it leaves
+  the discovery straight away, the integration having stopped offering it. The
+  message confirms it.
+- **You had added it to Gladys**: it **stays**, and stops updating. An
+  integration is not allowed to delete a device — Gladys gives it no way to. The
+  message gives you its exact name: delete it yourself from the integration's
+  **Devices** tab.
 
 > Changing a location's address does not create a second device: the **existing
 > device follows it**, with its history, its rooms and its scenes. Deleting a

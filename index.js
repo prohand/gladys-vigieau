@@ -29,6 +29,7 @@ import {
   buildDiscoveredDevices,
   findBlueprintByDevice,
   forgetDeletedDevice,
+  locationDeviceIds,
 } from './src/devices/index.js';
 
 const gladys = new GladysIntegration();
@@ -55,19 +56,25 @@ const NOT_CONFIGURED_MESSAGE = {
  * @returns {Promise<boolean>} whether the devices were published
  */
 async function publishDevices() {
-  if (!isConfigured(config)) {
+  const configured = isConfigured(config);
+  if (!configured) {
     logger.warn('No location configured yet: nothing to discover');
     await gladys.setConnectionStatus(false, NOT_CONFIGURED_MESSAGE).catch(() => {});
-    return false;
   }
-  const devices = buildDiscoveredDevices(gladys, config);
+  // An EMPTY list is still published, and that matters: `setDiscoveredDevices`
+  // REPLACES the previous one, so this is the only way the device of a deleted
+  // location leaves the Discovery screen. Returning early here — which is what
+  // this function used to do — left the last deleted location on offer until
+  // the container was restarted.
+  const devices = configured ? buildDiscoveredDevices(gladys, config) : [];
   // Logged in full at debug level: when Gladys refuses the batch, the rejected
   // payload is the only thing that tells you WHICH feature it choked on.
   logger.debug('publishDiscoveredDevices ->', JSON.stringify(devices));
   try {
     const response = await gladys.publishDiscoveredDevices(devices);
     logger.info(`Published ${response?.count ?? devices.length} device(s) to the Discovery screen`);
-    return true;
+    // Whether the CALLER can go on polling, which an empty catalog cannot.
+    return configured;
   } catch (err) {
     // Gladys refused the batch — an unsupported feature category, a malformed
     // external_id... Without this, a "Scan" that fails leaves the Discovery
@@ -140,6 +147,13 @@ const locationEditor = createLocationEditor({
     config = normalizeConfig({ ...config, ...patch });
   },
   onLocationsChanged: republish,
+  // "Has the user already created this location's device?" — the one case the
+  // delete action cannot clean up on its own, and must therefore name.
+  async findCreatedDevice(location) {
+    const ours = new Set(locationDeviceIds(gladys, location.id));
+    const devices = await gladys.getDevices();
+    return (devices ?? []).find((device) => ours.has(device?.external_id)) ?? null;
+  },
 });
 
 // --- Discovery: Gladys asks for the list of devices --------------------------

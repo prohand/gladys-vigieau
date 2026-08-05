@@ -75,6 +75,13 @@ vous lisez à quel lieu correspond « Lieu 2 ».
 - **Plusieurs lieux ?** le premier est affiché ; choisissez-en un autre dans la
   liste déroulante.
 
+> La liste déroulante propose **toujours dix entrées**, « Lieu 1 » à « Lieu 10 »,
+> quel que soit le nombre de lieux que vous avez créés : ses options sont écrites
+> dans le fichier de description de l'intégration, que celle-ci ne peut pas
+> modifier. Seuls les premiers numéros correspondent à quelque chose — le champ
+> « Lieux surveillés » vous dit lesquels. Si vous en choisissez un qui n'existe
+> pas, rien n'est modifié et le champ vous l'explique au rechargement suivant.
+
 1. Choisissez le numéro du lieu, puis cliquez sur
    **« Enregistrer la configuration »**.
 2. **Rechargez la page (F5)** : les champs **Nom du lieu sélectionné**,
@@ -107,6 +114,16 @@ L'action **« Supprimer un lieu »** a **sa propre** liste déroulante,
 indépendante de celle du haut : choisissez le numéro du lieu, cochez
 **« Je confirme la suppression »** et lancez l'action. Lancée sans cocher, elle
 se contente de vous dire quel lieu serait supprimé.
+
+Ce qu'il advient de l'appareil dépend de ce que vous en aviez fait :
+
+- **Vous ne l'aviez jamais ajouté** (il n'était que proposé dans l'onglet
+  Découverte) : il disparaît de la découverte immédiatement, l'intégration
+  cessant de le proposer. Le message vous le confirme.
+- **Vous l'aviez ajouté à Gladys** : il **reste** et cesse de se mettre à jour.
+  Une intégration n'a pas le droit de supprimer un appareil — Gladys ne lui en
+  donne aucun moyen. Le message vous donne son nom exact : supprimez-le
+  vous-même depuis l'onglet **Appareils** de l'intégration.
 
 > Changer l'adresse d'un lieu ne crée pas un nouvel appareil : l'appareil
 > **existant vous suit**, avec son historique, ses pièces et ses scènes. En

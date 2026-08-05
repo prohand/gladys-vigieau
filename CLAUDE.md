@@ -95,6 +95,11 @@ integration — is what maps a position to a name. `lieu` IS the selection: `nor
 `selectedPosition`/`selectedId` from it, clamped into the list, and `commit()` rewrites it when it
 points past the end.
 
+**The ten options are always there, whatever the list holds** — a manifest is a file. Picking "Lieu
+5" with two locations configured is therefore one click away at all times, and clamping it in
+SILENCE is indistinguishable from a Save that did nothing: the screen keeps showing the same
+location and nothing, anywhere, says why. `outOfRangeNotice()` is what makes that case answerable.
+
 Two constraints forced this shape, and neither is negotiable:
 
 - **A `select` is validated against the manifest's static `options`, so a dropdown can NEVER show
@@ -164,6 +169,19 @@ Never derive `external_id` from anything the user can change in the Configuratio
 Deleting a location does NOT delete its Gladys device — an integration can only stop offering one —
 which is why location ids are random rather than counters: a reused id would hand a surviving
 device's history to the next location the user creates.
+
+Two different things hide behind "the device is still there", and the delete action tells them
+apart by asking `findCreatedDevice` BEFORE it re-publishes:
+
+- **Never created.** It only ever existed in the Discovery screen, which is an IN-MEMORY list
+  `setDiscoveredDevices` REPLACES on every publish. Re-publishing without it is enough — but only if
+  the publish actually happens: `publishDevices()` used to return early when no location was left,
+  so deleting the LAST one kept offering its device until the container restarted. An empty catalog
+  is published now, and that is the whole point of publishing one.
+- **Already created.** It lives in `t_device` and nothing an integration can call deletes it: there
+  is no `deleteDevice` in the SDK and no device DELETE route in the integration-facing API (checked
+  at `v4.84.4`). The message names the device and points at the Devices tab, because a sensor that
+  silently stops updating is the worst of both worlds.
 
 ### The location is a point, never a commune
 

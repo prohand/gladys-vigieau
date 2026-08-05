@@ -144,12 +144,15 @@ export function mergeStaleFields(incoming, stale, stored) {
  *   persist a partial configuration and refresh the in-memory one
  * @param {() => Promise<void>} deps.onLocationsChanged - re-publish the catalog
  *   and restart the refresh timers on the new list
+ * @param {(location: object) => Promise<object|null>} [deps.findCreatedDevice] -
+ *   the Gladys device a location has already been given, if any
  * @param {typeof geocodeAddress} [deps.resolveAddress] - injected in tests
  */
 export function createLocationEditor({
   getConfig,
   setConfig,
   onLocationsChanged,
+  findCreatedDevice = async () => null,
   resolveAddress = geocodeAddress,
 }) {
   // What the Configuration screen was showing when we last rewrote the detail
@@ -310,12 +313,45 @@ export function createLocationEditor({
     return `▶ Lieu ${position} « ${location?.name ?? ''} » sélectionné — rechargez la page (F5) pour voir ses informations.`;
   }
 
+  /**
+   * "You picked a number nothing sits under."
+   *
+   * The dropdown offers ten entries whatever the list holds — the manifest is a
+   * file — so picking "Lieu 5" with two locations configured is one click away
+   * at all times. It used to be clamped in silence, which is indistinguishable
+   * from a Save that did nothing: the screen kept showing the same location and
+   * nothing, anywhere, said why.
+   */
+  function outOfRangeNotice(locations, requested, position) {
+    const shown = locationAtPosition(locations, position);
+    return (
+      `⚠ Le lieu ${requested} n’existe pas : ${locations.length} lieu(x) configuré(s). ` +
+      `Le lieu ${position} « ${shown?.name ?? ''} » reste affiché — ajoutez un lieu avec ` +
+      '« Ajouter un lieu » pour en surveiller un de plus.'
+    );
+  }
+
   function selectionMessage(locations, position) {
     const location = locationAtPosition(locations, position);
     return {
       en: `Location ${position} selected: ${describeLocation(location)}. Reload the page (F5) to see it in the fields.`,
       fr: `Lieu ${position} sélectionné : ${describeLocation(location)}. Rechargez la page (F5) pour le voir dans les champs.`,
     };
+  }
+
+  /**
+   * The device a location has already been given, or null.
+   *
+   * Never fatal: failing to read the device list must not stop a deletion the
+   * user asked for — at worst the message is the vaguer of the two.
+   */
+  async function createdDeviceOf(location) {
+    try {
+      return await findCreatedDevice(location);
+    } catch (err) {
+      logger.warn('Could not tell whether the location had a device', err);
+      return null;
+    }
   }
 
   /** "No location yet", the answer every action owes an empty list. */
@@ -379,6 +415,11 @@ export function createLocationEditor({
         shownPosition !== null && shownPosition !== selectedPosition
           ? locationAtPosition(locations, shownPosition)
           : null;
+      // A number the list does not reach. `selectedPosition` has already been
+      // clamped back inside it, so the screen is coherent — but the user asked
+      // for something that does not exist and has to be told.
+      const requested = Number.parseInt(String(config[SELECTION_FIELD] ?? ''), 10);
+      const outOfRange = Number.isInteger(requested) && requested > locations.length;
       const edited = movedFrom ?? locationAtPosition(locations, selectedPosition);
       const stored = canonical(detailFieldsOf(edited));
 
@@ -388,22 +429,36 @@ export function createLocationEditor({
         staleFields = null;
       }
 
+      // What the next page load has to tell the user, in the only field that
+      // can carry it. Order matters: the refusal comes first.
+      const notice = () => {
+        if (outOfRange) {
+          return outOfRangeNotice(locations, requested, selectedPosition);
+        }
+        return movedFrom ? reloadNotice(locations, selectedPosition) : '';
+      };
+
       if (sameFields(fields, stored)) {
         // Nothing of the user's to apply. The screen still has to be rewritten
-        // when it is out of step with the store — either because the dropdown
-        // moved, or because the core has just stored what a stale form sent and
-        // the tab would send exactly the same thing again.
-        // A dropdown pointing past the end of the list is put back too: it
-        // always offers ten entries, the manifest being a file, so "Lieu 7" is
-        // one click away even with two locations configured.
-        const outOfRange = String(config[SELECTION_FIELD] ?? '') !== String(selectedPosition);
-        if (movedFrom || outOfRange || !sameFields(incoming, stored)) {
+        // when it is out of step with the store — because the dropdown moved,
+        // because it points past the end of the list (it always offers ten
+        // entries, the manifest being a file), or because the core has just
+        // stored what a stale form sent and the tab would send the same thing
+        // again.
+        const dropdownMoved = String(config[SELECTION_FIELD] ?? '') !== String(selectedPosition);
+        if (movedFrom || dropdownMoved || !sameFields(incoming, stored)) {
           await commit({
             locations,
             position: selectedPosition,
-            warning: movedFrom ? reloadNotice(locations, selectedPosition) : '',
+            warning: notice(),
             republish: false,
           });
+        }
+        if (outOfRange) {
+          return {
+            en: `There is no location ${requested}: ${locations.length} configured. Add one with "Add a location".`,
+            fr: `Il n’y a pas de lieu ${requested} : ${locations.length} configuré(s). Ajoutez-en un avec « Ajouter un lieu ».`,
+          };
         }
         return movedFrom ? selectionMessage(locations, selectedPosition) : null;
       }
@@ -414,12 +469,7 @@ export function createLocationEditor({
       // what the form sent into the mirror fields, and leaving a refused name
       // or an impossible latitude there would show them back on the next page
       // load as if they had been accepted.
-      const warnings = [
-        problem ? `⚠ ${problem.fr}` : '',
-        movedFrom ? reloadNotice(locations, selectedPosition) : '',
-      ]
-        .filter(Boolean)
-        .join(' ');
+      const warnings = [problem ? `⚠ ${problem.fr}` : '', notice()].filter(Boolean).join(' ');
       await commit({
         locations: changed ? upsertLocation(locations, patch) : locations,
         position: selectedPosition,
@@ -527,10 +577,13 @@ export function createLocationEditor({
         const remaining = removeLocation(locations, location.id);
         const position =
           stillShown && stillShown.id !== location.id ? positionOf(remaining, stillShown.id) : 1;
+        // Asked BEFORE the re-publish, while the location still has an
+        // external_id to look for: a device the user has already created is the
+        // one case an integration cannot clean up, and it must say so precisely
+        // rather than leave a sensor that never updates again.
+        const created = await createdDeviceOf(location);
         await commit({ locations: remaining, position });
 
-        // An integration can only stop OFFERING a device; deleting it is the
-        // user's move, and saying so beats leaving a sensor that never updates.
         const reload =
           stillShown?.id === location.id && remaining.length
             ? {
@@ -538,9 +591,20 @@ export function createLocationEditor({
                 fr: ` « ${remaining[0].name} » est maintenant affiché dans « Le lieu à surveiller » — rechargez cette page (F5).`,
               }
             : { en: '', fr: '' };
+
+        if (!created) {
+          // Never created: re-publishing the catalog without it is enough, the
+          // Discovery screen stops offering it on the spot.
+          return {
+            en: `Location "${location.name}" removed, and it is no longer offered in the Discovery tab.${reload.en}`,
+            fr: `Lieu « ${location.name} » supprimé, et il n’est plus proposé dans l’onglet Découverte.${reload.fr}`,
+          };
+        }
+        // An integration can only stop OFFERING a device; deleting one the user
+        // created is not something the host API lets it do, at any version.
         return {
-          en: `Location "${location.name}" removed. Delete its device in Gladys too: an integration cannot delete it for you.${reload.en}`,
-          fr: `Lieu « ${location.name} » supprimé. Supprimez aussi son appareil dans Gladys : une intégration ne peut pas le faire à votre place.${reload.fr}`,
+          en: `Location "${location.name}" removed. Its device "${created.name}" still exists in Gladys and will stop updating: delete it yourself from the integration's Devices tab — an integration is not allowed to delete a device.${reload.en}`,
+          fr: `Lieu « ${location.name} » supprimé. Son appareil « ${created.name} » existe toujours dans Gladys et ne se mettra plus à jour : supprimez-le vous-même depuis l’onglet Appareils de l’intégration — une intégration n’a pas le droit de supprimer un appareil.${reload.fr}`,
         };
       },
     },

@@ -77,9 +77,24 @@ test('buildDiscoveredDevices returns one payload per location', () => {
   }
 });
 
-test('a configuration with no location publishes nothing', () => {
+test('a configuration with no location publishes an EMPTY catalog', () => {
+  // Empty, and it must actually be published: `setDiscoveredDevices` REPLACES
+  // the previous list, so this array is the only thing that takes the device of
+  // the last deleted location off the Discovery screen. Skipping the publish
+  // here — which index.js used to do — left it on offer until a restart.
   const gladys = createFakeGladys();
   assert.deepEqual(buildDiscoveredDevices(gladys, normalizeConfig()), []);
+});
+
+test('a deleted location is no longer in the catalog that replaces the old one', () => {
+  const gladys = createFakeGladys();
+  const remaining = buildDiscoveredDevices(gladys, configWith(MAISON));
+  assert.equal(remaining.length, 1);
+  assert.match(remaining[0].name, /Maison/);
+  assert.ok(
+    !remaining.some((device) => device.external_id.includes('loc-jardin')),
+    'the Discovery screen stops offering it as soon as this list is published',
+  );
 });
 
 test('a location without usable coordinates publishes no device', () => {

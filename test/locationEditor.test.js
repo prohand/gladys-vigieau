@@ -29,7 +29,7 @@ afterEach(() => {
  * off-schema keys AND the config fields, since the mirror fields are what the
  * Configuration screen sends and what the manager writes.
  */
-function createHarness(stored = {}) {
+function createHarness(stored = {}, { createdDeviceNames = {} } = {}) {
   let raw = { ...stored };
   let config = normalizeConfig(raw);
   const writes = [];
@@ -45,6 +45,10 @@ function createHarness(stored = {}) {
     onLocationsChanged: async () => {
       republished += 1;
     },
+    // index.js answers this by looking the location's external_id up in
+    // gladys.getDevices(); here the test just names the ones it created.
+    findCreatedDevice: async (location) =>
+      createdDeviceNames[location.id] ? { name: createdDeviceNames[location.id] } : null,
   });
 
   return {
@@ -96,8 +100,8 @@ function createHarness(stored = {}) {
 // except for what the user typed — which is exactly how the front behaves.
 let form = {};
 
-function harness(stored = {}) {
-  const h = createHarness(stored);
+function harness(stored = {}, options) {
+  const h = createHarness(stored, options);
   h.reload();
   // The connection seeds the position the open tab was loaded with, exactly as
   // index.js does before publishing anything.
@@ -263,14 +267,20 @@ test('the section dropdown points the mirror fields at the chosen position', asy
   assert.match(message.fr, /F5/);
 });
 
-test('a position past the end of the list falls back inside it', async () => {
+test('a position past the end of the list falls back inside it, and SAYS SO', async () => {
   // The dropdown always offers ten entries — the manifest is a file — so
   // "Lieu 4" with one location configured is one click away at all times.
+  // Clamping it in silence is indistinguishable from a Save that did nothing:
+  // the screen keeps showing the same location and nothing says why.
   const h = harness(installed([MAISON]));
-  await h.selectAndSave(4);
+  const message = await h.selectAndSave(4);
+
   assert.equal(h.selected().name, 'Maison', 'never left pointing past the end');
   assert.equal(h.position(), 1);
   assert.equal(h.raw().lieu, '1', 'and the dropdown is put back where it belongs');
+  assert.match(message.fr, /pas de lieu 4/);
+  assert.match(h.raw()[SUMMARY_FIELD], /^⚠ Le lieu 4 n’existe pas/);
+  assert.match(h.raw()[SUMMARY_FIELD], /1 lieu\(x\) configuré\(s\)/);
 });
 
 test('with no location at all the field says to create one', async () => {
@@ -520,9 +530,24 @@ test('supprimer_lieu removes the location ITS OWN dropdown names', async () => {
   );
   assert.equal(h.selected().name, 'Maison');
   assert.equal(h.raw().location_name, 'Maison', 'the mirror follows the new selection');
-  // An integration can only stop OFFERING a device; deleting it is the user's.
-  assert.match(message.fr, /Supprimez aussi son appareil/);
+  // Its device was never created: re-publishing the catalog without it is all
+  // it takes for the Discovery screen to stop offering it.
+  assert.match(message.fr, /plus proposé dans l’onglet Découverte/);
   assert.equal(h.republished(), 1);
+});
+
+test('deleting a location whose device EXISTS says so, and where to delete it', async () => {
+  // The one case an integration cannot clean up: the host API gives it no way
+  // to delete a device the user created. Saying nothing leaves a sensor that
+  // never updates again and no clue why.
+  const h = harness(installed([MAISON, JARDIN], 2), {
+    createdDeviceNames: { 'loc-jardin': 'Vigilance sécheresse — Jardin' },
+  });
+  const message = await h.editor.actions.supprimer_lieu({ lieu: '2', confirmation: true });
+
+  assert.match(message.fr, /Vigilance sécheresse — Jardin/);
+  assert.match(message.fr, /existe toujours dans Gladys/);
+  assert.match(message.fr, /onglet Appareils/);
 });
 
 test('deleting another location leaves the section on the one it was showing', async () => {

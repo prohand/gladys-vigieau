@@ -16,7 +16,7 @@
 // -----------------------------------------------------------------------------
 
 import { droughtZone } from './droughtZone.js';
-import { adoptExistingDevices as adoptIdentities } from './identity.js';
+import { adoptExistingDevices as adoptIdentities, deviceIds } from './identity.js';
 
 export const DEVICE_BLUEPRINTS = [droughtZone];
 
@@ -42,6 +42,17 @@ export function adoptExistingDevices(gladys, config) {
  */
 export function buildDiscoveredDevices(gladys, config) {
   return DEVICE_BLUEPRINTS.flatMap((bp) => bp.buildDevices(gladys, config));
+}
+
+/**
+ * The external_ids every blueprint publishes for ONE location.
+ *
+ * Used to answer "has the user already created this location's device?", which
+ * decides what the delete action can promise: an integration may stop OFFERING
+ * a device, but the host API gives it no way to delete one the user created.
+ */
+export function locationDeviceIds(gladys, locationId) {
+  return DEVICE_BLUEPRINTS.map((bp) => deviceIds(gladys, bp.key, locationId).device);
 }
 
 /**
