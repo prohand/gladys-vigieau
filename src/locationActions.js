@@ -1,19 +1,6 @@
 // -----------------------------------------------------------------------------
 // The manifest actions that EDIT the watched location list.
 //
-// WHICH LOCATION AN ACTION WORKS ON: its NAME, typed in the `lieu` field.
-// These forms used to carry a `select` fed by the core's `devices` source,
-// which the Configuration screen does render as a dropdown of the integration's
-// own devices — but the SERVER side of that source (getDynamicOptions, Gladys
-// PR #2779) is not in any released Gladys: up to 4.84.4 included,
-// `validateConfigValue` reads a select's valid values from the STATIC `options`
-// of the manifest, which a field with a `source` does not have. So the option
-// list was empty server side, every value the dropdown offered was refused with
-// a 422 before the command ever reached this container, and the screen showed
-// "L'action a échoué. Vérifiez que l'intégration est démarrée." — a required
-// selector (modifier_lieu) could not be run at all. A `string` field carries
-// what the user typed on every version, past and future.
-//
 // They live here rather than in a device blueprint because they write the
 // configuration back and re-publish the whole catalog — that is the registry's
 // business, not a device's — and rather than in `index.js` because that file is
@@ -21,8 +8,8 @@
 // renaming and removing the places the integration watches.
 //
 // Everything the outside world provides is injected (`getConfig`,
-// `saveLocations`), so the whole set is testable without a Gladys server: see
-// `test/locationActions.test.js`.
+// `saveLocations`, `resolveDevice`), so the whole set is testable without a
+// Gladys server: see `test/locationActions.test.js`.
 //
 // Every handler resolves to a multi-language object, which the core displays
 // under the button that ran it.
@@ -36,7 +23,6 @@ import {
   findLocationById,
   findLocationByName,
   hasCoordinates,
-  locationNames,
   MAX_LOCATIONS,
   newLocationId,
   removeLocation,
@@ -110,35 +96,16 @@ async function resolveFieldsToPoint(fields) {
 }
 
 /**
- * "That name matches no location", with the ones that do exist — the only way
- * the user can find out how the location they mean is spelled, short of running
- * `lister_lieux`.
- * @param {Array<object>} locations - the watched locations
- * @param {{ en: string, fr: string }} reason - what did not match, per language
- */
-function unknownLocationMessage(locations, reason) {
-  const { en, fr } = reason;
-  if (locations.length === 0) {
-    return {
-      en: 'No location yet. Add one with "Add a location".',
-      fr: 'Aucun lieu pour l’instant. Ajoutez-en un avec « Ajouter un lieu ».',
-    };
-  }
-  return {
-    en: `${en} Watched locations: ${locationNames(locations)}.`,
-    fr: `${fr} Lieux surveillés : ${locationNames(locations)}.`,
-  };
-}
-
-/**
  * Build the four location-editing action handlers.
  * @param {object} deps
  * @param {() => object} deps.getConfig - the current normalized configuration
  * @param {(locations: Array<object>) => Promise<void>} deps.saveLocations - store
  *   the new list, re-publish the catalog and restart the refresh
+ * @param {(externalId: string) => object | undefined} deps.resolveDevice - the
+ *   location behind a device external_id, as the `devices` select returns it
  * @returns {Record<string, (fields: object) => Promise<object>>} handlers by key
  */
-export function createLocationActions({ getConfig, saveLocations }) {
+export function createLocationActions({ getConfig, saveLocations, resolveDevice }) {
   return {
     async ajouter_lieu(fields = {}) {
       logger.info(`Action ajouter_lieu <- ${fields.nom ?? ''} / ${fields.adresse ?? ''}`);
@@ -182,14 +149,13 @@ export function createLocationActions({ getConfig, saveLocations }) {
     },
 
     async modifier_lieu(fields = {}) {
-      logger.info(`Action modifier_lieu <- ${fields.lieu ?? ''}`);
-      const locations = getConfig().locations;
-      const location = findLocationByName(locations, fields.lieu);
+      logger.info(`Action modifier_lieu <- ${fields.appareil ?? ''}`);
+      const location = fields.appareil ? resolveDevice(fields.appareil) : undefined;
       if (!location) {
-        return unknownLocationMessage(locations, {
-          en: `No location named "${String(fields.lieu ?? '').trim()}".`,
-          fr: `Aucun lieu nommé « ${String(fields.lieu ?? '').trim()} ».`,
-        });
+        return {
+          en: 'Pick the device of the location to edit.',
+          fr: 'Choisissez l’appareil du lieu à modifier.',
+        };
       }
 
       const patch = { id: location.id };
@@ -222,17 +188,19 @@ export function createLocationActions({ getConfig, saveLocations }) {
     },
 
     async supprimer_lieu(fields = {}) {
-      logger.info(`Action supprimer_lieu <- ${fields.lieu ?? ''}`);
-      // By name, which also covers a location whose device was never created:
-      // it exists in the list without existing in Gladys, and must still be
-      // removable.
+      logger.info(`Action supprimer_lieu <- ${fields.appareil ?? ''} / ${fields.nom ?? ''}`);
+      // Either the device selector, or the name: a location whose device has
+      // never been created is not in the dropdown (the core fills it with the
+      // devices that exist), and must still be removable.
       const locations = getConfig().locations;
-      const location = findLocationByName(locations, fields.lieu);
+      const location = fields.appareil
+        ? resolveDevice(fields.appareil)
+        : findLocationByName(locations, fields.nom);
       if (!location) {
-        return unknownLocationMessage(locations, {
-          en: `No location named "${String(fields.lieu ?? '').trim()}".`,
-          fr: `Aucun lieu nommé « ${String(fields.lieu ?? '').trim()} ».`,
-        });
+        return {
+          en: 'Pick the device of the location to delete, or type its exact name.',
+          fr: 'Choisissez l’appareil du lieu à supprimer, ou saisissez son nom exact.',
+        };
       }
 
       await saveLocations(removeLocation(locations, location.id));

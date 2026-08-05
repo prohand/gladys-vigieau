@@ -26,6 +26,7 @@ const REGISTRY_LEVEL_ACTIONS = Object.keys(
   createLocationActions({
     getConfig: () => ({}),
     saveLocations: async () => {},
+    resolveDevice: () => undefined,
   }),
 );
 
@@ -77,9 +78,9 @@ test('every registered handler is declared in the manifest', () => {
 
 // --- The location manager ----------------------------------------------------
 // The locations are a list the user builds at runtime. A config_schema is a
-// fixed set of fields with no repeatable one, so the list cannot be a form
-// field: it lives under the off-schema `locations` key and is edited through
-// these actions, which designate a location by its NAME.
+// fixed set of fields and a `select` only takes static options or the core's
+// `devices` source, so the list cannot be a form field: it lives under the
+// off-schema `locations` key and is edited through these actions.
 
 test('the location list is NOT a config_schema field', () => {
   const keys = manifest.config_schema.map((f) => f.key);
@@ -103,52 +104,41 @@ test('adding a location takes a name and a way to locate it', () => {
   }
 });
 
-test('NO field takes its options from a core-defined dynamic source', () => {
-  // THE bug this pins. A `select` with `source: "devices"` IS rendered as a
-  // dropdown of the integration's own devices by the Configuration screen —
-  // but the server side of that source (getDynamicOptions, Gladys PR #2779)
-  // ships in no released Gladys: up to 4.84.4 included, validateConfigValue
-  // reads a select's valid values from the manifest's STATIC `options`, which
-  // a field with a `source` does not have. Every value the dropdown offered
-  // was therefore refused with a 422 before the action reached the container,
-  // and the screen showed "L'action a échoué. Vérifiez que l'intégration est
-  // démarrée." A location is designated by its name instead.
-  for (const field of allFields()) {
-    assert.equal(
-      field.source,
-      undefined,
-      `"${field.key}": no released Gladys can validate a dynamic source`,
-    );
-  }
-});
-
-test('editing and deleting a location name the location they act on', () => {
+test('editing and deleting a location are driven by a device selector', () => {
+  // This is the only dynamic list the core offers: `source: "devices"` fills
+  // the dropdown with the integration's own devices (label = device name,
+  // value = external_id), resolved when the form is rendered.
   for (const key of ['modifier_lieu', 'supprimer_lieu']) {
-    const field = (action(key).fields ?? []).find((f) => f.key === 'lieu');
-    assert.ok(field, `"${key}" needs to know which location it acts on`);
-    assert.equal(field.type, 'string', 'a typed name works on every Gladys version');
-    assert.equal(field.required, true, 'these two edit exactly one location');
-    assert.equal(field.default, undefined, 'a default would edit a location by surprise');
+    const field = (action(key).fields ?? []).find((f) => f.key === 'appareil');
+    assert.ok(field, `"${key}" needs a device selector`);
+    assert.equal(field.type, 'select');
+    assert.equal(field.source, 'devices');
+    assert.equal(field.options, undefined, 'a source and static options are mutually exclusive');
+    assert.equal(field.default, undefined, 'a default is not allowed with a source');
   }
 });
 
 test('a location can be deleted before its device has ever been created', () => {
-  // A location lives in the integration's configuration, not in Gladys: the
-  // one added by mistake, whose device was never created, is named like any
-  // other and removable like any other.
+  // The `devices` source only lists devices the user has ADDED from the
+  // Discovery screen: a location added and not yet created is not in the
+  // dropdown, and must still be removable.
   const remove = action('supprimer_lieu');
-  assert.deepEqual(
-    (remove.fields ?? []).map((f) => f.key),
-    ['lieu'],
-    'nothing else is needed to designate it',
+  const byName = (remove.fields ?? []).find((f) => f.key === 'nom');
+  assert.ok(byName, 'deleting by name is the way out');
+  assert.equal(byName.type, 'string');
+  assert.notEqual(byName.required, true);
+  assert.notEqual(
+    (remove.fields ?? []).find((f) => f.key === 'appareil').required,
+    true,
+    'either field alone is enough, so neither can be required',
   );
 });
 
 test('the query actions can be narrowed down to one location', () => {
   for (const key of ['test_vigieau', 'show_restrictions']) {
-    const field = (action(key).fields ?? []).find((f) => f.key === 'lieu');
+    const field = (action(key).fields ?? []).find((f) => f.key === 'appareil');
     assert.ok(field, `"${key}" should be targetable`);
-    assert.equal(field.type, 'string');
+    assert.equal(field.source, 'devices');
     assert.notEqual(field.required, true, 'left empty, they cover every location');
   }
 });

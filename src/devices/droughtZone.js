@@ -19,7 +19,7 @@ import {
   DEVICE_FEATURE_TYPES,
 } from '@gladysassistant/integration-sdk';
 import { deviceIds } from './identity.js';
-import { findLocationByName, locationNames, locationQuery, usableLocations } from '../locations.js';
+import { locationQuery, usableLocations } from '../locations.js';
 import {
   AMBIGUOUS_COMMUNE,
   fetchZones,
@@ -155,38 +155,26 @@ async function pollLocation(gladys, config, location) {
 }
 
 /**
- * The locations an action targets: the one whose NAME was typed in the `lieu`
- * field, or all of them when it was left empty.
+ * The locations an action targets: the one behind the selected device, or all
+ * of them when the selector was left empty.
  *
- * By name and not by device: a `select` with the core's `devices` source is
- * only validated server side from a Gladys newer than 4.84.4, and every
- * released version refuses whatever the dropdown offers before the action ever
- * reaches this container (see the header of src/locationActions.js).
- * @returns {{ locations: Array<object>, message?: object }} the targets, or the
- *   reason there are none — resolved rather than thrown, so the screen shows it
+ * The selector is a `select` fed by the core's `devices` source, so its value
+ * is the external_id of a device the user has actually created. A location
+ * added but not yet created in the Discovery screen is therefore not in the
+ * dropdown — which is exactly why leaving it empty means "all of them".
+ * @throws {Error} when the selected device is not one of ours
  */
-function targetLocations(config, fields = {}) {
+function targetLocations(gladys, config, fields = {}) {
+  const selected = fields.appareil;
   const locations = usableLocations(config.locations);
-  // Nothing to name yet: the caller's own "add a location first" message says
-  // more than a list of watched locations that is empty.
-  if (locations.length === 0) {
-    return { locations };
+  if (!selected) {
+    return locations;
   }
-  const wanted = String(fields.lieu ?? '').trim();
-  if (wanted === '') {
-    return { locations };
-  }
-  const location = findLocationByName(locations, wanted);
+  const location = locationForDevice(gladys, config, selected);
   if (!location) {
-    return {
-      locations: [],
-      message: {
-        en: `No location named "${wanted}" has usable coordinates. Watched: ${locationNames(locations)}.`,
-        fr: `Aucun lieu nommé « ${wanted} » n’a de coordonnées utilisables. Surveillés : ${locationNames(locations)}.`,
-      },
-    };
+    throw new Error('This device is not one of the locations this integration watches');
   }
-  return { locations: [location] };
+  return [location];
 }
 
 export const droughtZone = {
@@ -199,6 +187,15 @@ export const droughtZone = {
     return usableLocations(config.locations).map(
       (location) => deviceIds(gladys, DEVICE_TYPE, location.id).device,
     );
+  },
+
+  /**
+   * The location a device external_id watches, so the actions whose form
+   * carries a `devices` select know what the user picked.
+   * @returns {object | undefined}
+   */
+  locationForDevice(gladys, config, externalId) {
+    return locationForDevice(gladys, config, externalId);
   },
 
   buildDevices(gladys, config) {
@@ -241,14 +238,12 @@ export const droughtZone = {
   // object) is displayed under the button, a thrown error is displayed too.
   actions: {
     async test_vigieau(gladys, { fields, config }) {
-      const { locations, message } = targetLocations(config, fields);
+      const locations = targetLocations(gladys, config, fields);
       if (locations.length === 0) {
-        return (
-          message ?? {
-            en: 'No location to test yet. Add one with "Add a location".',
-            fr: 'Aucun lieu à tester pour l’instant. Ajoutez-en un avec « Ajouter un lieu ».',
-          }
-        );
+        return {
+          en: 'No location to test yet. Add one with "Add a location".',
+          fr: 'Aucun lieu à tester pour l’instant. Ajoutez-en un avec « Ajouter un lieu ».',
+        };
       }
       logger.info(`Action test_vigieau -> live request for ${locations.length} location(s)`);
       const results = await Promise.all(
@@ -272,14 +267,12 @@ export const droughtZone = {
     },
 
     async show_restrictions(gladys, { fields, config }) {
-      const { locations, message } = targetLocations(config, fields);
+      const locations = targetLocations(gladys, config, fields);
       if (locations.length === 0) {
-        return (
-          message ?? {
-            en: 'No location configured yet. Add one with "Add a location".',
-            fr: 'Aucun lieu configuré pour l’instant. Ajoutez-en un avec « Ajouter un lieu ».',
-          }
-        );
+        return {
+          en: 'No location configured yet. Add one with "Add a location".',
+          fr: 'Aucun lieu configuré pour l’instant. Ajoutez-en un avec « Ajouter un lieu ».',
+        };
       }
       logger.info(`Action show_restrictions -> live request for ${locations.length} location(s)`);
       const lines = await Promise.all(

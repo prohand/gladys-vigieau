@@ -3,7 +3,7 @@
 //
 // They are the only way to edit the list — a config_schema cannot hold one —
 // so everything a user can do wrong here (a vague address, a name they reuse,
-// a location name that matches nothing) belongs in these tests.
+// a device that is not in the dropdown yet) belongs in these tests.
 // -----------------------------------------------------------------------------
 
 import { test, afterEach } from 'node:test';
@@ -17,6 +17,11 @@ const realFetch = globalThis.fetch;
 afterEach(() => {
   globalThis.fetch = realFetch;
 });
+
+/** The external_id the fake `devices` select hands back for a location. */
+function deviceIdOf(location) {
+  return `ext:vigieau:drought-zone:${location.id}`;
+}
 
 /**
  * The handlers, wired to an in-memory configuration: exactly what index.js
@@ -32,6 +37,8 @@ function createHarness({ locations = [] } = {}) {
       // Round-trips through the storage format, as the real one does.
       config = normalizeConfig({ locations: serializeLocations(next) });
     },
+    resolveDevice: (externalId) =>
+      config.locations.find((location) => deviceIdOf(location) === externalId),
   });
   return { actions, saves, locations: () => config.locations };
 }
@@ -199,7 +206,10 @@ test('the cap never blocks an update of an existing location', async () => {
 test('modifier_lieu renames without moving the location', async () => {
   const located = { ...MAISON, address_label: '12 rue des Lilas' };
   const { actions, locations } = createHarness({ locations: [located] });
-  const message = await actions.modifier_lieu({ lieu: 'Maison', nom: 'Résidence' });
+  const message = await actions.modifier_lieu({
+    appareil: deviceIdOf(located),
+    nom: 'Résidence',
+  });
 
   assert.equal(locations()[0].name, 'Résidence');
   assert.equal(locations()[0].latitude, 48.8566, 'a rename must not move it');
@@ -211,27 +221,23 @@ test('modifier_lieu renames without moving the location', async () => {
 test('modifier_lieu moves without renaming the location', async () => {
   const { actions, locations } = createHarness({ locations: [MAISON] });
   stubGeocoder([LYON]);
-  await actions.modifier_lieu({ lieu: 'maison', adresse: '3 rue Garibaldi' });
+  await actions.modifier_lieu({ appareil: deviceIdOf(MAISON), adresse: '3 rue Garibaldi' });
 
   assert.equal(locations()[0].name, 'Maison');
   assert.equal(locations()[0].latitude, 45.764);
   assert.equal(locations()[0].id, MAISON.id);
 });
 
-test('modifier_lieu needs a name it can resolve', async () => {
+test('modifier_lieu needs a device it can resolve', async () => {
   const { actions, saves } = createHarness({ locations: [MAISON] });
-  assert.match((await actions.modifier_lieu({})).fr, /Aucun lieu nommé/);
-  // The names that DO exist come with the refusal: there is no dropdown left
-  // to browse, so a typo would otherwise be a dead end.
-  const unknown = await actions.modifier_lieu({ lieu: 'Jardin' });
-  assert.match(unknown.fr, /Aucun lieu nommé/);
-  assert.match(unknown.fr, /Maison/);
+  assert.match((await actions.modifier_lieu({})).fr, /Choisissez/);
+  assert.match((await actions.modifier_lieu({ appareil: 'mqtt:sensor:1' })).fr, /Choisissez/);
   assert.equal(saves.length, 0);
 });
 
 test('modifier_lieu says so when nothing was actually asked for', async () => {
   const { actions, saves } = createHarness({ locations: [MAISON] });
-  const message = await actions.modifier_lieu({ lieu: 'Maison' });
+  const message = await actions.modifier_lieu({ appareil: deviceIdOf(MAISON) });
   assert.match(message.fr, /Rien à modifier/);
   assert.equal(saves.length, 0);
 });
@@ -242,17 +248,20 @@ test('modifier_lieu leaves the location alone when the new address is ambiguous'
     addressFeature({ label: 'Saint-Martin (01)', longitude: 5.1, latitude: 46.1, score: 0.3 }),
     addressFeature({ label: 'Saint-Martin (02)', longitude: 3.4, latitude: 49.4, score: 0.29 }),
   ]);
-  const message = await actions.modifier_lieu({ lieu: 'Maison', adresse: 'Saint-Martin' });
+  const message = await actions.modifier_lieu({
+    appareil: deviceIdOf(MAISON),
+    adresse: 'Saint-Martin',
+  });
   assert.match(message.fr, /Précisez/);
   assert.equal(saves.length, 0, 'a half-applied edit would be worse than none');
 });
 
 // --- Deleting ----------------------------------------------------------------
 
-test('supprimer_lieu removes the location it names', async () => {
+test('supprimer_lieu removes the location behind the selected device', async () => {
   const jardin = { id: 'loc-jardin', name: 'Jardin', latitude: '45.764', longitude: '4.8357' };
   const { actions, locations } = createHarness({ locations: [MAISON, jardin] });
-  const message = await actions.supprimer_lieu({ lieu: 'Jardin' });
+  const message = await actions.supprimer_lieu({ appareil: deviceIdOf(jardin) });
 
   assert.deepEqual(
     locations().map((location) => location.name),
@@ -265,26 +274,20 @@ test('supprimer_lieu removes the location it names', async () => {
 });
 
 test('supprimer_lieu reaches a location whose device was never created', async () => {
-  // A location lives in the configuration, not in Gladys: naming it is enough,
-  // which is what makes a location added by mistake removable at all.
+  // The `devices` dropdown only lists devices the user actually added, so a
+  // location added by mistake would otherwise be impossible to remove.
   const { actions, locations } = createHarness({ locations: [MAISON] });
-  const message = await actions.supprimer_lieu({ lieu: 'maison' });
+  const message = await actions.supprimer_lieu({ nom: 'maison' });
   assert.deepEqual(locations(), []);
   assert.match(message.fr, /Maison/);
 });
 
 test('supprimer_lieu refuses to guess what to delete', async () => {
   const { actions, saves } = createHarness({ locations: [MAISON] });
-  assert.match((await actions.supprimer_lieu({})).fr, /Aucun lieu nommé/);
-  assert.match((await actions.supprimer_lieu({ lieu: 'Inconnu' })).fr, /Aucun lieu nommé/);
+  assert.match((await actions.supprimer_lieu({})).fr, /Choisissez/);
+  assert.match((await actions.supprimer_lieu({ nom: 'Inconnu' })).fr, /Choisissez/);
+  assert.match((await actions.supprimer_lieu({ appareil: 'mqtt:1' })).fr, /Choisissez/);
   assert.equal(saves.length, 0);
-});
-
-test('an unknown name on an empty list says to add one first', async () => {
-  const { actions } = createHarness();
-  const message = await actions.supprimer_lieu({ lieu: 'Maison' });
-  assert.match(message.fr, /Aucun lieu pour l/);
-  assert.match(message.en, /No location yet/);
 });
 
 // --- Listing -----------------------------------------------------------------
@@ -321,10 +324,10 @@ test('every action message is multi-language', async () => {
   const messages = [
     await actions.ajouter_lieu({ nom: 'Jardin', adresse: '3 rue Garibaldi' }),
     await actions.ajouter_lieu({}),
-    await actions.modifier_lieu({ lieu: 'Maison', nom: 'Résidence' }),
+    await actions.modifier_lieu({ appareil: deviceIdOf(MAISON), nom: 'Résidence' }),
     await actions.modifier_lieu({}),
     await actions.lister_lieux(),
-    await actions.supprimer_lieu({ lieu: 'Résidence' }),
+    await actions.supprimer_lieu({ nom: 'Résidence' }),
     await actions.supprimer_lieu({}),
   ];
   for (const message of messages) {
