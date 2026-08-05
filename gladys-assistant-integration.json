@@ -48,8 +48,8 @@
         "fr": "Les lieux à surveiller"
       },
       "description": {
-        "en": "The locations are managed with the buttons at the bottom of this screen: \"Add a location\" geocodes an address and creates its device, \"Edit a location\" moves or renames one, \"Delete a location\" removes it. A location is a precise point, not a postal code: a postal code covers several communes, and one commune can span several restriction zones — which is exactly when VigiEau refuses to answer and asks for a street. If you rather type the coordinates yourself, a dot and a comma work equally well.",
-        "fr": "Les lieux se gèrent avec les boutons en bas de cet écran : « Ajouter un lieu » géocode une adresse et crée son appareil, « Modifier un lieu » le déplace ou le renomme, « Supprimer un lieu » l'enlève. Un lieu est un point précis, pas un code postal : un code postal couvre plusieurs communes, et une commune peut relever de plusieurs zones de restriction — c'est justement le cas où VigiEau refuse de répondre et réclame une rue. Si vous préférez saisir les coordonnées vous-même, la virgule et le point fonctionnent aussi bien l'un que l'autre."
+        "en": "The locations are managed with the buttons at the bottom of this screen: \"Add a location\" geocodes an address and creates its device, \"Edit a location\" moves or renames one, \"Delete a location\" removes it. Each one designates a location by its name, which \"List the watched locations\" recalls. A location is a precise point, not a postal code: a postal code covers several communes, and one commune can span several restriction zones — which is exactly when VigiEau refuses to answer and asks for a street. If you rather type the coordinates yourself, a dot and a comma work equally well.",
+        "fr": "Les lieux se gèrent avec les boutons en bas de cet écran : « Ajouter un lieu » géocode une adresse et crée son appareil, « Modifier un lieu » le déplace ou le renomme, « Supprimer un lieu » l'enlève. Chacun désigne un lieu par son nom, que « Lister les lieux surveillés » rappelle. Un lieu est un point précis, pas un code postal : un code postal couvre plusieurs communes, et une commune peut relever de plusieurs zones de restriction — c'est justement le cas où VigiEau refuse de répondre et réclame une rue. Si vous préférez saisir les coordonnées vous-même, la virgule et le point fonctionnent aussi bien l'un que l'autre."
       },
       "links": [
         {
@@ -225,18 +225,21 @@
       "timeout_seconds": 30,
       "fields": [
         {
-          "key": "appareil",
-          "type": "select",
-          "source": "devices",
+          "key": "lieu",
+          "type": "string",
           "label": {
-            "en": "Location device",
-            "fr": "Appareil du lieu"
+            "en": "Location to edit",
+            "fr": "Lieu à modifier"
           },
           "description": {
-            "en": "The device of the location to edit. Only the devices you have already added from the Discovery tab are listed.",
-            "fr": "L'appareil du lieu à modifier. Seuls les appareils déjà ajoutés depuis l'onglet Découverte sont proposés."
+            "en": "Its exact name, as shown by \"List the watched locations\". Accents and case do not matter.",
+            "fr": "Son nom exact, tel que l'affiche « Lister les lieux surveillés ». Accents et majuscules sont indifférents."
           },
-          "required": true
+          "required": true,
+          "placeholder": {
+            "en": "Maison",
+            "fr": "Maison"
+          }
         },
         {
           "key": "nom",
@@ -321,31 +324,17 @@
       "timeout_seconds": 30,
       "fields": [
         {
-          "key": "appareil",
-          "type": "select",
-          "source": "devices",
-          "label": {
-            "en": "Location device",
-            "fr": "Appareil du lieu"
-          },
-          "description": {
-            "en": "The device of the location to remove.",
-            "fr": "L'appareil du lieu à retirer."
-          },
-          "required": false
-        },
-        {
-          "key": "nom",
+          "key": "lieu",
           "type": "string",
           "label": {
-            "en": "or its exact name",
-            "fr": "ou son nom exact"
+            "en": "Location to delete",
+            "fr": "Lieu à supprimer"
           },
           "description": {
-            "en": "For a location whose device has not been added from the Discovery tab yet: it is not in the list above.",
-            "fr": "Pour un lieu dont l'appareil n'a pas encore été ajouté depuis l'onglet Découverte : il n'est pas dans la liste ci-dessus."
+            "en": "Its exact name, as shown by \"List the watched locations\". Accents and case do not matter.",
+            "fr": "Son nom exact, tel que l'affiche « Lister les lieux surveillés ». Accents et majuscules sont indifférents."
           },
-          "required": false,
+          "required": true,
           "placeholder": {
             "en": "Maison",
             "fr": "Maison"
@@ -370,18 +359,21 @@
       "timeout_seconds": 60,
       "fields": [
         {
-          "key": "appareil",
-          "type": "select",
-          "source": "devices",
+          "key": "lieu",
+          "type": "string",
           "label": {
-            "en": "Location device (optional)",
-            "fr": "Appareil du lieu (facultatif)"
+            "en": "Location (optional)",
+            "fr": "Lieu (facultatif)"
           },
           "description": {
-            "en": "Leave empty to test every location.",
-            "fr": "Laissez vide pour tester tous les lieux."
+            "en": "Its exact name. Leave empty to test every location.",
+            "fr": "Son nom exact. Laissez vide pour tester tous les lieux."
           },
-          "required": false
+          "required": false,
+          "placeholder": {
+            "en": "Maison",
+            "fr": "Maison"
+          }
         }
       ]
     },
@@ -394,18 +386,21 @@
       "timeout_seconds": 60,
       "fields": [
         {
-          "key": "appareil",
-          "type": "select",
-          "source": "devices",
+          "key": "lieu",
+          "type": "string",
           "label": {
-            "en": "Location device (optional)",
-            "fr": "Appareil du lieu (facultatif)"
+            "en": "Location (optional)",
+            "fr": "Lieu (facultatif)"
           },
           "description": {
-            "en": "Leave empty to show every location.",
-            "fr": "Laissez vide pour afficher tous les lieux."
+            "en": "Its exact name. Leave empty to show every location.",
+            "fr": "Son nom exact. Laissez vide pour afficher tous les lieux."
           },
-          "required": false
+          "required": false,
+          "placeholder": {
+            "en": "Maison",
+            "fr": "Maison"
+          }
         }
       ]
     }

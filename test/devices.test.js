@@ -5,7 +5,6 @@ import {
   DEVICE_BLUEPRINTS,
   buildDiscoveredDevices,
   findBlueprintByDevice,
-  findLocationByDevice,
 } from '../src/devices/index.js';
 import { FEATURE, MIN_REFRESH_SECONDS } from '../src/devices/droughtZone.js';
 import { deviceIds, forgetAdoptedDevices } from '../src/devices/identity.js';
@@ -162,17 +161,6 @@ test('findBlueprintByDevice routes an external_id back to its owner blueprint', 
       assert.equal(findBlueprintByDevice(gladys, { external_id }, twoLocations), bp);
     }
   }
-});
-
-test('findLocationByDevice routes an external_id back to the location it watches', () => {
-  // This is what the `devices` select of the action forms resolves to: the
-  // user picks a device, the handler needs the location behind it.
-  const gladys = createFakeGladys();
-  const twoLocations = configWith(MAISON, JARDIN);
-  const [maison, jardin] = droughtZone.deviceExternalIds(gladys, twoLocations);
-  assert.equal(findLocationByDevice(gladys, maison, twoLocations).name, 'Maison');
-  assert.equal(findLocationByDevice(gladys, jardin, twoLocations).name, 'Jardin');
-  assert.equal(findLocationByDevice(gladys, 'mqtt:sensor:1', twoLocations), undefined);
 });
 
 test('a device keeps its external_id when its location moves', () => {
@@ -389,7 +377,7 @@ test('the test_vigieau action returns a multi-language message with the level', 
   assert.match(message.fr, /Maison/);
 });
 
-test('test_vigieau covers every location when no device is selected', async () => {
+test('test_vigieau covers every location when none is named', async () => {
   const gladys = createFakeGladys();
   stubVigieauByLatitude({
     48.8566: { payload: zonesFixture() },
@@ -403,24 +391,32 @@ test('test_vigieau covers every location when no device is selected', async () =
   assert.match(message.fr, /Jardin/);
 });
 
-test('test_vigieau narrows down to the selected device', async () => {
+test('test_vigieau narrows down to the location it names', async () => {
   const gladys = createFakeGladys();
   const twoLocations = configWith(MAISON, JARDIN);
   stubVigieauByLatitude({ 45.764: { payload: [{ type: 'SUP', niveauGravite: 'vigilance' }] } });
   const message = await droughtZone.actions.test_vigieau(gladys, {
-    fields: { appareil: deviceIdOf(gladys, JARDIN) },
+    // Accents and case are folded away: the name is typed, not picked from a
+    // list — no released Gladys can validate a `devices` select (see
+    // src/locationActions.js).
+    fields: { lieu: 'jardin' },
     config: twoLocations,
   });
   assert.match(message.fr, /Jardin/);
   assert.doesNotMatch(message.fr, /Maison/, 'the other location was not even queried');
 });
 
-test('an action refuses a selected device that is not one of ours', async () => {
+test('an action names the locations it knows when the one asked for is unknown', async () => {
   const gladys = createFakeGladys();
-  await assert.rejects(
-    () => droughtZone.actions.test_vigieau(gladys, { fields: { appareil: 'mqtt:1' }, config }),
-    /not one of the locations/,
-  );
+  const message = await droughtZone.actions.test_vigieau(gladys, {
+    fields: { lieu: 'Chalet' },
+    config: configWith(MAISON, JARDIN),
+  });
+  // Resolved, not thrown: a rejection reaches the screen as a bare 422 whose
+  // body the Gladys Plus client drops, and the user is told nothing.
+  assert.match(message.fr, /Aucun lieu nommé/);
+  assert.match(message.fr, /Maison/);
+  assert.match(message.en, /Jardin/);
 });
 
 test('test_vigieau says so when there is nothing to test yet', async () => {

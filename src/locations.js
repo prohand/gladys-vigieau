@@ -173,6 +173,18 @@ export function findLocationByName(locations = [], name) {
   return locations.find((location) => foldName(location.name) === wanted);
 }
 
+/**
+ * The names of the watched locations, comma-separated.
+ *
+ * The actions designate a location BY NAME (nothing in a manifest can offer a
+ * picker that works, see the header of locationActions.js), so a name that
+ * matches nothing must show the user the ones that do exist.
+ * @param {Array<object>} locations
+ */
+export function locationNames(locations = []) {
+  return locations.map((location) => location.name).join(', ');
+}
+
 function foldName(value) {
   return String(value ?? '')
     .normalize('NFD')
