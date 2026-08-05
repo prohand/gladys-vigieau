@@ -9,7 +9,10 @@ L'API VigiEau est gratuite et publique : **aucun compte, aucune clé d'API**.
 
 ## Ce que vous obtenez
 
-Un appareil « Vigilance sécheresse — _votre lieu_ » avec cinq capteurs :
+**Un appareil par lieu surveillé**, nommé « Vigilance sécheresse — _votre lieu_ »,
+avec cinq capteurs chacun. Vous pouvez suivre jusqu'à **dix lieux** : une maison,
+une résidence secondaire et un jardin relèvent rarement du même arrêté
+préfectoral.
 
 | Capteur                            | Valeur                                      |
 | ---------------------------------- | ------------------------------------------- |
@@ -41,34 +44,59 @@ sont exposés séparément, en plus du niveau global.
 ## Configuration
 
 1. Ouvrez l'onglet **Configuration** de l'intégration.
-2. Donnez un **nom au lieu** (« Maison », « Jardin »…) : il apparaît dans le nom
-   de l'appareil.
-3. Cliquez sur **« Rechercher mon adresse »**, saisissez votre adresse (rue,
-   code postal, commune) et validez : la **latitude** et la **longitude** sont
-   renseignées à votre place, et l'adresse retenue est conservée dans
-   **« Dernière adresse recherchée »** pour que vous sachiez d'un coup d'œil où
-   l'appareil regarde.
-   Si vous préférez saisir les coordonnées vous-même — relevées sur une carte,
-   par exemple — les deux séparateurs décimaux sont acceptés : `48,8566` comme
-   `48.8566` désignent le même point.
+2. Cliquez sur **« Ajouter un lieu (rechercher une adresse) »**, saisissez votre
+   adresse (rue, code postal, commune) et, si vous le souhaitez, un **nom**
+   (« Maison », « Jardin »… — sans nom, la commune est utilisée). Le lieu est
+   créé, ses coordonnées sont géocodées à votre place, et son appareil apparaît
+   dans l'onglet **Découverte**, prêt à être ajouté.
+3. Recommencez pour chaque lieu à surveiller, jusqu'à dix.
 4. Choisissez votre **profil d'usager** : particulier, entreprise, collectivité
    ou exploitation agricole. Les restrictions ne sont pas les mêmes pour tous, et
-   VigiEau renvoie celles qui s'appliquent au vôtre.
+   VigiEau renvoie celles qui s'appliquent au vôtre. Ce réglage vaut pour **tous
+   les lieux**.
 5. Laissez l'**intervalle de rafraîchissement** à 3600 s (1 heure) : les arrêtés
    préfectoraux changent au plus une fois par jour. C'est l'intégration qui
    tient ce rythme elle-même ; le minimum appliqué est de 5 minutes, quoi que
    vous saisissiez.
-6. Enregistrez : l'appareil apparaît dans l'onglet **Découverte**, prêt à être
-   ajouté.
+6. Enregistrez.
 
-> Tant qu'aucune adresse n'a été géocodée, aucun appareil n'est proposé et
-> l'intégration l'indique dans son écran de configuration. C'est voulu : mieux
-> vaut pas d'appareil qu'un appareil rattaché à un lieu vide.
+> Tant qu'aucune adresse n'a été géocodée, aucun appareil n'est proposé. C'est
+> voulu : mieux vaut pas d'appareil qu'un appareil rattaché à un lieu vide.
 
-> Si vous changez de lieu après coup (nouvelle adresse, ou coordonnées saisies
-> à la main), l'appareil **existant vous suit** : il conserve son nom, son
-> historique, ses pièces et ses scènes, et rend compte du nouveau point. Rien à
-> supprimer, rien à rajouter.
+### Consulter, modifier ou supprimer un lieu
+
+Le champ **« Lieux surveillés »**, en haut de l'écran, liste vos lieux numérotés,
+avec leur adresse et leurs coordonnées. Le lieu **sélectionné** y est marqué
+d'un ▶.
+
+1. Choisissez son numéro dans la liste déroulante de l'action
+   **« Sélectionner un lieu »** et lancez l'action. Le message affiché vous
+   confirme de quel lieu il s'agit.
+2. **Rechargez la page (F5)** : les champs **Nom du lieu sélectionné**,
+   **Adresse**, **Latitude** et **Longitude** affichent désormais ses
+   informations.
+3. Modifiez ce que vous voulez et **Enregistrez** :
+   - changer le **nom** renomme le lieu (son appareil conserve son historique) ;
+   - saisir une **nouvelle adresse** la géocode et déplace le point ;
+   - saisir vous-même **latitude et longitude** l'emporte sur l'adresse. Les deux
+     séparateurs décimaux sont acceptés : `48,8566` comme `48.8566` désignent le
+     même point.
+4. Pour supprimer ce lieu, cochez **« Je confirme la suppression »** dans
+   l'action **« Supprimer le lieu sélectionné »** et lancez-la. Lancée sans
+   cocher, elle se contente de vous dire quel lieu serait supprimé.
+
+> **Pourquoi recharger la page ?** Gladys n'envoie rien à un écran de
+> configuration déjà ouvert : après avoir sélectionné, ajouté ou supprimé un
+> lieu, les champs continuent d'afficher le précédent jusqu'au rechargement.
+> Enregistrer cet écran périmé est sans danger — l'intégration sait ce qu'il
+> affichait et n'applique que ce que vous avez réellement modifié — mais vous ne
+> verrez les bonnes valeurs qu'après un F5.
+
+> Changer l'adresse d'un lieu ne crée pas un nouvel appareil : l'appareil
+> **existant vous suit**, avec son historique, ses pièces et ses scènes. En
+> revanche, supprimer un lieu ne supprime pas son appareil dans Gladys — une
+> intégration n'en a pas le droit. Supprimez-le vous-même s'il ne vous sert
+> plus.
 
 ## Pourquoi une adresse et pas un code postal
 
@@ -84,14 +112,13 @@ d'eau. L'intégration interroge donc toujours VigiEau par coordonnées.
 
 ### Le bouton de recherche
 
-1. Cliquez sur **« Rechercher mon adresse (remplit les coordonnées) »**.
+1. Cliquez sur **« Ajouter un lieu (rechercher une adresse) »**.
 2. Saisissez votre adresse. Plus c'est précis, meilleure est la réponse :
    « 12 rue des Lilas, 82000 Montauban » vaut mieux que « Montauban ».
 3. L'intégration géocode l'adresse sur la
    [Base Adresse Nationale](https://adresse.data.gouv.fr) officielle — le même
-   service que le site VigiEau — écrit la latitude et la longitude dans les
-   champs, et publie l'appareil dans l'onglet **Découverte**. Rechargez la page
-   pour voir les champs remplis.
+   service que le site VigiEau — crée le lieu et publie son appareil dans
+   l'onglet **Découverte**. Rechargez la page pour voir les champs remplis.
 
 Si plusieurs adresses correspondent **sans qu'aucune ne se détache**,
 l'intégration **ne choisit pas au hasard** : elle affiche les candidates et
@@ -102,15 +129,21 @@ vérifiez-la d'un coup d'œil avant de continuer.
 
 ## Actions
 
-- **Rechercher mon adresse (remplit les coordonnées)** — géocode votre adresse
-  et renseigne la latitude et la longitude. Voir « Pourquoi une adresse et pas
-  un code postal » plus haut.
-- **Tester la connexion VigiEau** — effectue une requête en direct et affiche le
-  niveau actuel pour les trois types d'eau. À utiliser juste après la
-  configuration pour vérifier que le lieu est bien couvert.
-- **Afficher les restrictions en vigueur** — liste les usages de l'eau
-  actuellement restreints à cette adresse pour votre profil, avec le lien vers
-  l'arrêté préfectoral.
+- **Ajouter un lieu (rechercher une adresse)** — géocode l'adresse, crée le lieu
+  et le sélectionne. Voir « Pourquoi une adresse et pas un code postal » plus
+  haut.
+- **Sélectionner un lieu** — la seule liste déroulante de l'écran : elle place le
+  lieu choisi dans les champs ci-dessus, où vous pouvez le consulter et le
+  modifier, et y pointe la suppression. Rechargez la page ensuite.
+- **Supprimer le lieu sélectionné** — retire le lieu de la surveillance, après
+  confirmation. Son appareil Gladys, lui, reste : supprimez-le vous-même.
+- **Tester la connexion VigiEau (tous les lieux)** — effectue une requête en
+  direct et affiche le niveau actuel de chaque lieu, pour les trois types d'eau.
+  À utiliser juste après la configuration pour vérifier que les lieux sont bien
+  couverts.
+- **Afficher les restrictions en vigueur (tous les lieux)** — liste les usages de
+  l'eau actuellement restreints à chaque adresse pour votre profil, avec le lien
+  vers l'arrêté préfectoral.
 
 ## Idées de scènes
 
@@ -124,10 +157,10 @@ vérifiez-la d'un coup d'œil avant de continuer.
 ## Dépannage
 
 - **Aucun appareil dans l'onglet Découverte** — dans l'ordre :
-  1. La **latitude et la longitude sont-elles renseignées** ? Sans elles,
-     l'intégration ne publie volontairement aucun appareil et l'écran de
-     configuration l'indique. Utilisez le bouton
-     **« Rechercher mon adresse »**.
+  1. **Avez-vous ajouté un lieu** ? Sans lieu géocodé, l'intégration ne publie
+     volontairement aucun appareil. Utilisez le bouton
+     **« Ajouter un lieu (rechercher une adresse) »**. Le champ
+     **« Lieux surveillés »** liste ce qui est effectivement enregistré.
   2. Cliquez sur **Scanner** dans l'onglet Découverte pour forcer une nouvelle
      publication.
   3. Regardez les **logs de l'intégration**. Une ligne commençant par
@@ -142,7 +175,8 @@ vérifiez-la d'un coup d'œil avant de continuer.
   séparateur décimal de votre navigateur, et une valeur qu'il refusait était
   ignorée sans message. Depuis, les deux séparateurs fonctionnent (`48,8566`
   comme `48.8566`). Mettez l'intégration à jour, puis ressaisissez la
-  coordonnée — ou, plus simple, utilisez **« Rechercher mon adresse »**.
+  coordonnée — ou, plus simple, saisissez l'adresse et laissez-la être
+  géocodée.
 - **Deux appareils « Vigilance sécheresse » après un changement d'adresse** —
   c'était le cas jusqu'à la version 1.1.1 : l'identifiant de l'appareil était
   construit à partir des coordonnées, si bien que chaque adresse créait un
@@ -151,6 +185,15 @@ vérifiez-la d'un coup d'œil avant de continuer.
   l'appareil que vous aviez déjà ajouté, historique compris — la ligne de log
   `Keeping the existing identity of drought-zone` indique lequel. Les appareils
   restés d'une ancienne adresse peuvent être supprimés dans Gladys.
+- **Les champs affichent encore le lieu précédent** — rechargez la page (F5).
+  Gladys n'envoie rien à un écran de configuration déjà ouvert : après avoir
+  sélectionné, ajouté ou supprimé un lieu, les champs gardent ce qu'ils avaient
+  chargé. Enregistrer cet écran périmé ne casse rien — seul ce que vous avez
+  réellement modifié est appliqué — mais les valeurs affichées, elles, ne
+  seront justes qu'après le rechargement.
+- **Un appareil qui ne se rafraîchit plus après une suppression de lieu** —
+  c'est attendu : une intégration ne peut pas supprimer un appareil Gladys, elle
+  peut seulement cesser de le proposer. Supprimez-le dans Gladys.
 - **« Pas de valeur récente » sur toutes les fonctionnalités** — juste après
   l'ajout de l'appareil, c'est normal quelques secondes : Gladys ignore les
   valeurs publiées avant que l'appareil n'existe. L'intégration détecte la
@@ -164,9 +207,9 @@ vérifiez-la d'un coup d'œil avant de continuer.
   superficielle, eau souterraine, eau potable. Sur un tableau de bord ou dans
   une scène, les quatre niveaux affichent bien leurs vrais noms.
 - **« VigiEau n'arrive pas à déterminer la zone applicable ici »** — le point
-  configuré ne tombe pas dans une seule zone. Relancez **« Rechercher mon
-  adresse »** avec une adresse plus précise (numéro et rue plutôt que le seul
-  nom de la commune).
+  configuré ne tombe pas dans une seule zone. Sélectionnez le lieu concerné —
+  le message le nomme — et saisissez une adresse plus précise (numéro et rue
+  plutôt que le seul nom de la commune).
 - **Aucune donnée / erreur dans les logs** — vérifiez d'abord avec l'action
   **Tester la connexion VigiEau**. Une erreur `VigiEau HTTP 5xx` signale une
   indisponibilité passagère du service : elle est affichée dans l'écran de

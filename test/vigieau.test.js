@@ -12,10 +12,12 @@ import {
   toSeverityLevel,
   zoneSeverity,
 } from '../src/vigieau.js';
-import { normalizeConfig } from '../src/config.js';
+import { locationQuery } from '../src/locations.js';
 import { zonesFixture } from './helpers/fakeGladys.js';
 
-const PARIS = normalizeConfig({ latitude: 48.8566, longitude: 2.3522 });
+// What the driver is handed: ONE watched location plus the global profile,
+// exactly as `locationQuery()` assembles it — never a whole configuration.
+const PARIS = locationQuery({ profil: 'particulier' }, { latitude: 48.8566, longitude: 2.3522 });
 
 const realFetch = globalThis.fetch;
 
@@ -82,7 +84,7 @@ test('every VigiEau level maps inside the range the feature declares', () => {
 test('buildZonesUrl always queries by point, never by commune', () => {
   // The commune path answers 409 as soon as it spans several zones of one
   // water type, and no retry can fix that.
-  const url = buildZonesUrl(normalizeConfig({ latitude: 45.764, longitude: 4.8 }));
+  const url = buildZonesUrl({ latitude: 45.764, longitude: 4.8, profil: 'particulier' });
   assert.match(url, /\/api\/zones\?/);
   assert.match(url, /lat=45\.764/);
   assert.match(url, /lon=4\.8/);
@@ -91,14 +93,16 @@ test('buildZonesUrl always queries by point, never by commune', () => {
 });
 
 test('buildZonesUrl forwards the configured profile', () => {
-  const url = buildZonesUrl(normalizeConfig({ ...PARIS, profil: 'exploitation' }));
+  const url = buildZonesUrl({ ...PARIS, profil: 'exploitation' });
   assert.match(url, /profil=exploitation/);
 });
 
 test('buildZonesUrl refuses to guess when no location is configured', () => {
-  assert.throws(() => buildZonesUrl(normalizeConfig()), /search for your address/);
+  assert.throws(() => buildZonesUrl({ profil: 'particulier' }), /search for your address/);
+  // Half a point is none — and an absent longitude must not reach the query
+  // string as the literal "undefined".
   assert.throws(
-    () => buildZonesUrl(normalizeConfig({ latitude: 45.7 })),
+    () => buildZonesUrl({ latitude: 45.7, profil: 'particulier' }),
     /search for your address/,
   );
 });
