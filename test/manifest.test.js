@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { DEVICE_BLUEPRINTS } from '../src/devices/index.js';
 import { DEFAULT_CONFIG, PROFILES } from '../src/config.js';
-import { LOCATIONS_KEY, MAX_LOCATIONS, ROW_FIELDS } from '../src/locations.js';
+import { LOCATIONS_KEY, MAX_LOCATIONS } from '../src/locations.js';
 import { createLocationEditor } from '../src/locationEditor.js';
 
 const manifest = JSON.parse(
@@ -81,10 +81,10 @@ test('every registered handler is declared in the manifest', () => {
 });
 
 // --- The location manager ----------------------------------------------------
-// The locations are a list the user builds at runtime through the two actions.
-// A config_schema is a fixed set of fields with no repeatable one, so the list
-// cannot be a form field: it lives under an off-schema key, and the screen only
-// DISPLAYS it, one static line per position.
+// The locations are a list the user builds at runtime through the actions. A
+// config_schema is a fixed set of fields with no repeatable one, so the list
+// cannot be a form field: it lives under an off-schema key, and the only place
+// it is ever displayed is the message of the "afficher_lieux" action.
 
 test('the location list is not a config_schema field', () => {
   const keys = manifest.config_schema.map((f) => f.key);
@@ -94,49 +94,38 @@ test('the location list is not a config_schema field', () => {
   );
 });
 
-test('nothing on the Configuration screen selects a location any more', () => {
-  // A `select` is validated against the manifest's STATIC options, so a
-  // dropdown could only ever offer positions, never names — and the fields it
-  // pointed at kept showing the PREVIOUS location, because the core pushes
-  // nothing to a form that is already open. A location is added and deleted,
-  // never edited.
+test('the Configuration screen holds NOTHING about the locations', () => {
+  // Every non-section field it renders is an <input>: no read-only widget, no
+  // multi-line one, no repeatable one. The ten `lieu_N` lines of 1.3.0 were a
+  // table only in spirit — they needed an F5 to refresh and a rewrite on every
+  // save — and a `select` pointing at one entry could only ever offer positions,
+  // never names. The list belongs under the buttons, where a message is shown.
+  const keys = manifest.config_schema.map((f) => f.key);
+  assert.deepEqual(
+    keys.filter((key) => /^lieu/.test(key)),
+    [],
+    'no table line and no location section left in the schema',
+  );
   for (const key of ['lieu', 'lieux', 'location_name', 'address_label', 'latitude', 'longitude']) {
     assert.equal(configField(key), undefined, `"${key}" belonged to the editable screen`);
   }
 });
 
-test('the table has one static line per position the list can hold', () => {
-  const lines = manifest.config_schema.filter((f) => ROW_FIELDS.includes(f.key));
-  assert.deepEqual(
-    lines.map((f) => f.key),
-    ROW_FIELDS,
-    'the lines are declared in the order they are numbered',
-  );
-  assert.equal(lines.length, MAX_LOCATIONS, 'the manifest is a file: they cannot be added later');
-  for (const line of lines) {
-    // Filled in by the integration, and rewritten on every save: the screen has
-    // no read-only widget, so this is as close as a display gets.
-    assert.equal(line.type, 'string', 'anything else would be validated against a value we write');
-    assert.notEqual(line.required, true, 'a line is empty until a location sits on it');
-    assert.equal(line.default, '', 'an empty line, never a location made up out of nowhere');
-    assert.ok(line.placeholder?.en, 'an empty line says it is free');
-    assert.ok(!(line.key in DEFAULT_CONFIG), `"${line.key}" displays a location, it stores none`);
-  }
+test('the general settings are the whole Configuration screen', () => {
+  const keys = manifest.config_schema.filter((f) => f.type !== 'section').map((f) => f.key);
+  assert.deepEqual(keys, ['profil', 'poll_frequency'], 'they apply to every location');
 });
 
-test('the table sits under its own heading, after the general settings', () => {
-  const keys = manifest.config_schema.map((f) => f.key);
-  assert.ok(
-    keys.indexOf('settings_section') < keys.indexOf('lieux_section'),
-    'the settings are two fields, the table is ten lines: it goes last',
-  );
-  assert.ok(
-    keys.indexOf('lieux_section') < keys.indexOf(ROW_FIELDS[0]),
-    'the heading announces the columns of the lines under it',
-  );
+test('listing the locations is an action, and the only display there is', () => {
+  const listing = action('afficher_lieux');
+  assert.ok(listing, 'nothing on the Configuration screen shows the list');
+  assert.equal((listing.fields ?? []).length, 0, 'it reports on every location');
+  // Its numbers are the ones the delete dropdown offers: it is what tells the
+  // user which location "Lieu 2" is.
+  assert.match(listing.description.fr, /numérot/i);
 });
 
-test('the delete action names a location by its line number', () => {
+test('the delete action names a location by its number in the listing', () => {
   const deletePicker = (action('supprimer_lieu').fields ?? []).find((f) => f.key === 'lieu');
   assert.ok(deletePicker, 'the only dropdown left, and it deletes');
   assert.equal(deletePicker.type, 'select');
@@ -182,19 +171,37 @@ test('NO field takes its options from a core-defined dynamic source', () => {
   }
 });
 
-test('adding a location only ever asks for an address', () => {
+test('adding a location asks for an address, or for a point', () => {
   const add = action('rechercher_adresse');
-  assert.ok(add, 'adding a location has not changed: type an address, it is geocoded');
+  assert.ok(add, 'adding a location is still the way in: type an address, it is geocoded');
   assert.deepEqual(
     (add.fields ?? []).map((f) => f.key),
-    ['nom', 'adresse'],
+    ['nom', 'adresse', 'latitude', 'longitude'],
   );
-  assert.equal(add.fields.find((f) => f.key === 'adresse').required, true);
-  assert.notEqual(
-    add.fields.find((f) => f.key === 'nom').required,
-    true,
-    'an unnamed location is named after its town',
-  );
+  for (const field of add.fields) {
+    // NOTHING is required here: an address alone is enough, and so is a point.
+    // Marking the address required would forbid the point, and marking the
+    // coordinates required would forbid the address.
+    assert.notEqual(
+      field.required,
+      true,
+      `"${field.key}" cannot be the only way to add a location`,
+    );
+  }
+});
+
+test('a coordinate is typed in a `string` field, never in a `number` one', () => {
+  // An <input type="number"> is sanitized by the browser against ITS OWN
+  // locale: a French one turns "48.8566" into an empty string, and the front
+  // then drops the key from the payload it sends. `toCoordinate` parses the
+  // text itself, comma included, and checks the WGS-84 range the store schema
+  // can only express on a number.
+  for (const key of ['latitude', 'longitude']) {
+    const field = (action('rechercher_adresse').fields ?? []).find((f) => f.key === key);
+    assert.equal(field.type, 'string', `"${key}" must not be a number field`);
+    assert.equal(field.min, undefined, 'the range is checked in src/coordinates.js');
+    assert.equal(field.max, undefined);
+  }
 });
 
 test('deleting takes its own location plus a confirmation', () => {
@@ -210,7 +217,7 @@ test('deleting takes its own location plus a confirmation', () => {
 
 test('the query actions take no field at all', () => {
   // They report on every watched location, so there is nothing to ask.
-  for (const key of ['test_vigieau', 'show_restrictions']) {
+  for (const key of ['afficher_lieux', 'test_vigieau', 'show_restrictions']) {
     assert.equal((action(key).fields ?? []).length, 0, `"${key}" needs no form`);
   }
 });
@@ -255,9 +262,7 @@ test('placeholders are multi-language objects, never bare strings', () => {
 
 test('the global settings keep their defaults in DEFAULT_CONFIG', () => {
   for (const field of manifest.config_schema) {
-    // A line of the table is not a setting: it displays a location, and the
-    // integration is what writes it.
-    if (field.type === 'section' || ROW_FIELDS.includes(field.key)) {
+    if (field.type === 'section') {
       continue;
     }
     assert.ok(field.key in DEFAULT_CONFIG, `DEFAULT_CONFIG is missing "${field.key}"`);
@@ -353,10 +358,11 @@ test('the only number field left is the refresh interval', () => {
   );
 });
 
-test('the coordinates of the table are displayed, never typed', () => {
-  // They are geocoded from an address, and the line that shows them is a
-  // display: there is no field to type a point into any more.
-  const keys = allFields().map((f) => f.key);
+test('a coordinate is never a Configuration field', () => {
+  // The point of a location is geocoded from an address or typed in the add
+  // action; the Configuration screen holds neither, so a Save can never move a
+  // location under the integration's feet.
+  const keys = manifest.config_schema.map((f) => f.key);
   assert.ok(!keys.includes('latitude') && !keys.includes('longitude'));
 });
 
@@ -375,8 +381,8 @@ test('the intro comes before the settings it explains', () => {
     'the note is useless once the user has already scrolled past it',
   );
   assert.ok(
-    keys.indexOf('intro') < keys.indexOf('lieux_section'),
-    'what VigiEau is comes before the locations watched',
+    keys.indexOf('intro') < keys.indexOf('settings_section'),
+    'what VigiEau is comes before the settings',
   );
 });
 

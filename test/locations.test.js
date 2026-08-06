@@ -19,9 +19,6 @@ import {
   hasCoordinates,
   legacyLocations,
   locationQuery,
-  locationRow,
-  locationRows,
-  ROW_FIELDS,
   newLocationId,
   normalizeLocations,
   removeLocation,
@@ -191,51 +188,25 @@ test('a position designates a location, the way the dropdown does', () => {
   assert.equal(locationAtPosition([paris], undefined), null);
 });
 
-test('positionOf is the number of the line the user reads in the table', () => {
+test('positionOf is the number the listing prints and the dropdown offers', () => {
   assert.equal(positionOf([paris, lyon], 'loc-2'), 2);
   assert.equal(positionOf([paris, lyon], 'nope'), 0);
 });
 
 test('describeLocations numbers the list, for the messages under a button', () => {
+  // Those numbers are the ones the delete dropdown offers: a `select` holds
+  // only the static options the manifest declares, never the location names.
   const summary = describeLocations([paris, lyon]);
   assert.match(summary, /1\. Maison/);
   assert.match(summary, /2\. Jardin/);
   assert.match(describeLocations([]), /aucun lieu/);
 });
 
-// --- The table of the Configuration screen -----------------------------------
-// Ten `string` fields the integration fills in. Every non-section field the
-// screen renders is an <input> — no read-only, no multi-line, no repeatable
-// widget — so one line per position is the only table it can draw.
-
-test('a line carries the four columns the section announces', () => {
-  assert.equal(
-    locationRow({ ...paris, address_label: '12 rue des Lilas' }),
-    'Maison | 12 rue des Lilas | 48.85660 | 2.35220',
-  );
-});
-
-test('a missing column is a dash, so the four of them stay aligned', () => {
-  assert.equal(locationRow(paris), 'Maison | — | 48.85660 | 2.35220');
-  assert.equal(
-    locationRow({ name: 'Cassé', address_label: '', latitude: null, longitude: null }),
-    'Cassé | — | — | —',
-  );
-});
-
-test('the table holds one line per position, empty where nothing sits', () => {
-  const rows = locationRows([paris, lyon]);
-  assert.deepEqual(Object.keys(rows), ROW_FIELDS);
-  assert.equal(rows.lieu_1, locationRow(paris));
-  assert.equal(rows.lieu_2, locationRow(lyon));
-  // Written EMPTY rather than skipped: the line of a location that has just
-  // been deleted would otherwise stay on screen for good.
-  assert.equal(rows.lieu_3, '');
-  assert.equal(rows[`lieu_${MAX_LOCATIONS}`], '');
-});
-
-test('the table has exactly as many lines as the list can hold', () => {
-  assert.equal(ROW_FIELDS.length, MAX_LOCATIONS, 'a manifest is a file: the lines are static');
+test('describeLocations lists a location that cannot be published either', () => {
+  // It is neither published nor queried: this line is the only thing that says
+  // why, so leaving it out would hide the entry the user has to fix.
+  const broken = { name: 'Cassé', address_label: '', latitude: null, longitude: null };
+  assert.match(describeLocations([paris, broken]), /2\. Cassé/);
 });
 
 // --- What the VigiEau driver is handed ---------------------------------------
@@ -287,10 +258,14 @@ test('legacyLocations names the location when the old config had no name', () =>
 // --- Messages ----------------------------------------------------------------
 
 test('describeLocation shows the name, the address and the point', () => {
-  const described = describeLocation({ ...paris, address_label: '12 rue des Lilas' });
-  assert.match(described, /Maison/);
-  assert.match(described, /12 rue des Lilas/);
-  assert.match(described, /48\.85660/);
+  assert.equal(
+    describeLocation({ ...paris, address_label: '12 rue des Lilas' }),
+    'Maison — 12 rue des Lilas (48.85660, 2.35220)',
+  );
+});
+
+test('describeLocation drops the address column when there is none', () => {
+  assert.equal(describeLocation(paris), 'Maison — 48.85660, 2.35220');
 });
 
 test('describeLocation survives a location with no usable coordinates', () => {

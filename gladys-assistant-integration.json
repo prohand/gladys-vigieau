@@ -111,158 +111,6 @@
       "default": 3600,
       "min": 900,
       "max": 86400
-    },
-    {
-      "key": "lieux_section",
-      "type": "section",
-      "label": {
-        "en": "Watched locations",
-        "fr": "Informations sur les lieux"
-      },
-      "description": {
-        "en": "The locations watched, one per line: Name | Address | Latitude | Longitude. The integration fills these lines in and rewrites them on every save: a location cannot be edited here. To change one, add the new one with \"Add a location\" and remove the old one with \"Delete a location\" below. The numbers are the ones the deletion dropdown offers. Reload the page (F5) after adding or deleting a location — Gladys never pushes anything to a configuration screen that is already open.",
-        "fr": "Les lieux surveillés, un par ligne : Nom | Adresse | Latitude | Longitude. Ces lignes sont renseignées par l’intégration et réécrites à chaque enregistrement : un lieu ne se modifie pas ici. Pour en changer un, ajoutez le nouveau avec « Ajouter un lieu » et supprimez l’ancien avec « Supprimer un lieu » ci-dessous. Les numéros sont ceux que propose la liste déroulante de la suppression. Rechargez la page (F5) après un ajout ou une suppression — Gladys n’envoie jamais rien à un écran de configuration déjà ouvert."
-      }
-    },
-    {
-      "key": "lieu_1",
-      "type": "string",
-      "label": {
-        "en": "Location 1",
-        "fr": "Lieu 1"
-      },
-      "required": false,
-      "default": "",
-      "placeholder": {
-        "en": "— no location —",
-        "fr": "— aucun lieu —"
-      }
-    },
-    {
-      "key": "lieu_2",
-      "type": "string",
-      "label": {
-        "en": "Location 2",
-        "fr": "Lieu 2"
-      },
-      "required": false,
-      "default": "",
-      "placeholder": {
-        "en": "— no location —",
-        "fr": "— aucun lieu —"
-      }
-    },
-    {
-      "key": "lieu_3",
-      "type": "string",
-      "label": {
-        "en": "Location 3",
-        "fr": "Lieu 3"
-      },
-      "required": false,
-      "default": "",
-      "placeholder": {
-        "en": "— no location —",
-        "fr": "— aucun lieu —"
-      }
-    },
-    {
-      "key": "lieu_4",
-      "type": "string",
-      "label": {
-        "en": "Location 4",
-        "fr": "Lieu 4"
-      },
-      "required": false,
-      "default": "",
-      "placeholder": {
-        "en": "— no location —",
-        "fr": "— aucun lieu —"
-      }
-    },
-    {
-      "key": "lieu_5",
-      "type": "string",
-      "label": {
-        "en": "Location 5",
-        "fr": "Lieu 5"
-      },
-      "required": false,
-      "default": "",
-      "placeholder": {
-        "en": "— no location —",
-        "fr": "— aucun lieu —"
-      }
-    },
-    {
-      "key": "lieu_6",
-      "type": "string",
-      "label": {
-        "en": "Location 6",
-        "fr": "Lieu 6"
-      },
-      "required": false,
-      "default": "",
-      "placeholder": {
-        "en": "— no location —",
-        "fr": "— aucun lieu —"
-      }
-    },
-    {
-      "key": "lieu_7",
-      "type": "string",
-      "label": {
-        "en": "Location 7",
-        "fr": "Lieu 7"
-      },
-      "required": false,
-      "default": "",
-      "placeholder": {
-        "en": "— no location —",
-        "fr": "— aucun lieu —"
-      }
-    },
-    {
-      "key": "lieu_8",
-      "type": "string",
-      "label": {
-        "en": "Location 8",
-        "fr": "Lieu 8"
-      },
-      "required": false,
-      "default": "",
-      "placeholder": {
-        "en": "— no location —",
-        "fr": "— aucun lieu —"
-      }
-    },
-    {
-      "key": "lieu_9",
-      "type": "string",
-      "label": {
-        "en": "Location 9",
-        "fr": "Lieu 9"
-      },
-      "required": false,
-      "default": "",
-      "placeholder": {
-        "en": "— no location —",
-        "fr": "— aucun lieu —"
-      }
-    },
-    {
-      "key": "lieu_10",
-      "type": "string",
-      "label": {
-        "en": "Location 10",
-        "fr": "Lieu 10"
-      },
-      "required": false,
-      "default": "",
-      "placeholder": {
-        "en": "— no location —",
-        "fr": "— aucun lieu —"
-      }
     }
   ],
   "actions": [
@@ -273,8 +121,8 @@
         "fr": "Ajouter un lieu (rechercher une adresse)"
       },
       "description": {
-        "en": "Geocodes the address on the official Base Adresse Nationale and adds a location watching that point. Its device then shows up in the Discovery tab, and the location appears in \"Watched locations\" after a reload (F5).",
-        "fr": "Géocode l’adresse sur la Base Adresse Nationale officielle et ajoute un lieu surveillant ce point. Son appareil apparaît ensuite dans l’onglet Découverte, et le lieu s’affiche dans « Informations sur les lieux » après rechargement (F5)."
+        "en": "Geocodes the address on the official Base Adresse Nationale and adds a location watching that point. Fill the latitude and the longitude in instead to add a point directly, without geocoding. Its device then shows up in the Discovery tab, and \"Show the locations\" lists it.",
+        "fr": "Géocode l’adresse sur la Base Adresse Nationale officielle et ajoute un lieu surveillant ce point. Renseignez plutôt la latitude et la longitude pour ajouter un point directement, sans géocodage. Son appareil apparaît ensuite dans l’onglet Découverte, et « Afficher les lieux » le liste."
       },
       "timeout_seconds": 30,
       "fields": [
@@ -303,16 +151,62 @@
             "fr": "Adresse"
           },
           "description": {
-            "en": "Street, postal code and town: the location is a precise point, not a postal code. A postal code covers several communes, and one commune can span several restriction zones — which is exactly when VigiEau refuses to answer and asks for a street.",
-            "fr": "Rue, code postal et commune : le lieu est un point précis, pas un code postal. Un code postal couvre plusieurs communes, et une commune peut relever de plusieurs zones de restriction — c’est justement le cas où VigiEau refuse de répondre et réclame une rue."
+            "en": "Street, postal code and town: the location is a precise point, not a postal code. A postal code covers several communes, and one commune can span several restriction zones — which is exactly when VigiEau refuses to answer and asks for a street. Optional if you fill the two coordinates in below.",
+            "fr": "Rue, code postal et commune : le lieu est un point précis, pas un code postal. Un code postal couvre plusieurs communes, et une commune peut relever de plusieurs zones de restriction — c’est justement le cas où VigiEau refuse de répondre et réclame une rue. Facultatif si vous renseignez les deux coordonnées ci-dessous."
           },
-          "required": true,
+          "required": false,
           "placeholder": {
             "en": "12 rue des Lilas, 82000 Montauban",
             "fr": "12 rue des Lilas, 82000 Montauban"
           }
+        },
+        {
+          "key": "latitude",
+          "type": "string",
+          "label": {
+            "en": "Latitude (optional)",
+            "fr": "Latitude (facultatif)"
+          },
+          "description": {
+            "en": "WGS-84 decimal degrees, -90 to 90. Filled in together with the longitude, this point is used as it is and the address is only kept as a label.",
+            "fr": "Degrés décimaux WGS-84, de -90 à 90. Renseignée avec la longitude, ce point est utilisé tel quel et l’adresse ne sert plus que de libellé."
+          },
+          "required": false,
+          "placeholder": {
+            "en": "48.8566",
+            "fr": "48,8566"
+          }
+        },
+        {
+          "key": "longitude",
+          "type": "string",
+          "label": {
+            "en": "Longitude (optional)",
+            "fr": "Longitude (facultatif)"
+          },
+          "description": {
+            "en": "WGS-84 decimal degrees, -180 to 180. Both coordinates go together: one alone is not a point.",
+            "fr": "Degrés décimaux WGS-84, de -180 à 180. Les deux coordonnées vont ensemble : une seule ne fait pas un point."
+          },
+          "required": false,
+          "placeholder": {
+            "en": "2.3522",
+            "fr": "2,3522"
+          }
         }
       ]
+    },
+    {
+      "key": "afficher_lieux",
+      "label": {
+        "en": "Show the locations",
+        "fr": "Afficher les lieux"
+      },
+      "description": {
+        "en": "Lists every configured location, numbered: name, address and coordinates. The numbers are the ones the deletion dropdown offers.",
+        "fr": "Liste tous les lieux configurés, numérotés : nom, adresse et coordonnées. Les numéros sont ceux que propose la liste déroulante de la suppression."
+      },
+      "timeout_seconds": 15
     },
     {
       "key": "supprimer_lieu",
@@ -321,8 +215,8 @@
         "fr": "Supprimer un lieu"
       },
       "description": {
-        "en": "Stops watching the location whose number you pick here — the numbers are the ones of the \"Watched locations\" table above. Its Gladys device is not deleted (an integration cannot do that): delete it yourself if you no longer want it.",
-        "fr": "Arrête de surveiller le lieu dont vous choisissez le numéro ici — ce sont les numéros du tableau « Informations sur les lieux » ci-dessus. Son appareil Gladys n’est pas supprimé (une intégration ne peut pas le faire) : supprimez-le vous-même si vous n’en voulez plus."
+        "en": "Stops watching the location whose number you pick here — the numbers are the ones \"Show the locations\" lists. Its Gladys device is not deleted (an integration cannot do that): delete it yourself if you no longer want it.",
+        "fr": "Arrête de surveiller le lieu dont vous choisissez le numéro ici — ce sont les numéros qu’affiche « Afficher les lieux ». Son appareil Gladys n’est pas supprimé (une intégration ne peut pas le faire) : supprimez-le vous-même si vous n’en voulez plus."
       },
       "timeout_seconds": 15,
       "fields": [
@@ -334,8 +228,8 @@
             "fr": "Lieu à supprimer"
           },
           "description": {
-            "en": "The number of the line to delete in the \"Watched locations\" table.",
-            "fr": "Le numéro de la ligne à supprimer dans le tableau « Informations sur les lieux »."
+            "en": "The number of the location to delete, as \"Show the locations\" numbers them.",
+            "fr": "Le numéro du lieu à supprimer, tel que « Afficher les lieux » les numérote."
           },
           "required": true,
           "default": "1",

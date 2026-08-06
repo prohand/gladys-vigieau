@@ -6,15 +6,19 @@
 // (`gladys.getConfig()`) and notifies you of every change through
 // `gladys.onConfigUpdated()`.
 //
-// Three halves live in there, and they are not stored the same way:
+// Two halves live in there, and they are not stored the same way:
 //   - the GLOBAL settings (`profil`, `poll_frequency`), ordinary config_schema
 //     fields, rendered by the Configuration screen;
-//   - the WATCHED LOCATIONS, a list the user builds at runtime through the two
+//   - the WATCHED LOCATIONS, a list the user builds at runtime through the
 //     manifest actions, which no static config_schema can hold — it lives under
-//     the off-schema `locations` key. See `src/locations.js`;
-//   - the TABLE LINES (`lieu_1` .. `lieu_10`), config_schema fields the
-//     integration writes and nothing else reads: they DISPLAY the list, one
-//     location per line. See `src/locationEditor.js`.
+//     the off-schema `locations` key. See `src/locations.js`.
+//
+// Keys a former version declared and this one does not — the single location of
+// <= 1.2.0 (`location_name`, `address_label`, `latitude`, `longitude`) and the
+// table lines of 1.3.0 (`lieu_1` .. `lieu_10`) — are still handed back by
+// `getIntegrationConfig`, which returns every stored variable, schema or not.
+// The first four are what `legacyLocations()` migrates; the lines are read by
+// nobody and simply sit there, since an integration cannot delete a config key.
 //
 // This module only provides defaults and normalizes the received object, so the
 // rest of the code never has to deal with `undefined` or with a number that

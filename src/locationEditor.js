@@ -1,40 +1,32 @@
 // -----------------------------------------------------------------------------
 // The location manager of the Configuration screen.
 //
-// WHAT THE USER SEES. The "Informations sur les lieux" section is a TABLE: one
-// line per watched location — Nom | Adresse | Latitude | Longitude — written by
-// this module and read by nobody. It is read-only in spirit: a location is not
-// edited, it is added with "Ajouter un lieu" and removed with "Supprimer un
-// lieu". Whatever the user types over a line is overwritten by the stored value
-// on the next Save.
+// WHAT THE USER SEES: three buttons and nothing else. The watched locations are
+// added with "Ajouter un lieu", listed by "Afficher les lieux" and removed with
+// "Supprimer un lieu". The Configuration screen holds NO field about them.
 //
-// WHY A TABLE, AND WHY THAT SHAPE. The Configuration screen is generated from
-// the manifest, which is a static file, and every field it renders that is not
-// a `section` is an `<input>`: no read-only widget, no multi-line one, no
-// repeatable one (see ConfigSchemaForm.jsx). One line per position, in a
-// `string` field the integration fills in, is therefore the only table the
-// screen can draw — hence ten lines whatever the list holds, the unused ones
-// left EMPTY so only the configured locations show.
+// WHY EVERYTHING HAPPENS UNDER A BUTTON. The screen is generated from the
+// manifest, which is a static file, and every field it renders that is not a
+// `section` is an `<input>`: no read-only widget, no multi-line one, no
+// repeatable one (see ConfigSchemaForm.jsx). A list built at runtime is
+// therefore not something that screen can show as fields — the ten `lieu_N`
+// lines this integration used to write were a table only in spirit, they could
+// not be refreshed without an F5, and typing over one had to be undone on every
+// save. An ACTION's result message, on the other hand, is displayed under its
+// button, live, and is the ONLY thing the screen shows of what an integration
+// has to say: `setConnectionStatus` is rendered on the Supervision page and
+// inside an `oauth2` field, nowhere else. So the listing is an action too.
 //
-// WHY NOTHING IS EDITABLE ANY MORE. Editing a location meant pointing those
-// fields at ONE entry of the list with a dropdown, and a `select` in a manifest
-// has STATIC options: `externalIntegration.validateConfigValue` reads the valid
-// values straight from the manifest file, so the dropdown could only ever offer
-// POSITIONS, never the location names. Worse, the core pushes nothing to a
-// Configuration screen that is already open and `POST /config` answers with the
-// values read BEFORE the integration's own write, so the fields kept showing
-// the PREVIOUS location after every selection and saving them wrote its address
-// onto the newly selected one. The guard that made that safe was more machinery
-// than the feature was worth. Adding and deleting need no selection at all, and
-// they are enough: a location is a point, and a point that moved is another
-// location.
-//
-// WHY A SAVE STILL CANNOT ANSWER. The Configuration screen displays NOTHING an
-// integration says about a Save: `setConnectionStatus` is rendered on the
-// Supervision page and inside an `oauth2` field, nowhere else, and only an
-// ACTION's result message is shown under its button. Everything the user has to
-// be told therefore happens under a button — which is exactly where adding and
-// deleting live.
+// WHY NOTHING IS EDITABLE. Editing a location meant designating ONE entry of the
+// list with a dropdown, and a `select` in a manifest has STATIC options:
+// `externalIntegration.validateConfigValue` reads the valid values straight from
+// the manifest file, so the dropdown could only ever offer POSITIONS, never the
+// location names. Worse, the core pushes nothing to a Configuration screen that
+// is already open and `POST /config` answers with the values read BEFORE the
+// integration's own write, so the fields kept showing the PREVIOUS location
+// after every selection and saving them wrote its address onto the newly
+// selected one. Adding and deleting need no selection at all, and they are
+// enough: a location is a point, and a point that moved is another location.
 //
 // Everything the outside world provides is injected (`getConfig`, `setConfig`,
 // `resolveAddress`), so the whole set is testable without a Gladys server nor a
@@ -43,13 +35,13 @@
 
 import { createLogger } from '@gladysassistant/integration-sdk';
 import { describeAddress, resolveAddress as geocodeAddress } from './address.js';
+import { toCoordinate } from './coordinates.js';
 import {
   describeLocation,
   describeLocations,
   findLocationById,
   LOCATIONS_KEY,
   locationAtPosition,
-  locationRows,
   MAX_LOCATIONS,
   newLocationId,
   positionOf,
@@ -80,15 +72,44 @@ export function createLocationEditor({
   resolveAddress = geocodeAddress,
 }) {
   /**
-   * Persist a new list and redraw the table under it.
+   * Persist a new list, then re-publish the catalog on it.
    * @param {Array<object>} locations - the new list
    */
   async function commit(locations) {
-    await setConfig({
-      [LOCATIONS_KEY]: serializeLocations(locations),
-      ...locationRows(locations),
-    });
+    await setConfig({ [LOCATIONS_KEY]: serializeLocations(locations) });
     await onLocationsChanged();
+  }
+
+  /**
+   * The point typed by hand in the add form, when there is one.
+   *
+   * Both coordinates or neither: a lone latitude is not a point, and taking it
+   * with a longitude of 0 would silently watch the Gulf of Guinea. They are
+   * `string` fields — an <input type="number"> hands the front an empty value
+   * for "48.8566" on a French browser, and the key is then dropped from the
+   * payload — so `toCoordinate` is what parses them, comma included, and what
+   * rejects a latitude of 300.
+   * @param {object} fields
+   * @returns {{ point?: object, problem?: { en: string, fr: string } }} both
+   *   absent when the user typed no coordinate at all
+   */
+  function typedPoint(fields) {
+    const rawLatitude = String(fields.latitude ?? '').trim();
+    const rawLongitude = String(fields.longitude ?? '').trim();
+    if (rawLatitude === '' && rawLongitude === '') {
+      return {};
+    }
+    const latitude = toCoordinate(rawLatitude, 'latitude');
+    const longitude = toCoordinate(rawLongitude, 'longitude');
+    if (latitude === null || longitude === null) {
+      return {
+        problem: {
+          en: `Latitude and longitude go together, in WGS-84 decimal degrees (latitude -90 to 90, longitude -180 to 180): "48.8566" and "2.3522". Received "${rawLatitude}" and "${rawLongitude}".`,
+          fr: `La latitude et la longitude vont ensemble, en degrés décimaux WGS-84 (latitude de -90 à 90, longitude de -180 à 180) : « 48,8566 » et « 2,3522 ». Reçu « ${rawLatitude} » et « ${rawLongitude} ».`,
+        },
+      };
+    }
+    return { point: { latitude, longitude } };
   }
 
   /**
@@ -144,46 +165,34 @@ export function createLocationEditor({
   }
 
   return {
-    /**
-     * Redraw the table from the stored list, and only when it is out of step.
-     *
-     * Called on every connection and after every configuration the user saves:
-     * the lines are config fields, so the form sends them back as it last
-     * loaded them, and the core stores whatever it was handed — a location
-     * added or deleted since that page load would otherwise stay on screen for
-     * good. Nothing here touches the list itself: the table is a display, and
-     * what it displays is authoritative.
-     * @returns {Promise<boolean>} whether anything had to be rewritten
-     */
-    async sync() {
-      const config = getConfig();
-      const rows = locationRows(config.locations);
-      const patch = {};
-      for (const [key, value] of Object.entries(rows)) {
-        if (String(config[key] ?? '') !== value) {
-          patch[key] = value;
-        }
-      }
-      if (Object.keys(patch).length === 0) {
-        return false;
-      }
-      await setConfig(patch);
-      return true;
-    },
-
     // --- Manifest actions ---------------------------------------------------
     actions: {
       /**
-       * Add a location from an address. Unchanged in spirit since 1.0: type an
-       * address, the Base Adresse Nationale geocodes it, the device follows.
+       * Add a location, from an address or straight from a point.
+       *
+       * The address is still the normal way in — the Base Adresse Nationale
+       * geocodes it, and nobody knows their garden's coordinates by heart. The
+       * two coordinate fields are the way out of the cases geocoding cannot
+       * serve: an address the BAN does not know, a plot with no street, or a
+       * point read off a map because the commune spans several restriction
+       * zones. Given both, they WIN over the address, which is then only kept
+       * as the label of the location.
        */
       async rechercher_adresse(fields = {}) {
         const address = String(fields.adresse ?? '').trim();
-        logger.info(`Action rechercher_adresse <- ${fields.nom ?? ''} / ${address}`);
-        if (address === '') {
+        logger.info(
+          `Action rechercher_adresse <- ${fields.nom ?? ''} / ${address} / ` +
+            `${fields.latitude ?? ''},${fields.longitude ?? ''}`,
+        );
+
+        const typed = typedPoint(fields);
+        if (typed.problem) {
+          return typed.problem;
+        }
+        if (!typed.point && address === '') {
           return {
-            en: 'Type the address of the location to add.',
-            fr: 'Saisissez l’adresse du lieu à ajouter.',
+            en: 'Type the address of the location to add, or its latitude and its longitude.',
+            fr: 'Saisissez l’adresse du lieu à ajouter, ou sa latitude et sa longitude.',
           };
         }
 
@@ -195,28 +204,63 @@ export function createLocationEditor({
           };
         }
 
-        const { point, match, problem } = await geocode(address);
-        if (!point) {
-          return problem;
+        // A typed point is used as it is: the user gave the answer geocoding
+        // would only have guessed at, and the address they typed alongside it —
+        // if any — becomes the label the listing shows.
+        const geocoded = typed.point ? null : await geocode(address);
+        if (geocoded && !geocoded.point) {
+          return geocoded.problem;
         }
+        const point = typed.point ? { ...typed.point, address_label: address } : geocoded.point;
+        const match = geocoded?.match;
 
         // A location the user did not name is named after the town it is in —
-        // "Vigilance sécheresse — Montauban" beats an empty device name.
-        const name = String(fields.nom ?? '').trim() || match.city || match.label;
+        // "Vigilance sécheresse — Montauban" beats an empty device name. A
+        // typed point has no town: the address, then the point itself.
+        const name =
+          String(fields.nom ?? '').trim() ||
+          match?.city ||
+          match?.label ||
+          address ||
+          `${point.latitude.toFixed(5)}, ${point.longitude.toFixed(5)}`;
         const id = newLocationId(locations);
         await commit(upsertLocation(locations, { id, name, ...point }));
 
         const saved = findLocationById(getConfig().locations, id);
         const position = positionOf(getConfig().locations, id);
         return {
-          en: `Location ${position} "${name}" added: ${describeLocation(saved)}. Add its device from the Discovery tab, and reload this page (F5) to see it in "Watched locations".`,
-          fr: `Lieu ${position} « ${name} » ajouté : ${describeLocation(saved)}. Ajoutez son appareil depuis l’onglet Découverte, et rechargez cette page (F5) pour le voir dans « Informations sur les lieux ».`,
+          en: `Location ${position} "${name}" added: ${describeLocation(saved)}. Add its device from the Discovery tab; "Show the locations" lists them all.`,
+          fr: `Lieu ${position} « ${name} » ajouté : ${describeLocation(saved)}. Ajoutez son appareil depuis l’onglet Découverte ; « Afficher les lieux » les liste tous.`,
+        };
+      },
+
+      /**
+       * List the watched locations, numbered.
+       *
+       * This is the whole "display" side of the integration: the Configuration
+       * screen shows nothing else of what it holds, and these numbers are the
+       * ones the delete dropdown offers — a `select` can only hold the static
+       * options the manifest declares, never the location names.
+       */
+      async afficher_lieux() {
+        const { locations } = getConfig();
+        logger.info(`Action afficher_lieux -> ${locations.length} location(s)`);
+        if (locations.length === 0) {
+          return {
+            en: 'No location yet. Add one with "Add a location".',
+            fr: 'Aucun lieu pour l’instant. Ajoutez-en un avec « Ajouter un lieu ».',
+          };
+        }
+        const listing = describeLocations(locations);
+        return {
+          en: `${locations.length}/${MAX_LOCATIONS} location(s), as "number. name — address (latitude, longitude)":   ${listing}`,
+          fr: `${locations.length}/${MAX_LOCATIONS} lieu(x), au format « numéro. nom — adresse (latitude, longitude) » :   ${listing}`,
         };
       },
 
       /**
        * Remove the location this action's dropdown names — by its POSITION in
-       * the table, which is all a static `select` can offer.
+       * the list, which is all a static `select` can offer.
        */
       async supprimer_lieu(fields = {}) {
         logger.info(
@@ -253,13 +297,13 @@ export function createLocationEditor({
         const created = await createdDeviceOf(location);
         await commit(removeLocation(locations, location.id));
 
-        // Deleting the third of four locations moves the fourth up a line, and
-        // the numbers of the table are what this very dropdown offers.
+        // Deleting the third of four locations moves the fourth up a rank, and
+        // those numbers are what this very dropdown offers.
         const renumbered =
           positionOf(locations, location.id) < locations.length
             ? {
-                en: ' The locations after it moved up one line: reload this page (F5).',
-                fr: ' Les lieux suivants remontent d’une ligne : rechargez cette page (F5).',
+                en: ' The locations after it moved up one rank: run "Show the locations" before deleting another one.',
+                fr: ' Les lieux suivants remontent d’un rang : lancez « Afficher les lieux » avant d’en supprimer un autre.',
               }
             : { en: '', fr: '' };
 

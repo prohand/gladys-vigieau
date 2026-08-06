@@ -36,18 +36,18 @@ Several locations can be watched — a house, a second home, an allotment garden
 are rarely under the same prefectoral decree — and each one publishes **its own
 device**, up to ten.
 
-The Configuration screen is three sections: **Pour commencer** (what VigiEau is,
-and its two links), **Réglages généraux** (profile and refresh interval, shared
-by every location) and **Informations sur les lieux** — a read-only table, one
-line per watched location, `Nom | Adresse | Latitude | Longitude`, written by the
-integration. Nothing there edits a location: it is added and deleted by the
-actions below.
+The Configuration screen is two sections: **Pour commencer** (what VigiEau is,
+and its two links) and **Réglages généraux** (profile and refresh interval,
+shared by every location). It holds no field about the locations at all — those
+live entirely under the buttons.
 
-Four buttons: **Ajouter un lieu** (geocodes an address and adds a location
-watching that point), **Supprimer un lieu** (a line number plus a confirmation),
-**Tester la connexion VigiEau** (live check, shows the current level of every
-location) and **Afficher les restrictions en vigueur** (lists the restricted
-usages and links the decree, per location).
+Five buttons: **Ajouter un lieu** (geocodes an address, or takes a latitude and
+a longitude typed by hand, and adds a location watching that point),
+**Afficher les lieux** (the numbered list: name, address, coordinates),
+**Supprimer un lieu** (a number plus a confirmation), **Tester la connexion
+VigiEau** (live check, shows the current level of every location) and
+**Afficher les restrictions en vigueur** (lists the restricted usages and links
+the decree, per location).
 
 User documentation, re-hosted by Gladys and linked from the Configuration
 screen: [`docs/fr.md`](./docs/fr.md) — [`docs/en.md`](./docs/en.md).
@@ -60,30 +60,35 @@ interval, with the user profile (`particulier`, `entreprise`, `collectivite`,
 each with its own `niveauGravite`, the decree in force and the list of
 restricted usages.
 
-A location is a **geocoded point**. The user types an address in the
+A location is a **point**. The user types an address in the
 **"Add a location"** action, the integration resolves it on the official
 [Base Adresse Nationale](https://adresse.data.gouv.fr) (`GET /search`) — the
 same geocoder vigieau.gouv.fr uses — stores the latitude and longitude with
-`setConfig()` and re-publishes the catalog on the spot. A location is never
-edited afterwards: moving one means adding the new address and deleting the old
-line. There is no INSEE commune code: querying VigiEau by
-commune answers `409` as soon as the commune spans several zones of one water
-type, which no retry can fix. A point always falls inside exactly one zone per
-type. An address that matches several candidates with no clear winner is never
-guessed — the action lists them and asks for a more precise query.
+`setConfig()` and re-publishes the catalog on the spot. The same action also
+takes a **latitude and a longitude typed by hand** (both optional, but both or
+neither): given a point, it skips the geocoder entirely and keeps the address
+as a plain label — the way out of an address the BAN does not know, a plot with
+no street, or a point read off a map. A location is never edited afterwards:
+moving one means adding the new point and deleting the old entry. There is no
+INSEE commune code: querying VigiEau by commune answers `409` as soon as the
+commune spans several zones of one water type, which no retry can fix. A point
+always falls inside exactly one zone per type. An address that matches several
+candidates with no clear winner is never guessed — the action lists them and
+asks for a more precise query.
 
-**Where the list lives, and why the screen only displays it.** A `config_schema`
-is a fixed set of fields with no repeatable one, and a `select` only takes the
+**Where the list lives, and why it is never a form field.** A `config_schema` is
+a fixed set of fields with no repeatable one, and a `select` only takes the
 options written in the manifest, so a list the user builds at runtime cannot be
 a form field: it lives under the off-schema `locations` key, which the core
-documents as free internal storage of the integration. The screen shows it in
-ten static `string` fields (`lieu_1` … `lieu_10`) the integration fills in and
-rewrites on every save — every non-section field it renders is an `<input>`,
-there is no read-only nor multi-line widget, so that is the whole table it can
-draw. The delete dropdown therefore names a location by its _line number_: one
-showing the names would need the core's `source: "devices"`, which is refused
-with a 422 by every released Gladys (checked at the `v4.84.4` tag:
-`getDynamicOptions` exists only on master).
+documents as free internal storage of the integration. Nor can the screen
+_display_ it: every non-section field it renders is an `<input>`, with no
+read-only nor multi-line widget — the ten static `string` lines this integration
+wrote up to 1.3.0 needed an F5 to refresh and a rewrite on every save. The list
+is shown by the **"Afficher les lieux"** action instead, whose result message the
+screen renders live under its button. The delete dropdown therefore names a
+location by its _number in that listing_: one showing the names would need the
+core's `source: "devices"`, which is refused with a 422 by every released Gladys
+(checked at the `v4.84.4` tag: `getDynamicOptions` exists only on master).
 
 A few decisions are worth knowing about:
 
@@ -104,19 +109,20 @@ A few decisions are worth knowing about:
   been geocoded, discovery returns nothing and the Supervision screen says
   why — better than a device pinned to an empty location that the user would
   have to delete by hand.
-- **After adding or deleting a location, the page has to be reloaded.** The core
-  pushes nothing to a Configuration screen that is already open, and
-  `POST /config` answers with the values read _before_ the integration writes its
-  own — so the table keeps showing the lines it loaded until F5. Saving that
-  stale screen is harmless: the table is a display, and the integration rewrites
-  every line from the stored list on each `config-updated`.
-- **The coordinates are stored as text, and both decimal separators are read.** A
-  `number` config field renders an `<input type="number">`, whose value the
-  browser sanitizes in its own locale: on a French browser `48.8566` is not a
-  number, the front leaves the key out of the payload it saves, and the value
-  silently stays what it was. Coordinates are therefore text everywhere;
-  `toCoordinate()` reads `48,8566` and `48.8566` alike and checks the WGS-84
-  range itself.
+- **Everything the user has to be told is said under a button.** The
+  Configuration screen displays nothing an integration reports about a _Save_:
+  `setConnectionStatus` is rendered on the Supervision page and inside an
+  `oauth2` field, nowhere else, and the core pushes nothing to a screen that is
+  already open. Only an _action's_ result message is shown, right under its
+  button — which is why adding, listing and deleting are all actions, and why no
+  reload is ever needed to see the current list.
+- **The coordinates are text, and both decimal separators are read.** A `number`
+  field renders an `<input type="number">`, whose value the browser sanitizes in
+  its own locale: on a French browser `48.8566` is not a number, the front
+  leaves the key out of the payload it saves, and the value silently stays what
+  it was. Coordinates are therefore text everywhere — stored, and typed in the
+  add action; `toCoordinate()` reads `48,8566` and `48.8566` alike and checks the
+  WGS-84 range itself, which the store schema can only express on a number.
 - **The numeric scale stops at 3 because Gladys' does.** A `risk`/`integer`
   feature is rendered through the core's own label set (`BADGE_VALUE_CONVERTERS`
   in `BadgeNumberDeviceValue.jsx`), which maps `0-3` and shows **"Inconnu"** for
@@ -143,7 +149,7 @@ A few decisions are worth knowing about:
 │  ├─ vigieau.js                     # VigiEau API driver + severity mapping (pure part)
 │  ├─ address.js                     # geocoder driver: address -> lat/lon
 │  ├─ locations.js                   # the watched location list: model + storage format
-│  ├─ locationEditor.js              # the location manager: the table + the add/delete actions
+│  ├─ locationEditor.js              # the location manager: the add/list/delete actions
 │  ├─ coordinates.js                 # reading and writing a WGS-84 coordinate
 │  └─ config.js                      # config defaults, normalization, legacy location id
 ├─ docs/

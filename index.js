@@ -134,10 +134,10 @@ async function republish() {
 }
 
 // The location manager owns everything the user does with the watched
-// locations: the add/delete actions, and the table that displays the list in
-// the Configuration screen. It is given the two capabilities
-// it cannot have on its own — writing the configuration, and re-publishing the
-// catalog — and nothing else, which is what makes it testable offline.
+// locations: the three actions that add, list and delete them. It is given the
+// two capabilities it cannot have on its own — writing the configuration, and
+// re-publishing the catalog — and nothing else, which is what makes it testable
+// offline.
 const locationEditor = createLocationEditor({
   getConfig: () => config,
   async setConfig(patch) {
@@ -219,11 +219,9 @@ for (const [actionKey, handler] of Object.entries(locationEditor.actions)) {
 gladys.onConfigUpdated(async (newConfig) => {
   logger.info('onConfigUpdated -> new configuration received');
   config = normalizeConfig(newConfig);
-  // The Save carries the table lines back as the page loaded them, and the core
-  // stores whatever it was handed: redraw them from the list, which is the only
-  // thing a location is edited through. Nothing else in this screen touches a
-  // location — only the global settings, which `republish` applies.
-  await locationEditor.sync();
+  // Nothing in this screen touches a location — it only holds the two global
+  // settings, which `republish` applies by rebuilding the catalog and
+  // restarting the refresh timers on the new interval.
   await republish();
 });
 
@@ -241,9 +239,9 @@ gladys.on('connected', async () => {
     // `location_name` / `latitude` / `longitude` config fields. normalizeConfig
     // has already rebuilt it as the first entry of the list (keeping the very
     // id its device was published under); persist that so the actions work on a
-    // real list. Those fields have left the config_schema — the screen shows a
-    // read-only table now — but their stored values are still handed back by
-    // `getConfig()`, which is what the migration reads.
+    // real list. Those fields have left the config_schema — the locations live
+    // under their own key now — but their stored values are still handed back
+    // by `getConfig()`, which is what the migration reads.
     if (!Array.isArray(rawConfig?.[LOCATIONS_KEY]) && config.locations.length > 0) {
       logger.info('Migrating the single configured location to the location list');
       await gladys.setConfig({ [LOCATIONS_KEY]: serializeLocations(config.locations) });
@@ -259,22 +257,17 @@ gladys.on('connected', async () => {
     // new one.
     await adoptExistingDevices(gladys, config);
 
-    // 2) Draw the table of the Configuration screen from the stored list — the
-    // migration above may have just rebuilt it. Nothing is published yet, hence
-    // no re-publication here.
-    await locationEditor.sync();
-
-    // 3) (Re)publish the devices as soon as we are connected. They report
+    // 2) (Re)publish the devices as soon as we are connected. They report
     // their own status when no location is configured yet.
     if (!(await publishDevices())) {
       stopPolling();
       return;
     }
 
-    // 4) Start our own refresh loop (the devices declare no poll_frequency).
+    // 3) Start our own refresh loop (the devices declare no poll_frequency).
     startPolling();
 
-    // 5) Report the application-level status, shown in the Supervision screen.
+    // 4) Report the application-level status, shown in the Supervision screen.
     // Distinct from the container state machine: an integration can be RUNNING
     // and still unable to reach its third-party service.
     await gladys.setConnectionStatus(true);
