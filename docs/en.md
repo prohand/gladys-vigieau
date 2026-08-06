@@ -70,13 +70,21 @@ Run the **"Show the locations"** action: the message under the button lists
 **every configured location**, numbered, in the form
 
 ```
-number. name — address (latitude, longitude)
+• number. name — address (latitude, longitude)
 ```
 
 The numbers are the ones the **"Delete a location"** dropdown offers — that is
 where you read which location "Location 2" is. A location whose coordinates are
 unusable is listed too, with a dash where its point should be: it is neither
 published nor queried, and that line is the only thing that says so.
+
+> **Why does every location run on one single line?** The integration does send
+> a real line break between two locations — the container logs show it. The
+> Configuration screen, though, displays an action's answer as the **text** of a
+> plain alert box, and a browser renders a line break there as a space: no
+> formatting is possible, whatever the integration sends. Hence the **"•"**
+> opening every location — it is what visibly separates the entries for as long
+> as Gladys collapses the line breaks.
 
 > **Why a button and not a table on the page?** The Configuration screen shows
 > nothing an integration has to say, except the message of an **action**, under
@@ -175,14 +183,15 @@ point read off a map.
   (both optional). See "Why an address and not a postal code" above.
 - **Show the locations** — lists every configured location, numbered, with its
   name, address and coordinates. Those numbers are the ones the deletion offers.
-- **Delete a location** — stops watching the location whose number you pick,
-  after confirmation. Its Gladys device stays: delete it yourself.
 - **Test the VigiEau connection (all locations)** — runs a live request and
   shows the current level of every location, for the three water types. Use it
   right after the configuration to check that your locations are covered.
 - **Show the restrictions in force (all locations)** — lists the water usages
   currently restricted at each address for your profile, with a link to the
   decree.
+- **Delete a location** — stops watching the location whose number you pick,
+  after confirmation. Its Gladys device stays: delete it yourself. It is the
+  last button of the screen, the only one that destroys anything.
 
 ## Scene ideas
 

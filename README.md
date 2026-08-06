@@ -41,13 +41,18 @@ and its two links) and **Réglages généraux** (profile and refresh interval,
 shared by every location). It holds no field about the locations at all — those
 live entirely under the buttons.
 
-Five buttons: **Ajouter un lieu** (geocodes an address, or takes a latitude and
-a longitude typed by hand, and adds a location watching that point),
-**Afficher les lieux** (the numbered list: name, address, coordinates),
-**Supprimer un lieu** (a number plus a confirmation), **Tester la connexion
-VigiEau** (live check, shows the current level of every location) and
-**Afficher les restrictions en vigueur** (lists the restricted usages and links
-the decree, per location).
+Five buttons, in that order: **Ajouter un lieu** (geocodes an address, or takes
+a latitude and a longitude typed by hand, and adds a location watching that
+point), **Afficher les lieux** (the numbered list: name, address, coordinates),
+**Tester la connexion VigiEau** (live check, shows the current level of every
+location), **Afficher les restrictions en vigueur** (lists the restricted usages
+and links the decree, per location) and, last, **Supprimer un lieu** (a number
+plus a confirmation) — the only destructive button of the screen sits under the
+two read-only reports rather than next to the listing.
+
+Every list those buttons print opens each entry with a `•`: the Configuration
+screen renders an action's answer as the text of a plain alert box, and a
+browser collapses the real newline the integration sends into a space.
 
 User documentation, re-hosted by Gladys and linked from the Configuration
 screen: [`docs/fr.md`](./docs/fr.md) — [`docs/en.md`](./docs/en.md).

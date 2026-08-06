@@ -87,7 +87,7 @@ one, and a `select` only takes the options written in the manifest. It lives und
 sections — "Pour commencer" (what VigiEau is) and "Réglages généraux" (`profil`, `poll_frequency`,
 shared by every location) — and holds no field about the locations at all. The `afficher_lieux`
 action is the whole display: its result message lists every entry, numbered, one per line, as
-`n. nom — adresse (lat, lon)` (`describeLocations`).
+`• n. nom — adresse (lat, lon)` (`describeLocations`).
 
 **A line break in an action's message is written, but not rendered — do not go hunting for a
 trick.** Every list this integration prints is joined with a real `\n`
@@ -96,11 +96,21 @@ the day it stops collapsing it. It collapses it today: `ActionsCard.jsx` renders
 `<div class="alert alert-success">{getLocalizedText(...)}</div>` — a plain text child, so the
 markup is escaped — and neither Gladys' own CSS nor Tabler's `.alert` sets `white-space`, so the
 browser default `normal` turns the newline into a space. Checked at the `v4.84.4` tag AND on
-master, and U+2028 / U+2029 were measured in Chromium: they collapse too, they are not the forced
-break the CSS spec's wording suggests. There is nothing else to send. Hence the rule the two
-`report()`/`describeLocations` helpers follow: **every entry opens with its own marker** — its
-number in the listing, a `•` in the VigiEau reports — so the list stays readable whether the
-newline survives or not.
+master (re-checked 2026-08: `getLocalizedText` still returns a plain string, `ActionsCard` still
+renders it as a text child, and `grep -rn white-space front/src/style` finds nothing — the only
+`pre-wrap` in the whole external-integration front is the LOGS page), and U+2028 / U+2029 were
+measured in Chromium: they collapse too, they are not the forced break the CSS spec's wording
+suggests. There is nothing else to send; the fix is a one-line `white-space` rule in Gladys core,
+not something this repo can ship.
+
+Hence the rule the two `report()`/`describeLocations` helpers follow: **every entry opens with
+`LOCATION_LINE_MARKER` (`'• '`, exported by `src/locations.js` and shared by both)**, so the list
+stays readable whether the newline survives or not. The bullet is what does that work, not the
+number: collapsed onto one line, `2.` vanishes among the digits of a postal code and a pair of
+coordinates (`... 69600 Oullins (45.71611, 4.80877) 2. Paris ...`), while a `•` cannot occur inside
+an address. The number stays because it is what the delete dropdown offers. Do not word a message
+"one per line"/"un par ligne" again: a test fails on it, because that is exactly what the screen
+does not do.
 
 Three constraints forced this shape, and none is negotiable:
 
@@ -315,6 +325,12 @@ Manifest actions are registered per key. The ones that QUERY VigiEau (`test_vigi
 because writing the config back and re-publishing the catalog is not a device's business.
 `test/manifest.test.js` reads `REGISTRY_LEVEL_ACTIONS` off that factory, so a handler added there
 cannot silently skip the manifest.
+
+The ORDER of the `actions` array is the order of the buttons — `ActionsCard.jsx` maps over it. It
+runs add → list → test → restrictions → **delete last**: `supprimer_lieu` is the only destructive
+button of the page, and between the listing and the two reports it sat right where a mis-click
+lands. A test pins it there, and pins the listing above it (its dropdown offers positions, and the
+listing is what maps a position to a name).
 
 ## Releasing
 

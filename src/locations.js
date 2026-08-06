@@ -299,6 +299,25 @@ export function describeLocation(location) {
 // currently does with it.
 export const LOCATION_LINE_SEPARATOR = '\n';
 
+// What OPENS every entry of every list this integration prints — the listing
+// here, the per-location reports of src/devices/droughtZone.js.
+//
+// It exists because the line break does not survive the Configuration screen,
+// and it is the only part of "one entry per line" that reaches the user today:
+// `ActionsCard.jsx` renders an action's answer as the text of a plain
+// `<div class="alert">`, whose default `white-space: normal` collapses a
+// newline into a space. Re-checked against the Gladys sources on master, not
+// only at v4.84.4: the message is still a plain text child (so any markup is
+// escaped), no `white-space` rule exists anywhere in the front's CSS, and
+// U+2028 / U+2029 were measured in Chromium — they collapse too. There is
+// nothing an integration can send that renders as a break.
+//
+// A bare number does not survive that collapse: addresses are full of digits
+// and dots, so "... 69600 Oullins (45.71611, 4.80877) 2. Paris ..." reads as
+// one run-on sentence. A bullet cannot occur inside an address, which makes it
+// the visible boundary between two entries whether the newline lives or dies.
+export const LOCATION_LINE_MARKER = '• ';
+
 /**
  * The whole list, numbered, ONE LOCATION PER LINE, as the "Afficher les lieux"
  * action prints it.
@@ -307,15 +326,10 @@ export const LOCATION_LINE_SEPARATOR = '\n';
  * `select` only holds the static options the manifest declares, so this listing
  * is what tells the user which location "Lieu 2" is.
  *
- * The separator is a real newline, and every entry keeps its own leading marker
- * (its number) so it stays legible even where the newline is lost. It IS lost
- * on today's Configuration screen: `ActionsCard.jsx` renders an action's answer
- * as the text of a plain `<div class="alert">`, whose default
- * `white-space: normal` collapses a newline into a space — checked in the
- * v4.84.4 sources and in a browser, and nothing an integration can send goes
- * around it (the text is escaped, and U+2028 collapses too). The newline is
- * still what belongs here: it is what the container logs show, and what the
- * screen will show the day it stops collapsing it.
+ * The separator is a real newline — it is what the container logs show, and
+ * what the screen will show the day it stops collapsing it — and every entry
+ * opens with `LOCATION_LINE_MARKER` plus its number, which is what keeps the
+ * entries apart on today's screen (see the marker's own comment).
  *
  * EVERY location is listed, including one whose coordinates are unusable: it is
  * neither published nor queried, and this line is the only thing that says why.
@@ -326,6 +340,6 @@ export function describeLocations(locations = []) {
     return 'aucun lieu configuré';
   }
   return locations
-    .map((location, index) => `${index + 1}. ${describeLocation(location)}`)
+    .map((location, index) => `${LOCATION_LINE_MARKER}${index + 1}. ${describeLocation(location)}`)
     .join(LOCATION_LINE_SEPARATOR);
 }

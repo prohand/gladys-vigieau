@@ -19,7 +19,12 @@ import {
   DEVICE_FEATURE_TYPES,
 } from '@gladysassistant/integration-sdk';
 import { deviceIds } from './identity.js';
-import { LOCATION_LINE_SEPARATOR, locationQuery, usableLocations } from '../locations.js';
+import {
+  LOCATION_LINE_MARKER,
+  LOCATION_LINE_SEPARATOR,
+  locationQuery,
+  usableLocations,
+} from '../locations.js';
 import {
   AMBIGUOUS_COMMUNE,
   fetchZones,
@@ -172,20 +177,18 @@ const NO_LOCATION_MESSAGE = {
   fr: 'Aucun lieu avec des coordonnées utilisables. Ajoutez-en un avec « Ajouter un lieu ».',
 };
 
-// Marker opening each location's line. The lines are separated by a real
-// newline, which today's Configuration screen collapses into a space (see
-// describeLocations in src/locations.js): the bullet is what keeps the entries
-// apart in the meantime, and reads as a list either way.
-const LINE_MARKER = '• ';
-
 /**
  * A header plus one line per location, in both languages.
+ *
+ * Same shape as the location listing, and for the same reason: the newline is
+ * collapsed by today's Configuration screen, so the marker opening each entry
+ * is what keeps them apart (see LOCATION_LINE_MARKER in src/locations.js).
  * @param {{ en: string, fr: string }} header
  * @param {Array<{ en: string, fr: string }>} lines
  */
 function report(header, lines) {
   const join = (language) =>
-    lines.map((line) => `${LINE_MARKER}${line[language]}`).join(LOCATION_LINE_SEPARATOR);
+    lines.map((line) => `${LOCATION_LINE_MARKER}${line[language]}`).join(LOCATION_LINE_SEPARATOR);
   return {
     en: `${header.en}${LOCATION_LINE_SEPARATOR}${join('en')}`,
     fr: `${header.fr}${LOCATION_LINE_SEPARATOR}${join('fr')}`,

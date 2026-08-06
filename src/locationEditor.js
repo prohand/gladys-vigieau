@@ -44,6 +44,7 @@ import {
   describeLocation,
   describeLocations,
   findLocationById,
+  LOCATION_LINE_MARKER,
   LOCATION_LINE_SEPARATOR,
   LOCATIONS_KEY,
   locationAtPosition,
@@ -286,12 +287,13 @@ export function createLocationEditor({
             fr: 'Aucun lieu pour l’instant. Ajoutez-en un avec « Ajouter un lieu ».',
           };
         }
-        // One location per line, the header on its own — see describeLocations
-        // for what today's Configuration screen does with those newlines.
+        // One location per line, the header on its own — and the format spelled
+        // out with its marker rather than promising "one per line", which the
+        // Configuration screen does not render (see LOCATION_LINE_MARKER).
         const listing = describeLocations(locations);
         return {
-          en: `${locations.length}/${MAX_LOCATIONS} location(s), one per line, as "number. name — address (latitude, longitude)":${LOCATION_LINE_SEPARATOR}${listing}`,
-          fr: `${locations.length}/${MAX_LOCATIONS} lieu(x), un par ligne, au format « numéro. nom — adresse (latitude, longitude) » :${LOCATION_LINE_SEPARATOR}${listing}`,
+          en: `${locations.length}/${MAX_LOCATIONS} watched location(s), as "${LOCATION_LINE_MARKER}number. name — address (latitude, longitude)":${LOCATION_LINE_SEPARATOR}${listing}`,
+          fr: `${locations.length}/${MAX_LOCATIONS} lieu(x) surveillé(s), au format « ${LOCATION_LINE_MARKER}numéro. nom — adresse (latitude, longitude) » :${LOCATION_LINE_SEPARATOR}${listing}`,
         };
       },
 

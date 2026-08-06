@@ -72,7 +72,7 @@ Lancez l'action **« Afficher les lieux »** : le message affiché sous le bouto
 liste **tous les lieux configurés**, numérotés, au format
 
 ```
-numéro. nom — adresse (latitude, longitude)
+• numéro. nom — adresse (latitude, longitude)
 ```
 
 Les numéros sont ceux que propose la liste déroulante de **« Supprimer un
@@ -80,6 +80,15 @@ lieu »** — c'est là que vous lisez à quel lieu correspond « Lieu 2 ». Un 
 dont les coordonnées sont inutilisables y figure aussi, avec un tiret à la
 place du point : il n'est ni publié ni interrogé, et cette ligne est la seule
 qui vous le dise.
+
+> **Pourquoi tous les lieux se suivent-ils sur une seule ligne ?** L'intégration
+> envoie bien un vrai retour à la ligne entre deux lieux — c'est ce que montrent
+> les journaux du conteneur. L'écran de configuration, lui, affiche la réponse
+> d'une action comme le **texte** d'un simple encadré, et un navigateur y
+> remplace un retour à la ligne par une espace : aucune mise en forme n'y est
+> possible, quoi qu'envoie l'intégration. C'est pour cette raison que chaque
+> lieu commence par un **« • »** — c'est lui qui sépare visiblement les entrées
+> tant que Gladys ne conserve pas les retours à la ligne.
 
 > **Pourquoi un bouton et pas un tableau dans la page ?** L'écran de
 > configuration n'affiche rien de ce qu'une intégration a à dire, sauf le
@@ -185,9 +194,6 @@ connaît pas, ou un point relevé sur une carte.
 - **Afficher les lieux** — liste tous les lieux configurés, numérotés, avec leur
   nom, leur adresse et leurs coordonnées. Ce sont ces numéros que propose la
   suppression.
-- **Supprimer un lieu** — retire de la surveillance le lieu dont vous choisissez
-  le numéro, après confirmation. Son appareil Gladys, lui, reste :
-  supprimez-le vous-même.
 - **Tester la connexion VigiEau (tous les lieux)** — effectue une requête en
   direct et affiche le niveau actuel de chaque lieu, pour les trois types d'eau.
   À utiliser juste après la configuration pour vérifier que les lieux sont bien
@@ -195,6 +201,10 @@ connaît pas, ou un point relevé sur une carte.
 - **Afficher les restrictions en vigueur (tous les lieux)** — liste les usages de
   l'eau actuellement restreints à chaque adresse pour votre profil, avec le lien
   vers l'arrêté préfectoral.
+- **Supprimer un lieu** — retire de la surveillance le lieu dont vous choisissez
+  le numéro, après confirmation. Son appareil Gladys, lui, reste :
+  supprimez-le vous-même. C'est le dernier bouton de l'écran, le seul qui
+  détruise quelque chose.
 
 ## Idées de scènes
 

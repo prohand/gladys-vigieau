@@ -122,7 +122,7 @@ test('listing the locations is an action, and the only display there is', () => 
   assert.equal((listing.fields ?? []).length, 0, 'it reports on every location');
   // Its numbers are the ones the delete dropdown offers: it is what tells the
   // user which location "Lieu 2" is.
-  assert.match(listing.description.fr, /numérot/i);
+  assert.match(listing.description.fr, /numéro/i);
 });
 
 test('the delete action names a location by its number in the listing', () => {
@@ -137,6 +137,21 @@ test('the delete action names a location by its number in the listing', () => {
     deletePicker.options.map((option) => option.value),
     Array.from({ length: MAX_LOCATIONS }, (unused, index) => String(index + 1)),
     'the dropdown and MAX_LOCATIONS must not drift apart',
+  );
+});
+
+test('the delete action is the LAST button of the screen', () => {
+  // The buttons are rendered in manifest order (ActionsCard.jsx maps over
+  // `actions`), and this one is the only destructive button of the page: it
+  // sits under the two read-only reports rather than between the listing and
+  // them, where a mis-click lands while looking for "Tester la connexion".
+  // Its dropdown numbers still come from "Afficher les lieux", which stays
+  // above it.
+  const keys = (manifest.actions ?? []).map((a) => a.key);
+  assert.equal(keys[keys.length - 1], 'supprimer_lieu');
+  assert.ok(
+    keys.indexOf('afficher_lieux') < keys.indexOf('supprimer_lieu'),
+    'the listing is what tells the user which location "Lieu 2" is',
   );
 });
 

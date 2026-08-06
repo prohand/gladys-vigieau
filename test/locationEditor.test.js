@@ -389,8 +389,28 @@ test('afficher_lieux puts one location per line, the header on its own', async (
   for (const language of ['fr', 'en']) {
     const lines = message[language].split('\n');
     assert.equal(lines.length, 3, `${language}: a header line, then one line per location`);
-    assert.match(lines[1], /^1\. Maison/);
-    assert.match(lines[2], /^2\. Jardin/);
+    assert.match(lines[1], /^• 1\. Maison/);
+    assert.match(lines[2], /^• 2\. Jardin/);
+  }
+});
+
+test('afficher_lieux stays a list once the Configuration screen collapses the newlines', async () => {
+  // That screen renders an action's answer as the text of a plain
+  // <div class="alert">, whose default `white-space: normal` turns every
+  // newline into a space — so what the user actually reads is this. The marker
+  // opening each entry is what still separates them there.
+  const h = harness(installed([MAISON, JARDIN]));
+  const message = await h.editor.actions.afficher_lieux();
+
+  for (const language of ['fr', 'en']) {
+    const collapsed = message[language].replace(/\n/g, ' ');
+    assert.equal(collapsed.split('• 1. ').length - 1, 1, `${language}: one entry per location`);
+    assert.equal(collapsed.split('• 2. ').length - 1, 1);
+    assert.doesNotMatch(
+      collapsed,
+      /(un par ligne|one per line)/i,
+      'promising lines the screen does not render is how the bug was reported',
+    );
   }
 });
 

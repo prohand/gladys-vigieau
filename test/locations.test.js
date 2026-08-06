@@ -10,6 +10,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   FIRST_LOCATION_ID,
+  LOCATION_LINE_MARKER,
   MAX_LOCATIONS,
   describeLocation,
   findLocationById,
@@ -206,11 +207,24 @@ test('describeLocations puts one location per line', () => {
   // A single run-on paragraph is unreadable past two locations. The newline is
   // what "one per line" means, even though today's Configuration screen renders
   // the message as the text of a plain <div> and collapses it — hence the
-  // number opening each entry, which keeps them apart either way.
+  // marker opening each entry, which keeps them apart either way.
   const lines = describeLocations([paris, lyon]).split('\n');
   assert.equal(lines.length, 2);
-  assert.match(lines[0], /^1\. Maison/);
-  assert.match(lines[1], /^2\. Jardin/);
+  assert.match(lines[0], /^• 1\. Maison/);
+  assert.match(lines[1], /^• 2\. Jardin/);
+});
+
+test('every entry opens with the marker, so a collapsed newline still reads as a list', () => {
+  // THE bug this pins. The Configuration screen renders an action's answer as
+  // the text of a plain <div class="alert">, and its default
+  // `white-space: normal` collapses the newline into a space — checked in the
+  // Gladys front on master, where the message is still a plain text child and
+  // no CSS rule sets white-space. Collapsed, a bare "2." disappears among the
+  // digits of an address ("... 69600 Oullins (45.71611, 4.80877) 2. Paris");
+  // the bullet cannot occur inside one, so it is the visible boundary.
+  const collapsed = describeLocations([paris, lyon]).replace(/\n/g, ' ');
+  assert.equal(collapsed.split(LOCATION_LINE_MARKER).length - 1, 2, 'one marker per location');
+  assert.ok(collapsed.startsWith(LOCATION_LINE_MARKER));
 });
 
 test('describeLocations lists a location that cannot be published either', () => {

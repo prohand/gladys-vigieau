@@ -203,10 +203,26 @@
         "fr": "Afficher les lieux"
       },
       "description": {
-        "en": "Lists every configured location, numbered and one per line: name, address and coordinates. The numbers are the ones the deletion dropdown offers.",
-        "fr": "Liste tous les lieux configurés, numérotés et un par ligne : nom, adresse et coordonnées. Les numéros sont ceux que propose la liste déroulante de la suppression."
+        "en": "Lists every configured location: name, address and coordinates. Each entry opens with a \"•\" and its number — the numbers the deletion dropdown offers.",
+        "fr": "Liste tous les lieux configurés : nom, adresse et coordonnées. Chaque entrée commence par « • » et son numéro — les numéros que propose la liste déroulante de la suppression."
       },
       "timeout_seconds": 15
+    },
+    {
+      "key": "test_vigieau",
+      "label": {
+        "en": "Test the VigiEau connection (all locations)",
+        "fr": "Tester la connexion VigiEau (tous les lieux)"
+      },
+      "timeout_seconds": 60
+    },
+    {
+      "key": "show_restrictions",
+      "label": {
+        "en": "Show the restrictions in force (all locations)",
+        "fr": "Afficher les restrictions en vigueur (tous les lieux)"
+      },
+      "timeout_seconds": 60
     },
     {
       "key": "supprimer_lieu",
@@ -321,22 +337,6 @@
           "default": false
         }
       ]
-    },
-    {
-      "key": "test_vigieau",
-      "label": {
-        "en": "Test the VigiEau connection (all locations)",
-        "fr": "Tester la connexion VigiEau (tous les lieux)"
-      },
-      "timeout_seconds": 60
-    },
-    {
-      "key": "show_restrictions",
-      "label": {
-        "en": "Show the restrictions in force (all locations)",
-        "fr": "Afficher les restrictions en vigueur (tous les lieux)"
-      },
-      "timeout_seconds": 60
     }
   ]
 }
