@@ -295,12 +295,27 @@ export function describeLocation(location) {
     : `${location.name} — ${point}`;
 }
 
+// One entry per line — see describeLocations for what the Configuration screen
+// currently does with it.
+export const LOCATION_LINE_SEPARATOR = '\n';
+
 /**
- * The whole list, numbered, as the "Afficher les lieux" action prints it.
+ * The whole list, numbered, ONE LOCATION PER LINE, as the "Afficher les lieux"
+ * action prints it.
  *
  * Numbered because those numbers ARE the ones the delete dropdown offers: a
  * `select` only holds the static options the manifest declares, so this listing
  * is what tells the user which location "Lieu 2" is.
+ *
+ * The separator is a real newline, and every entry keeps its own leading marker
+ * (its number) so it stays legible even where the newline is lost. It IS lost
+ * on today's Configuration screen: `ActionsCard.jsx` renders an action's answer
+ * as the text of a plain `<div class="alert">`, whose default
+ * `white-space: normal` collapses a newline into a space — checked in the
+ * v4.84.4 sources and in a browser, and nothing an integration can send goes
+ * around it (the text is escaped, and U+2028 collapses too). The newline is
+ * still what belongs here: it is what the container logs show, and what the
+ * screen will show the day it stops collapsing it.
  *
  * EVERY location is listed, including one whose coordinates are unusable: it is
  * neither published nor queried, and this line is the only thing that says why.
@@ -312,5 +327,5 @@ export function describeLocations(locations = []) {
   }
   return locations
     .map((location, index) => `${index + 1}. ${describeLocation(location)}`)
-    .join('   |   ');
+    .join(LOCATION_LINE_SEPARATOR);
 }

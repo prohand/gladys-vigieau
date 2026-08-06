@@ -417,6 +417,65 @@ test('a location without usable coordinates is left out of the report', async ()
   assert.doesNotMatch(message.fr, /Chalet/, 'nothing to query, nothing to say');
 });
 
+test('test_vigieau puts one location per line, under a header of its own', async () => {
+  const gladys = createFakeGladys();
+  stubVigieauByLatitude({
+    48.8566: { payload: zonesFixture() },
+    45.764: { payload: [{ type: 'SUP', niveauGravite: 'vigilance' }] },
+  });
+  const message = await droughtZone.actions.test_vigieau(gladys, {
+    fields: {},
+    config: configWith(MAISON, JARDIN),
+  });
+
+  for (const language of ['fr', 'en']) {
+    const lines = message[language].split('\n');
+    assert.equal(lines.length, 3, `${language}: a header, then one line per location`);
+    assert.match(lines[0], /VigiEau OK/);
+    assert.match(lines[1], /^• .*Maison/);
+    assert.match(lines[2], /^• .*Jardin/);
+  }
+});
+
+test('one location VigiEau refuses does not sink the report of the others', async () => {
+  // The same rule as the refresh cycle: a 409 on a badly geocoded garden must
+  // not hide the drought level of the house. A Promise.all here made the WHOLE
+  // action fail with one bare error, naming no location at all.
+  const gladys = createFakeGladys();
+  stubVigieauByLatitude({
+    48.8566: { payload: zonesFixture() },
+    45.764: { payload: null, status: 409 },
+  });
+  const message = await droughtZone.actions.test_vigieau(gladys, {
+    fields: {},
+    config: configWith(MAISON, JARDIN),
+  });
+
+  assert.match(message.fr, /Maison/, 'the location that answered is still reported');
+  assert.match(message.fr, /Alerte renforcée/);
+  assert.match(message.fr, /Jardin/, 'and the failing one says which it is');
+  assert.match(message.fr, /adresse plus précise/, 'with what to do about a 409');
+  assert.match(message.fr, /1 lieu\(x\) en échec sur 2/, 'the header stops claiming "VigiEau OK"');
+  assert.doesNotMatch(message.fr, /VigiEau OK/);
+});
+
+test('show_restrictions reports a failing location instead of failing whole', async () => {
+  const gladys = createFakeGladys();
+  stubVigieauByLatitude({
+    48.8566: { payload: zonesFixture() },
+    45.764: { payload: null, status: 500 },
+  });
+  const message = await droughtZone.actions.show_restrictions(gladys, {
+    fields: {},
+    config: configWith(MAISON, JARDIN),
+  });
+
+  assert.match(message.fr, /Remplissage des piscines/, 'the location that answered is reported');
+  assert.match(message.fr, /Jardin.*500/s, 'and the other one says what went wrong');
+  const lines = message.fr.split('\n');
+  assert.equal(lines.length, 3, 'a header, then one line per location');
+});
+
 test('test_vigieau says so when there is nothing to test yet', async () => {
   const gladys = createFakeGladys();
   const message = await droughtZone.actions.test_vigieau(gladys, {

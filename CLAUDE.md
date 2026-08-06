@@ -86,8 +86,21 @@ one, and a `select` only takes the options written in the manifest. It lives und
 **How the user sees it: under a button, never in the page.** The Configuration screen is two
 sections — "Pour commencer" (what VigiEau is) and "Réglages généraux" (`profil`, `poll_frequency`,
 shared by every location) — and holds no field about the locations at all. The `afficher_lieux`
-action is the whole display: its result message lists every entry, numbered, as
+action is the whole display: its result message lists every entry, numbered, one per line, as
 `n. nom — adresse (lat, lon)` (`describeLocations`).
+
+**A line break in an action's message is written, but not rendered — do not go hunting for a
+trick.** Every list this integration prints is joined with a real `\n`
+(`LOCATION_LINE_SEPARATOR`), which is what the container logs show and what the screen will show
+the day it stops collapsing it. It collapses it today: `ActionsCard.jsx` renders the answer as
+`<div class="alert alert-success">{getLocalizedText(...)}</div>` — a plain text child, so the
+markup is escaped — and neither Gladys' own CSS nor Tabler's `.alert` sets `white-space`, so the
+browser default `normal` turns the newline into a space. Checked at the `v4.84.4` tag AND on
+master, and U+2028 / U+2029 were measured in Chromium: they collapse too, they are not the forced
+break the CSS spec's wording suggests. There is nothing else to send. Hence the rule the two
+`report()`/`describeLocations` helpers follow: **every entry opens with its own marker** — its
+number in the listing, a `•` in the VigiEau reports — so the list stays readable whether the
+newline survives or not.
 
 Three constraints forced this shape, and none is negotiable:
 
@@ -139,6 +152,13 @@ silently watch the Gulf of Guinea — and, when both are given, they WIN over th
 then only kept as the location's label. They are `string` fields parsed by `toCoordinate()`, for the
 locale reason below. The geocoder is not a fallback for a point typed wrong: a malformed coordinate
 is refused before the address is ever resolved.
+
+A point typed with NO address is labelled by `reverseAddress()` (BAN `/reverse/`), so the listing
+shows the street it sits on instead of repeating its own coordinates, and the device is named after
+its town like a geocoded one. That lookup is a LABEL and nothing more: it never moves the point, it
+is skipped when the user typed an address of their own (their wording wins), and a failure is
+caught — a geocoder outage must not refuse coordinates read off a map, the location is then simply
+added with no address and named after its point.
 
 ### The device identity does not depend on the configuration
 
@@ -234,6 +254,12 @@ The devices declare **no `poll_frequency`** and the integration runs its own `se
 others — a 409 on a badly geocoded garden must not hide the drought level of the house; the status
 names the location that failed. `blueprint.refresh()` never throws — a rejection inside a timer
 callback would take the container down — and reports outages through `setConnectionStatus`.
+
+`test_vigieau` and `show_restrictions` obey the same rule, through `readEachLocation()`: a `Promise.all`
+there used to fail the WHOLE action on one bad point, so an install that mostly worked showed a
+single bare error naming no location. Each location now gets its own line — its level, or
+`failureMessage()` saying what went wrong — and the `test_vigieau` header only claims "VigiEau OK"
+when none failed.
 
 ## Gladys core constraints that are not obvious
 

@@ -34,12 +34,17 @@
 // -----------------------------------------------------------------------------
 
 import { createLogger } from '@gladysassistant/integration-sdk';
-import { describeAddress, resolveAddress as geocodeAddress } from './address.js';
+import {
+  describeAddress,
+  resolveAddress as geocodeAddress,
+  reverseAddress as reverseGeocodeAddress,
+} from './address.js';
 import { toCoordinate } from './coordinates.js';
 import {
   describeLocation,
   describeLocations,
   findLocationById,
+  LOCATION_LINE_SEPARATOR,
   LOCATIONS_KEY,
   locationAtPosition,
   MAX_LOCATIONS,
@@ -63,6 +68,7 @@ const logger = createLogger({ name: 'locations' });
  * @param {(location: object) => Promise<object|null>} [deps.findCreatedDevice] -
  *   the Gladys device a location has already been given, if any
  * @param {typeof geocodeAddress} [deps.resolveAddress] - injected in tests
+ * @param {typeof reverseGeocodeAddress} [deps.reverseAddress] - injected in tests
  */
 export function createLocationEditor({
   getConfig,
@@ -70,6 +76,7 @@ export function createLocationEditor({
   onLocationsChanged,
   findCreatedDevice = async () => null,
   resolveAddress = geocodeAddress,
+  reverseAddress = reverseGeocodeAddress,
 }) {
   /**
    * Persist a new list, then re-publish the catalog on it.
@@ -150,6 +157,24 @@ export function createLocationEditor({
   }
 
   /**
+   * The address a typed point falls on, or null.
+   *
+   * NEVER fatal, and never a reason to refuse the location: the point is what
+   * is watched, the address is only the label the listing shows. A geocoder
+   * outage — or a plot the Base Adresse Nationale knows no street for — must
+   * not stop a user from adding coordinates they read off a map.
+   * @param {{ latitude: number, longitude: number }} point
+   */
+  async function addressOfPoint(point) {
+    try {
+      return await reverseAddress(point.latitude, point.longitude);
+    } catch (err) {
+      logger.warn('Could not find the address of the typed point', err);
+      return null;
+    }
+  }
+
+  /**
    * The device a location has already been given, or null.
    *
    * Never fatal: failing to read the device list must not stop a deletion the
@@ -205,18 +230,28 @@ export function createLocationEditor({
         }
 
         // A typed point is used as it is: the user gave the answer geocoding
-        // would only have guessed at, and the address they typed alongside it —
-        // if any — becomes the label the listing shows.
+        // would only have guessed at.
         const geocoded = typed.point ? null : await geocode(address);
         if (geocoded && !geocoded.point) {
           return geocoded.problem;
         }
-        const point = typed.point ? { ...typed.point, address_label: address } : geocoded.point;
-        const match = geocoded?.match;
+
+        // Where the label of a typed point comes from. An address typed
+        // alongside the coordinates is the user's own wording and is kept as
+        // it is; with none, the point is looked up on the Base Adresse
+        // Nationale so the location shows the real address it sits on instead
+        // of repeating its own coordinates. Either way the POINT is untouched —
+        // this only names it.
+        const reverse = typed.point && address === '' ? await addressOfPoint(typed.point) : null;
+        const point = typed.point
+          ? { ...typed.point, address_label: address || reverse?.label || '' }
+          : geocoded.point;
+        const match = geocoded?.match ?? reverse;
 
         // A location the user did not name is named after the town it is in —
         // "Vigilance sécheresse — Montauban" beats an empty device name. A
-        // typed point has no town: the address, then the point itself.
+        // typed point whose address could not be found has no town: the address
+        // typed with it, then the point itself.
         const name =
           String(fields.nom ?? '').trim() ||
           match?.city ||
@@ -251,10 +286,12 @@ export function createLocationEditor({
             fr: 'Aucun lieu pour l’instant. Ajoutez-en un avec « Ajouter un lieu ».',
           };
         }
+        // One location per line, the header on its own — see describeLocations
+        // for what today's Configuration screen does with those newlines.
         const listing = describeLocations(locations);
         return {
-          en: `${locations.length}/${MAX_LOCATIONS} location(s), as "number. name — address (latitude, longitude)":   ${listing}`,
-          fr: `${locations.length}/${MAX_LOCATIONS} lieu(x), au format « numéro. nom — adresse (latitude, longitude) » :   ${listing}`,
+          en: `${locations.length}/${MAX_LOCATIONS} location(s), one per line, as "number. name — address (latitude, longitude)":${LOCATION_LINE_SEPARATOR}${listing}`,
+          fr: `${locations.length}/${MAX_LOCATIONS} lieu(x), un par ligne, au format « numéro. nom — adresse (latitude, longitude) » :${LOCATION_LINE_SEPARATOR}${listing}`,
         };
       },
 

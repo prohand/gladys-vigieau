@@ -202,6 +202,17 @@ test('describeLocations numbers the list, for the messages under a button', () =
   assert.match(describeLocations([]), /aucun lieu/);
 });
 
+test('describeLocations puts one location per line', () => {
+  // A single run-on paragraph is unreadable past two locations. The newline is
+  // what "one per line" means, even though today's Configuration screen renders
+  // the message as the text of a plain <div> and collapses it — hence the
+  // number opening each entry, which keeps them apart either way.
+  const lines = describeLocations([paris, lyon]).split('\n');
+  assert.equal(lines.length, 2);
+  assert.match(lines[0], /^1\. Maison/);
+  assert.match(lines[1], /^2\. Jardin/);
+});
+
 test('describeLocations lists a location that cannot be published either', () => {
   // It is neither published nor queried: this line is the only thing that says
   // why, so leaving it out would hide the entry the user has to fix.

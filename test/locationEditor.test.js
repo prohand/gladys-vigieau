@@ -31,10 +31,11 @@ afterEach(() => {
  * `stored` is the whole raw config as `getConfig()` hands it back, the
  * off-schema `locations` key included — it is where the list lives.
  */
-function harness(stored = {}, { createdDeviceNames = {} } = {}) {
+function harness(stored = {}, { createdDeviceNames = {}, reverse = null } = {}) {
   let raw = { ...stored };
   let config = normalizeConfig(raw);
   const writes = [];
+  const reverseCalls = [];
   let republished = 0;
 
   const editor = createLocationEditor({
@@ -51,11 +52,18 @@ function harness(stored = {}, { createdDeviceNames = {} } = {}) {
     // gladys.getDevices(); here the test just names the ones it created.
     findCreatedDevice: async (location) =>
       createdDeviceNames[location.id] ? { name: createdDeviceNames[location.id] } : null,
+    // Injected like the forward geocoder: it is what labels a typed point, and
+    // the tests decide what the Base Adresse Nationale knows about it.
+    reverseAddress: async (latitude, longitude) => {
+      reverseCalls.push([latitude, longitude]);
+      return typeof reverse === 'function' ? reverse(latitude, longitude) : reverse;
+    },
   });
 
   return {
     editor,
     writes,
+    reverseCalls,
     republished: () => republished,
     raw: () => raw,
     locations: () => config.locations,
@@ -212,6 +220,14 @@ test('the list is capped, and says how to make room', async () => {
 // The way out of the cases geocoding cannot serve: an address the Base Adresse
 // Nationale does not know, a plot with no street, a point read off a map.
 
+/** The address the Base Adresse Nationale answers for a point. */
+const OULLINS = {
+  label: 'Grande Rue 69600 Oullins-Pierre-Bénite',
+  city: 'Oullins-Pierre-Bénite',
+  latitude: 45.71368,
+  longitude: 4.80517,
+};
+
 test('a typed latitude and longitude add the location without geocoding', async () => {
   const h = harness();
   forbidGeocoder();
@@ -225,9 +241,62 @@ test('a typed latitude and longitude add the location without geocoding', async 
   assert.equal(saved.name, 'Parcelle');
   assert.equal(saved.latitude, 44.01);
   assert.equal(saved.longitude, 1.35);
-  assert.equal(saved.address_label, '', 'no address was typed, and none was invented');
+  assert.equal(saved.address_label, '', 'the point falls on no address the BAN knows');
   assert.match(message.fr, /Parcelle/);
   assert.equal(h.republished(), 1);
+});
+
+test('a typed point is labelled with the address it falls on', async () => {
+  // Without this the listing read "45.71368, 4.80517 — 45.71368, 4.80517" and
+  // the device was named after two decimals. The point is still the one typed.
+  const h = harness({}, { reverse: OULLINS });
+  forbidGeocoder();
+  await h.editor.actions.rechercher_adresse({ latitude: '45.71368', longitude: '4.80517' });
+
+  const [saved] = h.locations();
+  assert.equal(saved.address_label, 'Grande Rue 69600 Oullins-Pierre-Bénite');
+  assert.equal(saved.name, 'Oullins-Pierre-Bénite', 'named after its town, like a geocoded one');
+  assert.equal(saved.latitude, 45.71368, 'the label never moves the point');
+  assert.equal(saved.longitude, 4.80517);
+  assert.deepEqual(h.reverseCalls, [[45.71368, 4.80517]]);
+});
+
+test('a name typed by the user survives the address lookup', async () => {
+  const h = harness({}, { reverse: OULLINS });
+  forbidGeocoder();
+  await h.editor.actions.rechercher_adresse({
+    nom: 'Jardin',
+    latitude: '45.71368',
+    longitude: '4.80517',
+  });
+
+  const [saved] = h.locations();
+  assert.equal(saved.name, 'Jardin');
+  assert.equal(saved.address_label, 'Grande Rue 69600 Oullins-Pierre-Bénite');
+});
+
+test('a point whose address cannot be looked up is still added', async () => {
+  // The address is a label; the point is what is watched. A geocoder outage
+  // must not refuse coordinates the user read off a map.
+  const h = harness(
+    {},
+    {
+      reverse: () => {
+        throw new Error('Base Adresse Nationale HTTP 503');
+      },
+    },
+  );
+  forbidGeocoder();
+  const message = await h.editor.actions.rechercher_adresse({
+    latitude: '45.71368',
+    longitude: '4.80517',
+  });
+
+  const [saved] = h.locations();
+  assert.equal(saved.latitude, 45.71368);
+  assert.equal(saved.address_label, '');
+  assert.equal(saved.name, '45.71368, 4.80517', 'no town to name it after');
+  assert.match(message.fr, /ajouté/);
 });
 
 test('a typed point is accepted with the French decimal separator', async () => {
@@ -242,7 +311,7 @@ test('a typed point is accepted with the French decimal separator', async () => 
 });
 
 test('a typed point wins over the address, which stays as its label', async () => {
-  const h = harness();
+  const h = harness({}, { reverse: OULLINS });
   forbidGeocoder();
   await h.editor.actions.rechercher_adresse({
     adresse: 'Le pré du bas',
@@ -254,6 +323,7 @@ test('a typed point wins over the address, which stays as its label', async () =
   assert.equal(saved.latitude, 44.01, 'the point the user gave is the point that is watched');
   assert.equal(saved.address_label, 'Le pré du bas');
   assert.equal(saved.name, 'Le pré du bas', 'and it names the location, there being no town');
+  assert.deepEqual(h.reverseCalls, [], 'the user wrote the label: nothing to look up');
 });
 
 test('an unnamed point with no address is named after itself', async () => {
@@ -310,6 +380,18 @@ test('afficher_lieux numbers every configured location', async () => {
   assert.match(message.fr, new RegExp(`2/${MAX_LOCATIONS}`), 'and how much room is left');
   assert.equal(h.writes.length, 0, 'a listing writes nothing');
   assert.equal(h.republished(), 0);
+});
+
+test('afficher_lieux puts one location per line, the header on its own', async () => {
+  const h = harness(installed([MAISON, JARDIN]));
+  const message = await h.editor.actions.afficher_lieux();
+
+  for (const language of ['fr', 'en']) {
+    const lines = message[language].split('\n');
+    assert.equal(lines.length, 3, `${language}: a header line, then one line per location`);
+    assert.match(lines[1], /^1\. Maison/);
+    assert.match(lines[2], /^2\. Jardin/);
+  }
 });
 
 test('afficher_lieux lists a location that cannot be published either', async () => {

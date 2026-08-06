@@ -121,8 +121,8 @@
         "fr": "Ajouter un lieu (rechercher une adresse)"
       },
       "description": {
-        "en": "Geocodes the address on the official Base Adresse Nationale and adds a location watching that point. Fill the latitude and the longitude in instead to add a point directly, without geocoding. Its device then shows up in the Discovery tab, and \"Show the locations\" lists it.",
-        "fr": "Géocode l’adresse sur la Base Adresse Nationale officielle et ajoute un lieu surveillant ce point. Renseignez plutôt la latitude et la longitude pour ajouter un point directement, sans géocodage. Son appareil apparaît ensuite dans l’onglet Découverte, et « Afficher les lieux » le liste."
+        "en": "Geocodes the address on the official Base Adresse Nationale and adds a location watching that point. Fill the latitude and the longitude in instead to add a point directly: the address it falls on is then looked up for you, as the location's label. Its device shows up in the Discovery tab, and \"Show the locations\" lists it.",
+        "fr": "Géocode l’adresse sur la Base Adresse Nationale officielle et ajoute un lieu surveillant ce point. Renseignez plutôt la latitude et la longitude pour ajouter un point directement : l’adresse correspondante est alors recherchée pour vous, comme libellé du lieu. Son appareil apparaît dans l’onglet Découverte, et « Afficher les lieux » le liste."
       },
       "timeout_seconds": 30,
       "fields": [
@@ -168,8 +168,8 @@
             "fr": "Latitude (facultatif)"
           },
           "description": {
-            "en": "WGS-84 decimal degrees, -90 to 90. Filled in together with the longitude, this point is used as it is and the address is only kept as a label.",
-            "fr": "Degrés décimaux WGS-84, de -90 à 90. Renseignée avec la longitude, ce point est utilisé tel quel et l’adresse ne sert plus que de libellé."
+            "en": "WGS-84 decimal degrees, -90 to 90. Filled in together with the longitude, this point is used as it is; the address above is then only a label, and is looked up automatically when you leave it empty.",
+            "fr": "Degrés décimaux WGS-84, de -90 à 90. Renseignée avec la longitude, ce point est utilisé tel quel ; l’adresse ci-dessus ne sert plus que de libellé, et elle est recherchée automatiquement si vous la laissez vide."
           },
           "required": false,
           "placeholder": {
@@ -203,8 +203,8 @@
         "fr": "Afficher les lieux"
       },
       "description": {
-        "en": "Lists every configured location, numbered: name, address and coordinates. The numbers are the ones the deletion dropdown offers.",
-        "fr": "Liste tous les lieux configurés, numérotés : nom, adresse et coordonnées. Les numéros sont ceux que propose la liste déroulante de la suppression."
+        "en": "Lists every configured location, numbered and one per line: name, address and coordinates. The numbers are the ones the deletion dropdown offers.",
+        "fr": "Liste tous les lieux configurés, numérotés et un par ligne : nom, adresse et coordonnées. Les numéros sont ceux que propose la liste déroulante de la suppression."
       },
       "timeout_seconds": 15
     },

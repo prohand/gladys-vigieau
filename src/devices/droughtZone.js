@@ -19,7 +19,7 @@ import {
   DEVICE_FEATURE_TYPES,
 } from '@gladysassistant/integration-sdk';
 import { deviceIds } from './identity.js';
-import { locationQuery, usableLocations } from '../locations.js';
+import { LOCATION_LINE_SEPARATOR, locationQuery, usableLocations } from '../locations.js';
 import {
   AMBIGUOUS_COMMUNE,
   fetchZones,
@@ -172,6 +172,54 @@ const NO_LOCATION_MESSAGE = {
   fr: 'Aucun lieu avec des coordonnées utilisables. Ajoutez-en un avec « Ajouter un lieu ».',
 };
 
+// Marker opening each location's line. The lines are separated by a real
+// newline, which today's Configuration screen collapses into a space (see
+// describeLocations in src/locations.js): the bullet is what keeps the entries
+// apart in the meantime, and reads as a list either way.
+const LINE_MARKER = '• ';
+
+/**
+ * A header plus one line per location, in both languages.
+ * @param {{ en: string, fr: string }} header
+ * @param {Array<{ en: string, fr: string }>} lines
+ */
+function report(header, lines) {
+  const join = (language) =>
+    lines.map((line) => `${LINE_MARKER}${line[language]}`).join(LOCATION_LINE_SEPARATOR);
+  return {
+    en: `${header.en}${LOCATION_LINE_SEPARATOR}${join('en')}`,
+    fr: `${header.fr}${LOCATION_LINE_SEPARATOR}${join('fr')}`,
+  };
+}
+
+/**
+ * Run `read` on every reported location, turning a failure into a line rather
+ * than into a rejection.
+ *
+ * The same rule as the refresh cycle, and for the same reason: one location
+ * VigiEau refuses must not hide the answer of the others. A `Promise.all` here
+ * made a single bad point fail the WHOLE action — the screen then showed one
+ * bare error for an install that mostly worked, and nothing said which location
+ * it came from.
+ *
+ * @param {Array<object>} locations
+ * @param {(location: object) => Promise<{ en: string, fr: string }>} read
+ * @returns {Promise<{ lines: Array<object>, failed: number }>}
+ */
+async function readEachLocation(locations, read) {
+  const lines = await Promise.all(
+    locations.map(async (location) => {
+      try {
+        return { failed: false, ...(await read(location)) };
+      } catch (err) {
+        logger.error(`VigiEau query failed for ${location.name}`, err);
+        return { failed: true, ...failureMessage(err, location.name) };
+      }
+    }),
+  );
+  return { lines, failed: lines.filter((line) => line.failed).length };
+}
+
 export const droughtZone = {
   key: DEVICE_TYPE,
 
@@ -229,24 +277,29 @@ export const droughtZone = {
         return NO_LOCATION_MESSAGE;
       }
       logger.info(`Action test_vigieau -> live request for ${locations.length} location(s)`);
-      const results = await Promise.all(
-        locations.map(async (location) => {
-          const { level, levelsByType } = summarize(
-            await fetchZones(locationQuery(config, location)),
-          );
-          const detail = ZONE_TYPES.map((type) => `${type}: ${levelsByType[type] ?? '?'}`).join(
-            ', ',
-          );
-          return {
-            en: `${location.name}: ${severityLabel(level, 'en')} (${detail})`,
-            fr: `${location.name} : ${severityLabel(level, 'fr')} (${detail})`,
-          };
-        }),
-      );
-      return {
-        en: `VigiEau OK — ${results.map((result) => result.en).join(' | ')}.`,
-        fr: `VigiEau OK — ${results.map((result) => result.fr).join(' | ')}.`,
-      };
+      const { lines, failed } = await readEachLocation(locations, async (location) => {
+        const { level, levelsByType } = summarize(
+          await fetchZones(locationQuery(config, location)),
+        );
+        const detail = ZONE_TYPES.map((type) => `${type}: ${levelsByType[type] ?? '?'}`).join(', ');
+        return {
+          en: `${location.name}: ${severityLabel(level, 'en')} (${detail})`,
+          fr: `${location.name} : ${severityLabel(level, 'fr')} (${detail})`,
+        };
+      });
+      // "VigiEau OK" only when it actually is: the header counts the locations
+      // that failed, and each of their lines says why.
+      const header =
+        failed === 0
+          ? {
+              en: `VigiEau OK — ${locations.length} location(s):`,
+              fr: `VigiEau OK — ${locations.length} lieu(x) :`,
+            }
+          : {
+              en: `VigiEau — ${failed} of ${locations.length} location(s) failing:`,
+              fr: `VigiEau — ${failed} lieu(x) en échec sur ${locations.length} :`,
+            };
+      return report(header, lines);
     },
 
     async show_restrictions(gladys, { config }) {
@@ -255,35 +308,36 @@ export const droughtZone = {
         return NO_LOCATION_MESSAGE;
       }
       logger.info(`Action show_restrictions -> live request for ${locations.length} location(s)`);
-      const lines = await Promise.all(
-        locations.map(async (location) => {
-          const { restrictedUsages, arrete } = summarize(
-            await fetchZones(locationQuery(config, location)),
-          );
-          if (restrictedUsages.length === 0) {
-            return {
-              en: `${location.name}: no restricted usage`,
-              fr: `${location.name} : aucun usage restreint`,
-            };
-          }
-          // The message is displayed under the button: keep it short, and point
-          // at the decree for the exact wording.
-          const names = restrictedUsages
-            .slice(0, 6)
-            .map((usage) => usage.nom)
-            .join(', ');
-          const more = restrictedUsages.length > 6 ? `, +${restrictedUsages.length - 6}` : '';
-          const decree = arrete?.cheminFichier ? ` — ${arrete.cheminFichier}` : '';
+      const { lines } = await readEachLocation(locations, async (location) => {
+        const { restrictedUsages, arrete } = summarize(
+          await fetchZones(locationQuery(config, location)),
+        );
+        if (restrictedUsages.length === 0) {
           return {
-            en: `${location.name}: ${restrictedUsages.length} restricted usage(s): ${names}${more}${decree}`,
-            fr: `${location.name} : ${restrictedUsages.length} usage(s) restreint(s) : ${names}${more}${decree}`,
+            en: `${location.name}: no restricted usage`,
+            fr: `${location.name} : aucun usage restreint`,
           };
-        }),
+        }
+        // The message is displayed under the button: keep it short, and point
+        // at the decree for the exact wording.
+        const names = restrictedUsages
+          .slice(0, 6)
+          .map((usage) => usage.nom)
+          .join(', ');
+        const more = restrictedUsages.length > 6 ? `, +${restrictedUsages.length - 6}` : '';
+        const decree = arrete?.cheminFichier ? ` — ${arrete.cheminFichier}` : '';
+        return {
+          en: `${location.name}: ${restrictedUsages.length} restricted usage(s): ${names}${more}${decree}`,
+          fr: `${location.name} : ${restrictedUsages.length} usage(s) restreint(s) : ${names}${more}${decree}`,
+        };
+      });
+      return report(
+        {
+          en: `Restrictions in force — ${locations.length} location(s):`,
+          fr: `Restrictions en vigueur — ${locations.length} lieu(x) :`,
+        },
+        lines,
       );
-      return {
-        en: lines.map((line) => line.en).join(' | '),
-        fr: lines.map((line) => line.fr).join(' | '),
-      };
     },
   },
 
