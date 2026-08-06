@@ -10,6 +10,7 @@ import { FEATURE, MIN_REFRESH_SECONDS } from '../src/devices/droughtZone.js';
 import { deviceIds, forgetAdoptedDevices } from '../src/devices/identity.js';
 import { normalizeConfig } from '../src/config.js';
 import { createFakeGladys, zonesFixture } from './helpers/fakeGladys.js';
+import { plain } from './helpers/text.js';
 
 /** A configuration watching the given locations. */
 function configWith(...locations) {
@@ -389,7 +390,7 @@ test('the test_vigieau action returns a multi-language message with the level', 
   assert.match(message.fr, /Alerte renforcée/);
   assert.match(message.en, /Reinforced alert/);
   assert.match(message.fr, /SOU: 3/);
-  assert.match(message.fr, /Maison/);
+  assert.match(plain(message.fr), /Maison/);
 });
 
 test('test_vigieau covers every location when none is named', async () => {
@@ -402,8 +403,8 @@ test('test_vigieau covers every location when none is named', async () => {
     fields: {},
     config: configWith(MAISON, JARDIN),
   });
-  assert.match(message.fr, /Maison/);
-  assert.match(message.fr, /Jardin/);
+  assert.match(plain(message.fr), /Maison/);
+  assert.match(plain(message.fr), /Jardin/);
 });
 
 test('a location without usable coordinates is left out of the report', async () => {
@@ -413,8 +414,8 @@ test('a location without usable coordinates is left out of the report', async ()
     fields: {},
     config: configWith(MAISON, { id: 'loc-vide', name: 'Chalet' }),
   });
-  assert.match(message.fr, /Maison/);
-  assert.doesNotMatch(message.fr, /Chalet/, 'nothing to query, nothing to say');
+  assert.match(plain(message.fr), /Maison/);
+  assert.doesNotMatch(plain(message.fr), /Chalet/, 'nothing to query, nothing to say');
 });
 
 test('test_vigieau puts one location per line, under a header of its own', async () => {
@@ -429,12 +430,36 @@ test('test_vigieau puts one location per line, under a header of its own', async
   });
 
   for (const language of ['fr', 'en']) {
-    const lines = message[language].split('\n');
+    const lines = plain(message[language]).split('\n');
     assert.equal(lines.length, 3, `${language}: a header, then one line per location`);
     assert.match(lines[0], /VigiEau OK/);
-    assert.match(lines[1], /^• .*Maison/);
-    assert.match(lines[2], /^• .*Jardin/);
+    // EXACTLY the shape of "Afficher les lieux": • number. name — detail. The
+    // three reporting actions answer about the same list, so they read as the
+    // same list — same numbers, same order, same layout.
+    assert.match(lines[1], /^• 1\. Maison — /);
+    assert.match(lines[2], /^• 2\. Jardin — /);
   }
+});
+
+test('a report numbers a location by its position in the WHOLE list', async () => {
+  // Those numbers are the ones "Afficher les lieux" prints and the delete
+  // dropdown offers. Numbering the QUERIED locations instead would give the
+  // third location the number 2 as soon as the second one has no usable point,
+  // and "Lieu 2" would then delete the wrong one.
+  const gladys = createFakeGladys();
+  stubVigieauByLatitude({
+    48.8566: { payload: zonesFixture() },
+    45.764: { payload: [{ type: 'SUP', niveauGravite: 'vigilance' }] },
+  });
+  const message = await droughtZone.actions.test_vigieau(gladys, {
+    fields: {},
+    config: configWith(MAISON, { id: 'loc-vide', name: 'Chalet' }, JARDIN),
+  });
+
+  const lines = plain(message.fr).split('\n');
+  assert.equal(lines.length, 3, 'the unusable location is not queried');
+  assert.match(lines[1], /^• 1\. Maison — /);
+  assert.match(lines[2], /^• 3\. Jardin — /);
 });
 
 test('one location VigiEau refuses does not sink the report of the others', async () => {
@@ -451,9 +476,9 @@ test('one location VigiEau refuses does not sink the report of the others', asyn
     config: configWith(MAISON, JARDIN),
   });
 
-  assert.match(message.fr, /Maison/, 'the location that answered is still reported');
+  assert.match(plain(message.fr), /Maison/, 'the location that answered is still reported');
   assert.match(message.fr, /Alerte renforcée/);
-  assert.match(message.fr, /Jardin/, 'and the failing one says which it is');
+  assert.match(plain(message.fr), /Jardin/, 'and the failing one says which it is');
   assert.match(message.fr, /adresse plus précise/, 'with what to do about a 409');
   assert.match(message.fr, /1 lieu\(x\) en échec sur 2/, 'the header stops claiming "VigiEau OK"');
   assert.doesNotMatch(message.fr, /VigiEau OK/);
@@ -471,7 +496,7 @@ test('show_restrictions reports a failing location instead of failing whole', as
   });
 
   assert.match(message.fr, /Remplissage des piscines/, 'the location that answered is reported');
-  assert.match(message.fr, /Jardin.*500/s, 'and the other one says what went wrong');
+  assert.match(plain(message.fr), /Jardin — .*500/s, 'and the other one says what went wrong');
   const lines = message.fr.split('\n');
   assert.equal(lines.length, 3, 'a header, then one line per location');
 });

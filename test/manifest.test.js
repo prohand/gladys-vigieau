@@ -125,6 +125,19 @@ test('listing the locations is an action, and the only display there is', () => 
   assert.match(listing.description.fr, /numéro/i);
 });
 
+test('the three reporting actions announce the SAME entry format', () => {
+  // They answer about the same list of locations, under the same numbers: the
+  // listing, the connection test and the restrictions all print
+  // "• number. name — detail" (see locationLine in src/locations.js), and each
+  // description says so rather than describing a layout of its own.
+  for (const key of ['afficher_lieux', 'test_vigieau', 'show_restrictions']) {
+    const reporting = action(key);
+    assert.match(reporting.description.fr, /•/, `${key} documents the entry marker`);
+    assert.match(reporting.description.fr, /numéro/i, `${key} documents the entry number`);
+    assert.match(reporting.description.en, /•/);
+  }
+});
+
 test('the delete action names a location by its number in the listing', () => {
   const deletePicker = (action('supprimer_lieu').fields ?? []).find((f) => f.key === 'lieu');
   assert.ok(deletePicker, 'the only dropdown left, and it deletes');

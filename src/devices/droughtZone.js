@@ -20,9 +20,10 @@ import {
 } from '@gladysassistant/integration-sdk';
 import { deviceIds } from './identity.js';
 import {
-  LOCATION_LINE_MARKER,
   LOCATION_LINE_SEPARATOR,
+  locationLine,
   locationQuery,
+  positionOf,
   usableLocations,
 } from '../locations.js';
 import {
@@ -78,25 +79,40 @@ function severityFeature(externalId, name) {
 }
 
 /**
- * Why the last refresh failed, in the user's language.
+ * Why a location could not be read, WITHOUT naming it: in a list, the line
+ * already opens with its number and its name (see `report`), and repeating them
+ * inside the detail is what made a failing entry look unlike a working one.
  *
  * The ambiguous-zone case gets its own wording: it is not a transient outage
  * but a location that is not precise enough, and "VigiEau HTTP 409" tells
  * nobody that a street address is the way out.
  * @param {unknown} err
- * @param {string} locationName
  */
-function failureMessage(err, locationName) {
+function failureDetail(err) {
   if (err?.code === AMBIGUOUS_COMMUNE) {
     return {
-      en: `${locationName}: VigiEau cannot tell which zone applies here. Search again with a more precise address (street and number).`,
-      fr: `${locationName} : VigiEau n'arrive pas à déterminer la zone applicable ici. Relancez la recherche avec une adresse plus précise (rue et numéro).`,
+      en: 'VigiEau cannot tell which zone applies here. Search again with a more precise address (street and number).',
+      fr: "VigiEau n'arrive pas à déterminer la zone applicable ici. Relancez la recherche avec une adresse plus précise (rue et numéro).",
     };
   }
   const reason = String(err?.message ?? err).slice(0, 120);
   return {
-    en: `${locationName}: VigiEau refresh failed: ${reason}`,
-    fr: `${locationName} : le rafraîchissement VigiEau a échoué : ${reason}`,
+    en: `VigiEau refresh failed: ${reason}`,
+    fr: `le rafraîchissement VigiEau a échoué : ${reason}`,
+  };
+}
+
+/**
+ * The same reason, named, for the one-line connection status: it is not a list,
+ * so nothing else there says which location failed.
+ * @param {unknown} err
+ * @param {string} locationName
+ */
+function failureMessage(err, locationName) {
+  const detail = failureDetail(err);
+  return {
+    en: `${locationName}: ${detail.en}`,
+    fr: `${locationName} : ${detail.fr}`,
   };
 }
 
@@ -180,15 +196,21 @@ const NO_LOCATION_MESSAGE = {
 /**
  * A header plus one line per location, in both languages.
  *
- * Same shape as the location listing, and for the same reason: the newline is
- * collapsed by today's Configuration screen, so the marker opening each entry
- * is what keeps them apart (see LOCATION_LINE_MARKER in src/locations.js).
+ * EXACTLY the format of the location listing — `• n. name — detail`, built by
+ * the same `locationLine` — because the three reporting actions answer about
+ * the same list: reading "Tester la connexion" then "Afficher les lieux" should
+ * be reading the same locations in the same order under the same numbers, not
+ * translating one layout into another. The marker opening each entry is what
+ * keeps them apart once the Configuration screen collapses the newlines (see
+ * LOCATION_LINE_MARKER in src/locations.js).
  * @param {{ en: string, fr: string }} header
- * @param {Array<{ en: string, fr: string }>} lines
+ * @param {Array<{ position: number, name: string, en: string, fr: string }>} lines
  */
 function report(header, lines) {
   const join = (language) =>
-    lines.map((line) => `${LOCATION_LINE_MARKER}${line[language]}`).join(LOCATION_LINE_SEPARATOR);
+    lines
+      .map((line) => locationLine(line.position, line.name, line[language]))
+      .join(LOCATION_LINE_SEPARATOR);
   return {
     en: `${header.en}${LOCATION_LINE_SEPARATOR}${join('en')}`,
     fr: `${header.fr}${LOCATION_LINE_SEPARATOR}${join('fr')}`,
@@ -205,18 +227,27 @@ function report(header, lines) {
  * bare error for an install that mostly worked, and nothing said which location
  * it came from.
  *
+ * `read` returns the DETAIL only: the number and the name of the entry are the
+ * report's business, and they are the same whether the location answered or
+ * not. The number is the location's position in the WHOLE list — the one the
+ * listing prints and the delete dropdown offers — not its rank among the
+ * queried ones, so an unusable location in the middle does not shift the
+ * numbers of the others.
+ *
+ * @param {object} config - the normalized configuration, for the positions
  * @param {Array<object>} locations
  * @param {(location: object) => Promise<{ en: string, fr: string }>} read
  * @returns {Promise<{ lines: Array<object>, failed: number }>}
  */
-async function readEachLocation(locations, read) {
+async function readEachLocation(config, locations, read) {
   const lines = await Promise.all(
     locations.map(async (location) => {
+      const entry = { position: positionOf(config.locations, location.id), name: location.name };
       try {
-        return { failed: false, ...(await read(location)) };
+        return { ...entry, failed: false, ...(await read(location)) };
       } catch (err) {
         logger.error(`VigiEau query failed for ${location.name}`, err);
-        return { failed: true, ...failureMessage(err, location.name) };
+        return { ...entry, failed: true, ...failureDetail(err) };
       }
     }),
   );
@@ -280,14 +311,14 @@ export const droughtZone = {
         return NO_LOCATION_MESSAGE;
       }
       logger.info(`Action test_vigieau -> live request for ${locations.length} location(s)`);
-      const { lines, failed } = await readEachLocation(locations, async (location) => {
+      const { lines, failed } = await readEachLocation(config, locations, async (location) => {
         const { level, levelsByType } = summarize(
           await fetchZones(locationQuery(config, location)),
         );
-        const detail = ZONE_TYPES.map((type) => `${type}: ${levelsByType[type] ?? '?'}`).join(', ');
+        const byType = ZONE_TYPES.map((type) => `${type}: ${levelsByType[type] ?? '?'}`).join(', ');
         return {
-          en: `${location.name}: ${severityLabel(level, 'en')} (${detail})`,
-          fr: `${location.name} : ${severityLabel(level, 'fr')} (${detail})`,
+          en: `${severityLabel(level, 'en')} (${byType})`,
+          fr: `${severityLabel(level, 'fr')} (${byType})`,
         };
       });
       // "VigiEau OK" only when it actually is: the header counts the locations
@@ -311,14 +342,14 @@ export const droughtZone = {
         return NO_LOCATION_MESSAGE;
       }
       logger.info(`Action show_restrictions -> live request for ${locations.length} location(s)`);
-      const { lines } = await readEachLocation(locations, async (location) => {
+      const { lines } = await readEachLocation(config, locations, async (location) => {
         const { restrictedUsages, arrete } = summarize(
           await fetchZones(locationQuery(config, location)),
         );
         if (restrictedUsages.length === 0) {
           return {
-            en: `${location.name}: no restricted usage`,
-            fr: `${location.name} : aucun usage restreint`,
+            en: 'no restricted usage',
+            fr: 'aucun usage restreint',
           };
         }
         // The message is displayed under the button: keep it short, and point
@@ -330,8 +361,8 @@ export const droughtZone = {
         const more = restrictedUsages.length > 6 ? `, +${restrictedUsages.length - 6}` : '';
         const decree = arrete?.cheminFichier ? ` — ${arrete.cheminFichier}` : '';
         return {
-          en: `${location.name}: ${restrictedUsages.length} restricted usage(s): ${names}${more}${decree}`,
-          fr: `${location.name} : ${restrictedUsages.length} usage(s) restreint(s) : ${names}${more}${decree}`,
+          en: `${restrictedUsages.length} restricted usage(s): ${names}${more}${decree}`,
+          fr: `${restrictedUsages.length} usage(s) restreint(s) : ${names}${more}${decree}`,
         };
       });
       return report(

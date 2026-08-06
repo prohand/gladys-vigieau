@@ -17,6 +17,8 @@ import assert from 'node:assert/strict';
 import { createLocationEditor } from '../src/locationEditor.js';
 import { normalizeConfig } from '../src/config.js';
 import { MAX_LOCATIONS } from '../src/locations.js';
+import { boldLabel } from '../src/richText.js';
+import { plain } from './helpers/text.js';
 
 const realFetch = globalThis.fetch;
 
@@ -375,8 +377,14 @@ test('afficher_lieux numbers every configured location', async () => {
   const h = harness(installed([MAISON, JARDIN]));
   const message = await h.editor.actions.afficher_lieux();
 
-  assert.match(message.fr, /1\. Maison — 12 Rue des Lilas 75001 Paris \(48\.85660, 2\.35220\)/);
-  assert.match(message.fr, /2\. Jardin — 3 Rue Garibaldi 69003 Lyon \(45\.76400, 4\.83570\)/);
+  assert.match(
+    plain(message.fr),
+    /1\. Maison — 12 Rue des Lilas 75001 Paris \(48\.85660, 2\.35220\)/,
+  );
+  assert.match(
+    plain(message.fr),
+    /2\. Jardin — 3 Rue Garibaldi 69003 Lyon \(45\.76400, 4\.83570\)/,
+  );
   assert.match(message.fr, new RegExp(`2/${MAX_LOCATIONS}`), 'and how much room is left');
   assert.equal(h.writes.length, 0, 'a listing writes nothing');
   assert.equal(h.republished(), 0);
@@ -389,8 +397,11 @@ test('afficher_lieux puts one location per line, the header on its own', async (
   for (const language of ['fr', 'en']) {
     const lines = message[language].split('\n');
     assert.equal(lines.length, 3, `${language}: a header line, then one line per location`);
-    assert.match(lines[1], /^• 1\. Maison/);
-    assert.match(lines[2], /^• 2\. Jardin/);
+    // "• number. name — detail", the number and the name emphasized: the exact
+    // format the two VigiEau reports print too (see src/locations.js).
+    assert.ok(lines[1].startsWith(`• ${boldLabel('1. Maison')} — `), lines[1]);
+    assert.ok(lines[2].startsWith(`• ${boldLabel('2. Jardin')} — `), lines[2]);
+    assert.match(plain(lines[1]), /^• 1\. Maison — 12 Rue des Lilas/);
   }
 });
 
@@ -403,7 +414,7 @@ test('afficher_lieux stays a list once the Configuration screen collapses the ne
   const message = await h.editor.actions.afficher_lieux();
 
   for (const language of ['fr', 'en']) {
-    const collapsed = message[language].replace(/\n/g, ' ');
+    const collapsed = plain(message[language]).replace(/\n/g, ' ');
     assert.equal(collapsed.split('• 1. ').length - 1, 1, `${language}: one entry per location`);
     assert.equal(collapsed.split('• 2. ').length - 1, 1);
     assert.doesNotMatch(
@@ -437,7 +448,7 @@ test('afficher_lieux shows a location added since the page was loaded', async ()
   stubGeocoder([LYON]);
   await h.editor.actions.rechercher_adresse({ nom: 'Jardin', adresse: '3 rue Garibaldi' });
   const message = await h.editor.actions.afficher_lieux();
-  assert.match(message.fr, /2\. Jardin/);
+  assert.match(plain(message.fr), /2\. Jardin/);
 });
 
 // --- Deleting ----------------------------------------------------------------
@@ -517,7 +528,7 @@ test('deleting a position the list does not reach is refused', async () => {
   const message = await h.editor.actions.supprimer_lieu({ lieu: '3', confirmation: true });
   assert.equal(h.locations().length, 1, 'nothing was deleted');
   assert.match(message.fr, /pas de lieu/);
-  assert.match(message.fr, /Maison/, 'and the answer lists what IS watched');
+  assert.match(plain(message.fr), /Maison/, 'and the answer lists what IS watched');
 });
 
 // --- What is written --------------------------------------------------------

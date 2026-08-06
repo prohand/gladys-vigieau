@@ -29,6 +29,7 @@
 // -----------------------------------------------------------------------------
 
 import { formatCoordinate, toCoordinate } from './coordinates.js';
+import { boldLabel } from './richText.js';
 
 // Config key holding the list. Deliberately absent from the manifest
 // `config_schema`: see the header.
@@ -277,8 +278,7 @@ export function locationQuery(config, location) {
 }
 
 /**
- * One-line description, for the messages shown under the action buttons — the
- * only place the Configuration screen displays anything an integration says.
+ * WHERE a location is, with no name: what the listing prints after the dash.
  *
  * Five decimals is about a metre: enough to recognize the point that was
  * geocoded, short enough to keep the line readable when ten of them follow one
@@ -286,13 +286,24 @@ export function locationQuery(config, location) {
  * than nothing: it is neither published nor queried, and this is what says so.
  * @param {object} location
  */
-export function describeLocation(location) {
+export function locationDetail(location) {
   const point = hasCoordinates(location)
     ? `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}`
     : '—';
-  return location.address_label
-    ? `${location.name} — ${location.address_label} (${point})`
-    : `${location.name} — ${point}`;
+  return location.address_label ? `${location.address_label} (${point})` : point;
+}
+
+/**
+ * One-line description, for the messages shown under the action buttons — the
+ * only place the Configuration screen displays anything an integration says.
+ *
+ * Used INSIDE a sentence ("Lieu 2 « Jardin » ajouté : ..."), where the location
+ * is already named and numbered by the sentence itself; a line of a LIST is
+ * built by `locationLine` instead.
+ * @param {object} location
+ */
+export function describeLocation(location) {
+  return `${location.name} — ${locationDetail(location)}`;
 }
 
 // One entry per line — see describeLocations for what the Configuration screen
@@ -319,6 +330,26 @@ export const LOCATION_LINE_SEPARATOR = '\n';
 export const LOCATION_LINE_MARKER = '• ';
 
 /**
+ * ONE entry of ANY list this integration prints, in the single format the three
+ * reporting actions share: `• n. name — detail`.
+ *
+ * The listing puts the address and the point in `detail`, "Tester la connexion"
+ * puts the severity there and "Afficher les restrictions" the restricted usages
+ * — so the three answers read as the same list of the same locations, and the
+ * number is the one the delete dropdown offers in all three.
+ *
+ * The number and the name are the only thing shown in bold: they are the label
+ * the eye scans to find a location among ten lines, and emphasis costs
+ * something (see src/richText.js) that the detail must not pay.
+ * @param {number} position - 1-based, as `positionOf` counts
+ * @param {string} name
+ * @param {string} detail - what this list says about the location
+ */
+export function locationLine(position, name, detail) {
+  return `${LOCATION_LINE_MARKER}${boldLabel(`${position}. ${name}`)} — ${detail}`;
+}
+
+/**
  * The whole list, numbered, ONE LOCATION PER LINE, as the "Afficher les lieux"
  * action prints it.
  *
@@ -340,6 +371,6 @@ export function describeLocations(locations = []) {
     return 'aucun lieu configuré';
   }
   return locations
-    .map((location, index) => `${LOCATION_LINE_MARKER}${index + 1}. ${describeLocation(location)}`)
+    .map((location, index) => locationLine(index + 1, location.name, locationDetail(location)))
     .join(LOCATION_LINE_SEPARATOR);
 }

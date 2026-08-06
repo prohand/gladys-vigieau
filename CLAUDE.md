@@ -57,7 +57,9 @@ no business logic. Everything else lives under `src/`:
 - **`src/devices/identity.js`** — which `external_id` a device keeps for life. Holds the adoption of
   the devices created by ≤ 1.1.1 (see below).
 - **`src/locations.js`** — the watched location list: its model, its storage format, the position
-  arithmetic the delete dropdown needs, and `describeLocations()`, which renders the listing.
+  arithmetic the delete dropdown needs, and `locationLine()` / `describeLocations()`, which render
+  the ONE entry format the three reporting actions share.
+- **`src/richText.js`** — `boldLabel()`, the only emphasis the Configuration screen can render.
 - **`src/locationEditor.js`** — the location manager: the add, list and delete actions. All its
   dependencies are injected, so it is tested offline.
 - **`src/vigieau.js`** — VigiEau driver. Deliberately split: `fetchZones()` is the only impure part,
@@ -111,6 +113,28 @@ coordinates (`... 69600 Oullins (45.71611, 4.80877) 2. Paris ...`), while a `•
 an address. The number stays because it is what the delete dropdown offers. Do not word a message
 "one per line"/"un par ligne" again: a test fails on it, because that is exactly what the screen
 does not do.
+
+**The three reporting actions print ONE format, built by ONE function.** `afficher_lieux`,
+`test_vigieau` and `show_restrictions` answer about the same list, so they read as the same list:
+`locationLine(position, name, detail)` (`src/locations.js`) renders
+**`• n. nom — <ce que cette liste dit du lieu>`** for all three — the address and the point for the
+listing, the severity for the connection test, the restricted usages for the restrictions, and the
+reason for a location VigiEau refused. Two rules come with it: the number is the location's position
+in the WHOLE list (`positionOf`), never its rank among the queried ones — otherwise "Lieu 2" of the
+report and "Lieu 2" of the delete dropdown stop being the same location as soon as one entry has no
+usable point — and what `read()` returns in `readEachLocation` is the DETAIL only, the name being the
+line's business (`failureDetail` vs `failureMessage`, which still names the location for the
+one-line connection status).
+
+**`n. nom` is bold, and that bold is CHARACTERS, not markup.** The message is a plain text child
+(above): `<b>` would reach the user as three characters. `boldLabel()` (`src/richText.js`) maps the
+label onto the Unicode Mathematical Alphanumeric Symbols block, the only bold that survives. It is
+deliberately confined to that short label — those code points are not letters to a screen reader, to
+find-in-page, or to anything that searches text, so the address, the severity wording and the
+restriction names stay plain. The block stops at ASCII: there is **no bold `é`**, so a label holding
+one (a French town name, very often) is left entirely plain rather than rendered half in a math
+serif and half in the UI font. Tests pin both branches; assertions that read a name out of a message
+go through `plain()` (`test/helpers/text.js`).
 
 Three constraints forced this shape, and none is negotiable:
 
@@ -268,8 +292,8 @@ callback would take the container down — and reports outages through `setConne
 `test_vigieau` and `show_restrictions` obey the same rule, through `readEachLocation()`: a `Promise.all`
 there used to fail the WHOLE action on one bad point, so an install that mostly worked showed a
 single bare error naming no location. Each location now gets its own line — its level, or
-`failureMessage()` saying what went wrong — and the `test_vigieau` header only claims "VigiEau OK"
-when none failed.
+`failureDetail()` saying what went wrong, in the same `• n. nom — …` format either way — and the
+`test_vigieau` header only claims "VigiEau OK" when none failed.
 
 ## Gladys core constraints that are not obvious
 

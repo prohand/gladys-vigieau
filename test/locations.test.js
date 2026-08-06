@@ -27,6 +27,8 @@ import {
   upsertLocation,
   usableLocations,
 } from '../src/locations.js';
+import { boldLabel } from '../src/richText.js';
+import { plain } from './helpers/text.js';
 
 const paris = {
   id: 'loc-1',
@@ -197,7 +199,7 @@ test('positionOf is the number the listing prints and the dropdown offers', () =
 test('describeLocations numbers the list, for the messages under a button', () => {
   // Those numbers are the ones the delete dropdown offers: a `select` holds
   // only the static options the manifest declares, never the location names.
-  const summary = describeLocations([paris, lyon]);
+  const summary = plain(describeLocations([paris, lyon]));
   assert.match(summary, /1\. Maison/);
   assert.match(summary, /2\. Jardin/);
   assert.match(describeLocations([]), /aucun lieu/);
@@ -210,8 +212,29 @@ test('describeLocations puts one location per line', () => {
   // marker opening each entry, which keeps them apart either way.
   const lines = describeLocations([paris, lyon]).split('\n');
   assert.equal(lines.length, 2);
-  assert.match(lines[0], /^• 1\. Maison/);
-  assert.match(lines[1], /^• 2\. Jardin/);
+  assert.match(plain(lines[0]), /^• 1\. Maison — /);
+  assert.match(plain(lines[1]), /^• 2\. Jardin — /);
+});
+
+test('the number and the name of an entry are emphasized, the detail is not', () => {
+  // The only emphasis the Configuration screen can render: it escapes markup,
+  // so bold is bold CHARACTERS (see src/richText.js). It stops at the label —
+  // the address is what the user reads, searches and copies, and those code
+  // points are not the letters they look like.
+  const [line] = describeLocations([
+    { ...lyon, address_label: '3 Rue Garibaldi 69003 Lyon' },
+  ]).split('\n');
+  assert.ok(line.startsWith(`• ${boldLabel('1. Jardin')} — `), line);
+  assert.match(line, /— 3 Rue Garibaldi 69003 Lyon \(45\.76400, 4\.83570\)$/);
+  assert.doesNotMatch(line.slice(line.indexOf(' — ')), /[\u{1D400}-\u{1D7FF}]/u);
+});
+
+test('a name the bold characters cannot spell keeps the label plain', () => {
+  // There is no bold "é" in Unicode, and French town names are full of them.
+  // Half a bold word renders in two typefaces mid-word — a rendering bug, not
+  // emphasis — so such a label is simply left as it is.
+  const [line] = describeLocations([{ ...paris, name: 'Chalet d’été' }]).split('\n');
+  assert.equal(line, '• 1. Chalet d’été — 48.85660, 2.35220');
 });
 
 test('every entry opens with the marker, so a collapsed newline still reads as a list', () => {
@@ -231,7 +254,7 @@ test('describeLocations lists a location that cannot be published either', () =>
   // It is neither published nor queried: this line is the only thing that says
   // why, so leaving it out would hide the entry the user has to fix.
   const broken = { name: 'Cassé', address_label: '', latitude: null, longitude: null };
-  assert.match(describeLocations([paris, broken]), /2\. Cassé/);
+  assert.match(plain(describeLocations([paris, broken])), /2\. Cassé — —/);
 });
 
 // --- What the VigiEau driver is handed ---------------------------------------

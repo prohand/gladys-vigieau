@@ -214,6 +214,10 @@
         "en": "Test the VigiEau connection (all locations)",
         "fr": "Tester la connexion VigiEau (tous les lieux)"
       },
+      "description": {
+        "en": "Queries VigiEau for every location and shows its level, in the format of \"Show the locations\": each entry opens with a \"•\" and its number.",
+        "fr": "Interroge VigiEau pour chaque lieu et affiche son niveau, au format d’« Afficher les lieux » : chaque entrée commence par « • » et son numéro."
+      },
       "timeout_seconds": 60
     },
     {
@@ -221,6 +225,10 @@
       "label": {
         "en": "Show the restrictions in force (all locations)",
         "fr": "Afficher les restrictions en vigueur (tous les lieux)"
+      },
+      "description": {
+        "en": "Lists the restricted usages of every location, in the format of \"Show the locations\": each entry opens with a \"•\" and its number.",
+        "fr": "Liste les usages restreints de chaque lieu, au format d’« Afficher les lieux » : chaque entrée commence par « • » et son numéro."
       },
       "timeout_seconds": 60
     },
