@@ -157,11 +157,10 @@ async function pollLocation(gladys, config, location) {
 /**
  * The locations these two actions report on: ALL of them, every time.
  *
- * They deliberately ignore the selected location. Selecting one costs a click
- * and a page reload (see src/locationEditor.js), and "is VigiEau answering?"
- * and "what is restricted where I live?" are questions about the install, not
- * about one entry of a list — a single click has to answer them for every
- * watched location. The selection is what the EDITING actions work on.
+ * "Is VigiEau answering?" and "what is restricted where I live?" are questions
+ * about the install, not about one entry of a list — a single click has to
+ * answer them for every watched location. Nothing in this screen designates one
+ * location anyway (see src/locationEditor.js).
  * @param {ReturnType<typeof import('../config.js').normalizeConfig>} config
  */
 function reportedLocations(config) {

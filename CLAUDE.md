@@ -56,11 +56,11 @@ no business logic. Everything else lives under `src/`:
   adding a device type means adding a file and one array entry.
 - **`src/devices/identity.js`** — which `external_id` a device keeps for life. Holds the adoption of
   the devices created by ≤ 1.1.1 (see below).
-- **`src/locations.js`** — the watched location list: its model, its storage format, and the position
-  arithmetic the one dropdown needs.
-- **`src/locationEditor.js`** — the location manager: the add/select/delete actions, the config
-  fields that mirror the selected location, and the stale-form guard (see below). All its
-  dependencies are injected, so it is tested offline.
+- **`src/locations.js`** — the watched location list: its model, its storage format, the position
+  arithmetic the delete dropdown needs, and `locationRows()`, which renders the table.
+- **`src/locationEditor.js`** — the location manager: the add/delete actions, and `sync()`, which
+  redraws the table from the stored list. All its dependencies are injected, so it is tested
+  offline.
 - **`src/vigieau.js`** — VigiEau driver. Deliberately split: `fetchZones()` is the only impure part,
   `summarize()` / `toSeverityLevel()` are pure and carry all the mapping logic, which is why the
   severity rules are cheap to test.
@@ -73,34 +73,34 @@ no business logic. Everything else lives under `src/`:
 A blueprint exposes: `key`, `deviceExternalIds(gladys, config)`, `buildDevices(gladys, config)`, and
 optionally `onPoll`, `refresh`, `startPolling`, `actions`.
 
-### Several locations, one device each — and ONE dropdown
+### Several locations, one device each — and a READ-ONLY table
 
-The user watches a LIST of locations, one device per entry, capped at `MAX_LOCATIONS` (10).
+The user watches a LIST of locations, one device per entry, capped at `MAX_LOCATIONS` (10). It is
+built by two actions and by nothing else: **a location is added and deleted, never edited.**
 
 **Where the list lives.** Not in the `config_schema`: it is a fixed set of fields with no repeatable
 one, and a `select` only takes the options written in the manifest. It lives under the off-schema
-`locations` key (next to `selected_location`), which `setIntegrationConfig` documents as free
-internal storage of the integration — JSON-encoded, handed back parsed by `getConfig()`.
+`locations` key, which `setIntegrationConfig` documents as free internal storage of the integration
+— JSON-encoded, handed back parsed by `getConfig()`.
 
-**How the user picks one.** The Configuration screen is three sections. "Pour commencer" presents
-VigiEau and stops there. "Le lieu à surveiller" carries its OWN `lieu` dropdown (the `select` of the
-same name) followed by the four fields that MIRROR the location it points at — `location_name`,
-`address_label`, `latitude`, `longitude`: the integration writes them, the user edits them, and
-"Enregistrer la configuration" writes the edit back into the list. "Réglages généraux" holds what is
-not about one location. The delete action carries a SECOND, independent dropdown, so removing a
-location never depends on what the section above happens to be showing.
+**How the user sees it.** The Configuration screen is three sections, in this order. "Pour
+commencer" presents VigiEau and stops there. "Réglages généraux" holds the two settings shared by
+every location (`profil`, `poll_frequency`) — first, because it is two fields and the table below is
+ten lines. "Informations sur les lieux" is the TABLE: ten `string` fields `lieu_1` … `lieu_10`
+(`ROW_FIELDS`), each holding one line, `Nom | Adresse | Latitude | Longitude`. The integration
+writes them; the positions nothing sits at are written EMPTY, so only the configured locations show.
 
-Both dropdowns offer POSITIONS ("Lieu 1"… "Lieu 10"), and the `lieux` config field — written by the
-integration — is what maps a position to a name. `lieu` IS the selection: `normalizeConfig` derives
-`selectedPosition`/`selectedId` from it, clamped into the list, and `commit()` rewrites it when it
-points past the end.
+**The table is a display, never an input.** Every non-`section` field the screen renders is an
+`<input>` — there is no read-only, multi-line nor repeatable widget in `ConfigSchemaForm.jsx` — so a
+line the user types over is simply rewritten from the store: `locationEditor.sync()` runs on every
+`config-updated` and on every connection, and only writes the lines that actually differ. Nothing in
+that section can create, move or rename a location.
 
-**The ten options are always there, whatever the list holds** — a manifest is a file. Picking "Lieu
-5" with two locations configured is therefore one click away at all times, and clamping it in
-SILENCE is indistinguishable from a Save that did nothing: the screen keeps showing the same
-location and nothing, anywhere, says why. `outOfRangeNotice()` is what makes that case answerable.
+**Ten lines exist whatever the list holds** — a manifest is a file. That is also why the delete
+action names a location by its LINE NUMBER: `locationAtPosition` maps "Lieu 3" to an entry, and the
+table is what tells the user which one that is.
 
-Two constraints forced this shape, and neither is negotiable:
+Three constraints forced this shape, and none is negotiable:
 
 - **A `select` is validated against the manifest's static `options`, so a dropdown can NEVER show
   the location names.** Checked at the `v4.84.4` tag itself, not on master:
@@ -117,32 +117,26 @@ Two constraints forced this shape, and neither is negotiable:
   re-reads the config; `runAction` does not call `loadData()`; and `saveConfigFromFront` returns
   `getConfigForFront()` right after a **fire-and-forget** `sendMessage` (its own JSDoc says so), so
   the answer the front refreshes its fields from is read BEFORE this container has reacted. There is
-  no way to refresh the screen in real time, and no way to reload it — the user presses F5. A Save
-  that could not do what was asked carries its reason in the `lieux` field, which the next page load
-  shows.
+  no way to refresh the screen in real time, and no way to reload it — the user presses F5. Since
+  the table cannot answer either, everything the user has to be told happens under an action button,
+  which is exactly where adding and deleting live.
+- **A Save of an open tab sends back the lines it was loaded with.** The core stores them, so a
+  location added or deleted since that page load would stay on screen for good — hence the redraw on
+  every `config-updated`, not only when the list changes.
 
-### The stale form, and why `staleFields` exists
+**What editing a location used to be, and why it is gone.** Up to this version the section carried a
+`lieu` dropdown pointing four mirror fields (`location_name`, `address_label`, `latitude`,
+`longitude`) at one entry; a Save wrote them back into the list. Two things made it unusable: the
+dropdown could only offer positions (above), and the mirror fields kept showing the PREVIOUS
+location after every selection — the core pushes nothing to an open form — so saving them wrote one
+location's address onto another. A snapshot guard (`staleFields`) made that safe and cost more than
+the feature was worth. Moving a location now means adding the new address and deleting the old line,
+which publishes a NEW device: the old one keeps its own history. Do not bring the selection back
+without re-reading the two constraints above.
 
-The core pushes nothing to a Configuration screen that is already open, and `POST /config` answers
-with `getConfigForFront()` — read BEFORE the integration's own `setConfig` lands, since
-`saveConfigFromFront` only fires `config-updated` and does not await the container. So after the
-integration rewrites the mirror fields (a selection, an add, a delete), the open tab keeps showing
-the PREVIOUS location and would write its address onto the newly selected one.
-
-`commit()` therefore snapshots what the screen was showing whenever it rewrites those fields, and
-`applyFormEdits()` treats a field still equal to that snapshot as untouched — the stored value wins,
-only what the user really typed is applied. The subtlety that cost a bug: a neutralized Save writes
-nothing, so the core keeps the stale values it has just stored and the tab keeps showing them. The
-mirror fields are therefore rewritten (and the guard re-armed) on that path too, so the SECOND save
-of an unreloaded page is as harmless as the first. It stops only when form and store agree, which is
-what a reload achieves. `test/locationEditor.test.js` models the browser faithfully — the form keeps
-what it sent — and every one of those tests fails if the guard is removed.
-
-The dropdown and the mirror fields travel in the SAME Save, so a user can move the selection and
-edit at once. `shownPosition` (in memory, seeded by `sync()` on connection) is what tells a move
-from an ordinary Save — the core sends the new configuration, never the old. The edits are then
-applied to the location the screen WAS showing, because that is what they describe, and the section
-moves on to the newly chosen one.
+Those four keys are gone from the `config_schema`, but their stored VALUES are still handed to the
+integration — `getIntegrationConfig` returns every variable, schema or not — which is what
+`legacyLocations()` reads to migrate an install made before 1.3.0.
 
 ### The device identity does not depend on the configuration
 
@@ -150,8 +144,9 @@ Gladys matches devices, features and states by `external_id`. Up to 1.1.1 it car
 (`ext:vigieau:drought-zone:latlon-48.8566_2.3522`), so changing the address changed the device's
 identity: Discovery offered a second device, the one already in a room went silent, and the user had
 to delete it and lose its history. The location is configuration, not identity — the platform id is
-the location's OWN id, generated once when it is added and never derived from anything editable, so
-moving an address only moves where the same device looks.
+the location's OWN id, generated once when it is added and never derived from anything editable.
+Nothing in the Configuration screen moves a location any more, but the rule is what makes a rename
+or a future edit free of consequence — and it is what an install upgraded from ≤ 1.1.1 relies on.
 
 The single location of an install made before this version is migrated under `FIRST_LOCATION_ID`
 (`location`), which is the very platform id its device was published with — so no external_id moves.
@@ -186,24 +181,22 @@ apart by asking `findCreatedDevice` BEFORE it re-publishes:
 ### The location is a point, never a commune
 
 `latitude`/`longitude` ARE a location, geocoded from the address typed in the `rechercher_adresse`
-action or in the `address_label` field. There is deliberately no INSEE commune code: `GET /api/zones?commune=` answers `409` as soon
+action — the only place an address is ever typed. There is deliberately no INSEE commune code: `GET /api/zones?commune=` answers `409` as soon
 as the commune spans several zones of one water type, and no retry fixes that — a point always falls
 inside exactly one zone per type. The coordinates are only the query — the device `external_id` is
 deliberately independent of them (see above).
 
 Empty coordinates are `null`, never `0`: `Number('')` is `0`, a valid latitude in the Gulf of Guinea.
 
-**They are stored as TEXT, not as numbers** (`type: "string"` in the manifest, parsed by
-`toCoordinate()`). A `number` field is rendered as an `<input type="number">`, and the browser
-sanitizes that input against **its own locale**: on a French browser `48.8566` is not a number, so
-`e.target.value` is `''`, and the Configuration screen drops the key from the payload it saves
-(`saveConfig` skips a `NaN`) — the coordinate silently keeps its previous value. A text field hands
-the integration exactly what was typed, and `toCoordinate()` accepts the comma and the dot alike.
-Two consequences: the range `min`/`max` used to enforce is checked in `src/coordinates.js`
-(`min`/`max` are number-only in the store schema), and anything written back with `setConfig` must
-be a string —
-hence `formatCoordinate()`. `legacyCoordinatePatch()` rewrites the numbers stored by ≤ 1.1.1, whose
-first Save would otherwise 422 as a whole.
+**They are stored as TEXT, not as numbers**, and `toCoordinate()` reads them. No field asks for one
+any more, but the rule holds for whatever does next: a `number` field is rendered as an
+`<input type="number">`, and the browser sanitizes that input against **its own locale**: on a
+French browser `48.8566` is not a number, so `e.target.value` is `''`, and the Configuration screen
+drops the key from the payload it saves (`saveConfig` skips a `NaN`) — the value silently keeps what
+it had. `toCoordinate()` accepts the comma and the dot alike, checks the WGS-84 range itself
+(`min`/`max` are number-only in the store schema), and `formatCoordinate()` writes back the text it
+reads. A coordinate stored as a NUMBER by ≤ 1.1.1 is read just as well, which is all the migration
+needs now that those keys are off-schema.
 
 `isConfigured()` gates discovery: it is true as soon as ONE location has a usable point. With none,
 `publishDevices()` publishes nothing and reports why through `setConnectionStatus` — a device pinned
@@ -284,11 +277,11 @@ The traps, each pinned by a test in `test/manifest.test.js`:
 - `description.en` / `.fr` are capped at **100 characters**;
 - a `select` takes static `options` or the core's `source: "devices"` — and that source has no
   server-side implementation in any released Gladys, so the only usable options are the static ones,
-  which is why the location dropdown offers positions and lives in an action form.
+  which is why the delete dropdown offers line numbers.
 
 Manifest actions are registered per key. The read-only ones live in `blueprint.actions`; the two
-that EDIT the list (`rechercher_adresse`, `supprimer_lieu`) come from `createLocationEditor()` because they write the config back and re-publish the catalog, which is not
-a device's business. `test/manifest.test.js` reads `REGISTRY_LEVEL_ACTIONS` off that factory, so a
+that EDIT the list (`rechercher_adresse`, `supprimer_lieu`) come from `createLocationEditor()`
+because they write the config back and re-publish the catalog, which is not a device's business. `test/manifest.test.js` reads `REGISTRY_LEVEL_ACTIONS` off that factory, so a
 handler added there cannot silently skip the manifest.
 
 ## Releasing

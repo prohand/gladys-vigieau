@@ -16,10 +16,12 @@ import {
   describeLocations,
   locationAtPosition,
   positionOf,
-  clampPosition,
   hasCoordinates,
   legacyLocations,
   locationQuery,
+  locationRow,
+  locationRows,
+  ROW_FIELDS,
   newLocationId,
   normalizeLocations,
   removeLocation,
@@ -189,34 +191,51 @@ test('a position designates a location, the way the dropdown does', () => {
   assert.equal(locationAtPosition([paris], undefined), null);
 });
 
-test('positionOf is the number the user reads in the "lieux" field', () => {
+test('positionOf is the number of the line the user reads in the table', () => {
   assert.equal(positionOf([paris, lyon], 'loc-2'), 2);
   assert.equal(positionOf([paris, lyon], 'nope'), 0);
 });
 
-test('the selected position is always inside the list', () => {
-  // The dropdown always offers ten entries — the manifest is a file — so a
-  // position the list does not reach is one click away at all times, and must
-  // never leave the screen editing a location that does not exist.
-  assert.equal(clampPosition([paris, lyon], '2'), 2);
-  assert.equal(clampPosition([paris, lyon], '7'), 2, 'past the end: the last one');
-  assert.equal(clampPosition([paris], '2'), 1);
-  assert.equal(clampPosition([paris, lyon], '0'), 1);
-  assert.equal(clampPosition([paris, lyon], undefined), 1);
-  assert.equal(clampPosition([paris, lyon], 'nope'), 1);
-  assert.equal(clampPosition([], '3'), 1, 'nothing to point at, but still a valid option');
+test('describeLocations numbers the list, for the messages under a button', () => {
+  const summary = describeLocations([paris, lyon]);
+  assert.match(summary, /1\. Maison/);
+  assert.match(summary, /2\. Jardin/);
+  assert.match(describeLocations([]), /aucun lieu/);
 });
 
-test('describeLocations numbers the list and marks the selected one', () => {
-  const summary = describeLocations([paris, lyon], 2);
-  assert.match(summary, /1\. Maison/);
-  assert.match(summary, /▶ 2\. Jardin/);
-  assert.doesNotMatch(summary, /▶ 1\./, 'only the selected location is marked');
-  assert.match(
-    describeLocations([], 1),
-    /Aucun lieu configuré/,
-    'the one place the screen can say the list is empty',
+// --- The table of the Configuration screen -----------------------------------
+// Ten `string` fields the integration fills in. Every non-section field the
+// screen renders is an <input> — no read-only, no multi-line, no repeatable
+// widget — so one line per position is the only table it can draw.
+
+test('a line carries the four columns the section announces', () => {
+  assert.equal(
+    locationRow({ ...paris, address_label: '12 rue des Lilas' }),
+    'Maison | 12 rue des Lilas | 48.85660 | 2.35220',
   );
+});
+
+test('a missing column is a dash, so the four of them stay aligned', () => {
+  assert.equal(locationRow(paris), 'Maison | — | 48.85660 | 2.35220');
+  assert.equal(
+    locationRow({ name: 'Cassé', address_label: '', latitude: null, longitude: null }),
+    'Cassé | — | — | —',
+  );
+});
+
+test('the table holds one line per position, empty where nothing sits', () => {
+  const rows = locationRows([paris, lyon]);
+  assert.deepEqual(Object.keys(rows), ROW_FIELDS);
+  assert.equal(rows.lieu_1, locationRow(paris));
+  assert.equal(rows.lieu_2, locationRow(lyon));
+  // Written EMPTY rather than skipped: the line of a location that has just
+  // been deleted would otherwise stay on screen for good.
+  assert.equal(rows.lieu_3, '');
+  assert.equal(rows[`lieu_${MAX_LOCATIONS}`], '');
+});
+
+test('the table has exactly as many lines as the list can hold', () => {
+  assert.equal(ROW_FIELDS.length, MAX_LOCATIONS, 'a manifest is a file: the lines are static');
 });
 
 // --- What the VigiEau driver is handed ---------------------------------------

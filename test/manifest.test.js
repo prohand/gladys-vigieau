@@ -8,9 +8,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { DEVICE_BLUEPRINTS } from '../src/devices/index.js';
-import { DEFAULT_CONFIG, DETAIL_FIELDS, PROFILES } from '../src/config.js';
-import { LOCATIONS_KEY, MAX_LOCATIONS, SELECTION_FIELD } from '../src/locations.js';
-import { createLocationEditor, SUMMARY_FIELD } from '../src/locationEditor.js';
+import { DEFAULT_CONFIG, PROFILES } from '../src/config.js';
+import { LOCATIONS_KEY, MAX_LOCATIONS, ROW_FIELDS } from '../src/locations.js';
+import { createLocationEditor } from '../src/locationEditor.js';
 
 const manifest = JSON.parse(
   await readFile(new URL('../gladys-assistant-integration.json', import.meta.url), 'utf8'),
@@ -24,17 +24,11 @@ const packageJson = JSON.parse(await readFile(new URL('../package.json', import.
 // hand, so adding one there cannot silently skip the manifest.
 const REGISTRY_LEVEL_ACTIONS = Object.keys(
   createLocationEditor({
-    getConfig: () => ({ locations: [], selectedPosition: 1, selectedId: '' }),
+    getConfig: () => ({ locations: [] }),
     setConfig: async () => {},
     onLocationsChanged: async () => {},
   }).actions,
 );
-
-// The config fields that MIRROR the selected location instead of storing a
-// setting of their own: the integration writes them, the user edits them, and
-// the edit goes back into the location list. They have no place in
-// DEFAULT_CONFIG — there is no such thing as a default address.
-const MIRROR_FIELDS = [SUMMARY_FIELD, ...DETAIL_FIELDS];
 
 // The store schema only accepts these widget types — 'text' is NOT one of them,
 // the free-text widget is called 'string'. Getting it wrong is rejected at
@@ -87,10 +81,10 @@ test('every registered handler is declared in the manifest', () => {
 });
 
 // --- The location manager ----------------------------------------------------
-// The locations are a list the user builds at runtime. A config_schema is a
-// fixed set of fields with no repeatable one, so the list cannot be a form
-// field: it lives under off-schema keys, and one dropdown points the mirror
-// fields at the entry the user wants to look at.
+// The locations are a list the user builds at runtime through the two actions.
+// A config_schema is a fixed set of fields with no repeatable one, so the list
+// cannot be a form field: it lives under an off-schema key, and the screen only
+// DISPLAYS it, one static line per position.
 
 test('the location list is not a config_schema field', () => {
   const keys = manifest.config_schema.map((f) => f.key);
@@ -100,38 +94,60 @@ test('the location list is not a config_schema field', () => {
   );
 });
 
-test('each part that needs one has its OWN location dropdown', () => {
-  // The "Le lieu a surveiller" section and the delete action pick a location
-  // independently: deleting is not "get rid of whatever I am looking at".
-  const sectionPicker = configField(SELECTION_FIELD);
-  const deletePicker = (action('supprimer_lieu').fields ?? []).find((f) => f.key === 'lieu');
-  assert.ok(sectionPicker, 'the section carries the selector of the fields below it');
-  assert.ok(deletePicker, 'the delete action carries its own');
-
-  for (const field of [sectionPicker, deletePicker]) {
-    assert.equal(field.type, 'select');
-    assert.equal(field.required, true);
-    assert.equal(field.default, '1', 'the first location, which is what is shown by default');
-    // Static options, because that is all a manifest can hold: they are
-    // POSITIONS in the list, and the `lieux` field is what maps a position to
-    // a name. One option per location the integration accepts.
-    assert.deepEqual(
-      field.options.map((option) => option.value),
-      Array.from({ length: MAX_LOCATIONS }, (unused, index) => String(index + 1)),
-      'a dropdown and MAX_LOCATIONS must not drift apart',
-    );
+test('nothing on the Configuration screen selects a location any more', () => {
+  // A `select` is validated against the manifest's STATIC options, so a
+  // dropdown could only ever offer positions, never names — and the fields it
+  // pointed at kept showing the PREVIOUS location, because the core pushes
+  // nothing to a form that is already open. A location is added and deleted,
+  // never edited.
+  for (const key of ['lieu', 'lieux', 'location_name', 'address_label', 'latitude', 'longitude']) {
+    assert.equal(configField(key), undefined, `"${key}" belonged to the editable screen`);
   }
 });
 
-test('the selector of the section sits in the section it belongs to', () => {
+test('the table has one static line per position the list can hold', () => {
+  const lines = manifest.config_schema.filter((f) => ROW_FIELDS.includes(f.key));
+  assert.deepEqual(
+    lines.map((f) => f.key),
+    ROW_FIELDS,
+    'the lines are declared in the order they are numbered',
+  );
+  assert.equal(lines.length, MAX_LOCATIONS, 'the manifest is a file: they cannot be added later');
+  for (const line of lines) {
+    // Filled in by the integration, and rewritten on every save: the screen has
+    // no read-only widget, so this is as close as a display gets.
+    assert.equal(line.type, 'string', 'anything else would be validated against a value we write');
+    assert.notEqual(line.required, true, 'a line is empty until a location sits on it');
+    assert.equal(line.default, '', 'an empty line, never a location made up out of nowhere');
+    assert.ok(line.placeholder?.en, 'an empty line says it is free');
+    assert.ok(!(line.key in DEFAULT_CONFIG), `"${line.key}" displays a location, it stores none`);
+  }
+});
+
+test('the table sits under its own heading, after the general settings', () => {
   const keys = manifest.config_schema.map((f) => f.key);
   assert.ok(
-    keys.indexOf('lieu_section') < keys.indexOf(SELECTION_FIELD),
-    'the dropdown belongs under the "Le lieu a surveiller" heading',
+    keys.indexOf('settings_section') < keys.indexOf('lieux_section'),
+    'the settings are two fields, the table is ten lines: it goes last',
   );
   assert.ok(
-    keys.indexOf(SELECTION_FIELD) < keys.indexOf('settings_section'),
-    'and above the general settings, which are not about one location',
+    keys.indexOf('lieux_section') < keys.indexOf(ROW_FIELDS[0]),
+    'the heading announces the columns of the lines under it',
+  );
+});
+
+test('the delete action names a location by its line number', () => {
+  const deletePicker = (action('supprimer_lieu').fields ?? []).find((f) => f.key === 'lieu');
+  assert.ok(deletePicker, 'the only dropdown left, and it deletes');
+  assert.equal(deletePicker.type, 'select');
+  assert.equal(deletePicker.required, true);
+  assert.equal(deletePicker.default, '1');
+  // Static options, because that is all a manifest can hold: they are the line
+  // numbers of the table, which is what maps a number to a name.
+  assert.deepEqual(
+    deletePicker.options.map((option) => option.value),
+    Array.from({ length: MAX_LOCATIONS }, (unused, index) => String(index + 1)),
+    'the dropdown and MAX_LOCATIONS must not drift apart',
   );
 });
 
@@ -237,29 +253,11 @@ test('placeholders are multi-language objects, never bare strings', () => {
   }
 });
 
-test('the fields mirroring the selected location store no setting of their own', () => {
-  for (const key of MIRROR_FIELDS) {
-    const field = configField(key);
-    assert.ok(field, `"${key}" is written by the integration and must exist in the schema`);
-    assert.equal(field.type, 'string', `"${key}" holds whatever the user typed, verbatim`);
-    assert.notEqual(field.required, true, 'they are empty until a location is added');
-    assert.equal(field.default, '', 'an empty mirror, never a location made up out of nowhere');
-    assert.ok(
-      !(key in DEFAULT_CONFIG),
-      `"${key}" mirrors a location: there is no default address to fall back on`,
-    );
-  }
-});
-
 test('the global settings keep their defaults in DEFAULT_CONFIG', () => {
   for (const field of manifest.config_schema) {
-    // The selector is not a setting either: it points at a list entry, and
-    // `normalizeConfig` derives `selectedPosition` from it.
-    if (
-      field.type === 'section' ||
-      MIRROR_FIELDS.includes(field.key) ||
-      field.key === SELECTION_FIELD
-    ) {
+    // A line of the table is not a setting: it displays a location, and the
+    // integration is what writes it.
+    if (field.type === 'section' || ROW_FIELDS.includes(field.key)) {
       continue;
     }
     assert.ok(field.key in DEFAULT_CONFIG, `DEFAULT_CONFIG is missing "${field.key}"`);
@@ -340,40 +338,32 @@ test('the catalog description stays within the 100-character store limit', () =>
 
 // --- Coordinates -------------------------------------------------------------
 
-test('the coordinates are text fields, so a typed dot survives the browser', () => {
+test('the only number field left is the refresh interval', () => {
   // A `number` field is an <input type="number">, whose value the browser
   // sanitizes against ITS OWN locale: a French browser turns "48.8566" into an
-  // empty string and the front then drops the key from the payload it sends.
-  // The range that `min`/`max` used to enforce is checked in src/coordinates.js.
-  const coordinates = allFields().filter((f) => ['latitude', 'longitude'].includes(f.key));
-  assert.ok(coordinates.length > 0, 'typing the coordinates by hand is still possible');
-  for (const field of coordinates) {
-    assert.equal(field.type, 'string', `"${field.key}" must accept both decimal separators`);
-    assert.equal(field.min, undefined, 'min/max are number-only in the store schema');
-    assert.equal(field.max, undefined, 'min/max are number-only in the store schema');
-  }
+  // empty string and the front then drops the key from the payload it sends —
+  // silently, the value keeping whatever it held. A decimal a user has to type
+  // therefore belongs in a `string` field, parsed here (src/coordinates.js).
+  // An interval in whole seconds is the one number no locale can mangle.
+  assert.deepEqual(
+    allFields()
+      .filter((f) => f.type === 'number')
+      .map((f) => f.key),
+    ['poll_frequency'],
+  );
 });
 
-test('the coordinate examples use the separator of the language they are shown in', () => {
-  // The example is the first thing the user copies: showing "48.8566" to a
-  // French user is telling them to type the separator their own browser used
-  // to refuse.
-  const separators = { fr: ',', en: '.' };
-  const coordinates = allFields().filter((f) => ['latitude', 'longitude'].includes(f.key));
-  for (const field of coordinates) {
-    for (const [language, separator] of Object.entries(separators)) {
-      assert.ok(field.placeholder?.[language], `"${field.key}": no ${language} placeholder`);
-      assert.equal(
-        field.placeholder[language].replace(/\d/g, ''),
-        separator,
-        `"${field.key}": the ${language} example must use "${separator}"`,
-      );
-    }
-  }
+test('the coordinates of the table are displayed, never typed', () => {
+  // They are geocoded from an address, and the line that shows them is a
+  // display: there is no field to type a point into any more.
+  const keys = allFields().map((f) => f.key);
+  assert.ok(!keys.includes('latitude') && !keys.includes('longitude'));
 });
 
-test('the configuration screen explains the postal-code trap', () => {
-  const address = configField('address_label');
+test('the address form explains the postal-code trap', () => {
+  // A postal code covers several communes, and one commune can span several
+  // restriction zones — which is exactly when VigiEau refuses to answer.
+  const address = (action('rechercher_adresse').fields ?? []).find((f) => f.key === 'adresse');
   assert.match(address.description.fr, /code postal/);
   assert.match(address.description.en, /postal code/);
 });
@@ -385,12 +375,8 @@ test('the intro comes before the settings it explains', () => {
     'the note is useless once the user has already scrolled past it',
   );
   assert.ok(
-    keys.indexOf(SUMMARY_FIELD) < keys.indexOf('location_name'),
-    'the list of locations has to be read before the fields that mirror one of them',
-  );
-  assert.ok(
-    keys.indexOf('intro') < keys.indexOf('lieu_section'),
-    'what VigiEau is comes before which location to watch',
+    keys.indexOf('intro') < keys.indexOf('lieux_section'),
+    'what VigiEau is comes before the locations watched',
   );
 });
 

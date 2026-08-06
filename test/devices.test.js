@@ -406,24 +406,6 @@ test('test_vigieau covers every location when none is named', async () => {
   assert.match(message.fr, /Jardin/);
 });
 
-test('test_vigieau ignores the selection and reports on every location', async () => {
-  const gladys = createFakeGladys();
-  const twoLocations = { ...configWith(MAISON, JARDIN), selectedId: 'loc-jardin' };
-  stubVigieauByLatitude({
-    48.8566: { payload: [{ type: 'SUP', niveauGravite: 'alerte' }] },
-    45.764: { payload: [{ type: 'SUP', niveauGravite: 'vigilance' }] },
-  });
-  const message = await droughtZone.actions.test_vigieau(gladys, {
-    fields: {},
-    config: twoLocations,
-  });
-  // "Is VigiEau answering?" is a question about the install, not about one
-  // entry of a list: one click has to answer it for every watched location,
-  // without the select-then-reload round trip the editing actions need.
-  assert.match(message.fr, /Maison/);
-  assert.match(message.fr, /Jardin/);
-});
-
 test('a location without usable coordinates is left out of the report', async () => {
   const gladys = createFakeGladys();
   stubVigieauByLatitude({ 48.8566: { payload: [{ type: 'SUP', niveauGravite: 'alerte' }] } });

@@ -20,7 +20,7 @@
 // -----------------------------------------------------------------------------
 
 import { GladysIntegration, logger } from '@gladysassistant/integration-sdk';
-import { isConfigured, legacyCoordinatePatch, normalizeConfig } from './src/config.js';
+import { isConfigured, normalizeConfig } from './src/config.js';
 import { LOCATIONS_KEY, serializeLocations } from './src/locations.js';
 import { createLocationEditor } from './src/locationEditor.js';
 import {
@@ -134,8 +134,8 @@ async function republish() {
 }
 
 // The location manager owns everything the user does with the watched
-// locations: the "select a location" dropdown, the detail fields that mirror
-// the selected one, and the add/delete actions. It is given the two capabilities
+// locations: the add/delete actions, and the table that displays the list in
+// the Configuration screen. It is given the two capabilities
 // it cannot have on its own — writing the configuration, and re-publishing the
 // catalog — and nothing else, which is what makes it testable offline.
 const locationEditor = createLocationEditor({
@@ -219,16 +219,11 @@ for (const [actionKey, handler] of Object.entries(locationEditor.actions)) {
 gladys.onConfigUpdated(async (newConfig) => {
   logger.info('onConfigUpdated -> new configuration received');
   config = normalizeConfig(newConfig);
-  // The detail fields mirror the selected location: what the user just typed in
-  // them IS the edit. The manager stores it, re-publishes and restarts the
-  // refresh through `republish`, so there is nothing left to do here when it
-  // did something.
-  const applied = await locationEditor.applyFormEdits();
-  if (applied) {
-    logger.info(applied.en);
-    return;
-  }
-  // Only the global settings changed (profile, interval) — or nothing at all.
+  // The Save carries the table lines back as the page loaded them, and the core
+  // stores whatever it was handed: redraw them from the list, which is the only
+  // thing a location is edited through. Nothing else in this screen touches a
+  // location — only the global settings, which `republish` applies.
+  await locationEditor.sync();
   await republish();
 });
 
@@ -242,22 +237,13 @@ gladys.on('connected', async () => {
     const rawConfig = await gladys.getConfig();
     config = normalizeConfig(rawConfig);
 
-    // 1 bis) Coordinates stored as numbers by a version that declared the
-    // fields `number` are rewritten as text. Left alone, the first Save on the
-    // Configuration screen would fail as a whole: the front sends the untouched
-    // stored value back and the core refuses a number under a `string` field.
-    const patch = legacyCoordinatePatch(rawConfig);
-    if (Object.keys(patch).length > 0) {
-      logger.info('Migrating the stored coordinates to text');
-      await gladys.setConfig(patch);
-    }
-
-    // 1 ter) An install made before 1.3.0 kept its single location in the
-    // `location_name` / `latitude` / `longitude` fields. normalizeConfig has
-    // already rebuilt it as the first entry of the list (keeping the very id
-    // its device was published under); persist that so the editing actions
-    // work on a real list. The fields themselves stay: they are now the editor
-    // of the selected location, and they already hold exactly its values.
+    // 1 bis) An install made before 1.3.0 kept its single location in the
+    // `location_name` / `latitude` / `longitude` config fields. normalizeConfig
+    // has already rebuilt it as the first entry of the list (keeping the very
+    // id its device was published under); persist that so the actions work on a
+    // real list. Those fields have left the config_schema — the screen shows a
+    // read-only table now — but their stored values are still handed back by
+    // `getConfig()`, which is what the migration reads.
     if (!Array.isArray(rawConfig?.[LOCATIONS_KEY]) && config.locations.length > 0) {
       logger.info('Migrating the single configured location to the location list');
       await gladys.setConfig({ [LOCATIONS_KEY]: serializeLocations(config.locations) });
@@ -267,15 +253,15 @@ gladys.on('connected', async () => {
       });
     }
 
-    // 1 quater) Inherit the identity of the device the user already created.
+    // 1 ter) Inherit the identity of the device the user already created.
     // The versions up to 1.1.1 built the external_id from the coordinates;
     // without this, upgrading would leave that device orphaned and discover a
     // new one.
     await adoptExistingDevices(gladys, config);
 
-    // 2) Write the Configuration screen from the stored state: the `lieux`
-    // summary, and the detail fields of the selected location. Nothing is
-    // published yet, hence no re-publication here.
+    // 2) Draw the table of the Configuration screen from the stored list — the
+    // migration above may have just rebuilt it. Nothing is published yet, hence
+    // no re-publication here.
     await locationEditor.sync();
 
     // 3) (Re)publish the devices as soon as we are connected. They report

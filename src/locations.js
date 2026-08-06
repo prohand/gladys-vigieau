@@ -17,9 +17,9 @@
 // schema. `setIntegrationConfig` validates the keys the schema declares and
 // treats the others as "a free internal storage of the integration, never
 // displayed in the UI" — stored JSON-encoded and handed back parsed by
-// `getConfig()`. So the list travels as an array under `locations`, and the
-// user manipulates it through the manifest actions and through the config
-// fields that mirror the SELECTED location (see src/locationEditor.js).
+// `getConfig()`. So the list travels as an array under `locations`, the user
+// manipulates it through the two manifest actions, and the Configuration
+// screen only DISPLAYS it, one line per location (see `locationRows`).
 //
 // Coordinates are stored as TEXT here, exactly as the config fields store
 // them, for one reason that has not changed: `Number('')` is `0`, a valid
@@ -33,11 +33,6 @@ import { formatCoordinate, toCoordinate } from './coordinates.js';
 // `config_schema`: see the header.
 export const LOCATIONS_KEY = 'locations';
 
-// The config_schema `select` that points the "Le lieu à surveiller" section at
-// one entry of the list. Its value is a 1-based POSITION, as a string, because
-// a manifest can only hold static options — see `locationAtPosition`.
-export const SELECTION_FIELD = 'lieu';
-
 // Identifier of the location an install created before 1.3.0. It is the
 // platform id the single device was published under, so keeping it as the id
 // of the migrated first location means its external_id does not move and the
@@ -49,10 +44,22 @@ export const FIRST_LOCATION_ID = 'location';
 // public service, and nobody watches fifty drought zones: the cap keeps an
 // accidental loop in the actions from turning an install into a crawler.
 //
-// It is ALSO the number of options the `lieu` select of the "select a
-// location" action declares — those options are positions in this list, and a
-// static manifest cannot offer more of them (a test keeps the two in sync).
+// It is ALSO the number of LINES the "Informations sur les lieux" section
+// declares, and the number of options the delete action's dropdown offers —
+// both are positions in this list, and a static manifest cannot offer more of
+// them (a test keeps the three in sync).
 export const MAX_LOCATIONS = 10;
+
+// The config_schema fields the watched locations are DISPLAYED in: one line
+// per position, `lieu_1` .. `lieu_10`, written by this integration and read by
+// nobody. They are the closest thing to a table the Configuration screen can
+// render — every non-section field is an `<input>`, there is no read-only nor
+// multi-line widget, and the schema is a static file, so the ten lines exist
+// whatever the list holds and the unused ones are simply left empty.
+export const ROW_FIELDS = Array.from(
+  { length: MAX_LOCATIONS },
+  (unused, index) => `lieu_${index + 1}`,
+);
 
 // Long enough that two locations never collide, short enough that
 // `ext:vigieau:drought-zone:loc-3f8a2b1c` stays readable in a log line.
@@ -170,14 +177,13 @@ export function findLocationById(locations = [], id) {
 }
 
 /**
- * The location a 1-based POSITION designates — what the two `lieu` selects
- * carry: the one of the "Le lieu à surveiller" section, and the one of the
- * delete action.
+ * The location a 1-based POSITION designates — what the `lieu` select of the
+ * delete action carries.
  *
  * The options of a `select` are static (the manifest is a file), so they can
- * only be positions: "Lieu 1", "Lieu 2"... The `lieux` field of the
- * Configuration screen is what maps a position to a name, and it is written by
- * this integration, hence `describeLocations` below.
+ * only be positions: "Lieu 1", "Lieu 2"... The table of the Configuration
+ * screen is what maps a position to a name, and it is written by this
+ * integration, hence `locationRows` below.
  * @param {Array<object>} locations
  * @param {unknown} position - "1".."10", as the form sends it
  * @returns {object | null}
@@ -188,25 +194,6 @@ export function locationAtPosition(locations = [], position) {
     return null;
   }
   return locations[index] ?? null;
-}
-
-/**
- * The position the Configuration screen is really pointed at.
- *
- * Always inside the list: a position left over from a location the user has
- * since deleted — or a `lieu` the manifest offers but nothing fills yet — must
- * not leave the screen editing a location that does not exist. `1` when there
- * is nothing to point at, which is what the manifest default says too.
- * @param {Array<object>} locations
- * @param {unknown} position - the stored `lieu`
- * @returns {number}
- */
-export function clampPosition(locations = [], position) {
-  const parsed = Number.parseInt(String(position ?? ''), 10);
-  if (!Number.isInteger(parsed) || parsed < 1) {
-    return 1;
-  }
-  return Math.min(parsed, Math.max(locations.length, 1));
 }
 
 /** The 1-based position of a location, or 0 when it is not in the list. */
@@ -248,6 +235,12 @@ export function removeLocation(locations = [], id) {
 
 /**
  * The list an install created before 1.3.0 carried in its config fields.
+ *
+ * Those fields left the config_schema when the screen became a read-only
+ * table, but their VALUES are still there: `getIntegrationConfig` hands the
+ * integration every stored key, schema or not. Hence a plain read of the raw
+ * config, coordinates included — they may still be the numbers a version older
+ * than 1.2.0 wrote, which `toCoordinate` reads just as well as text.
  *
  * Used ONLY when no `locations` key exists yet: an empty array is a user who
  * deleted every location, and resurrecting their old address on the next
@@ -306,26 +299,64 @@ export function describeLocation(location) {
 }
 
 /**
- * The whole list on one line, numbered, with the selected one marked.
- *
- * This is the value of the `lieux` config field, and it is the only thing that
- * tells the user WHICH location "Lieu 3" is in the action dropdowns: a
- * `select` in a manifest has static options, so it can only offer positions
- * (see `locationAtPosition`).
+ * The whole list on one line, numbered — for the messages shown under the
+ * action buttons, where a table cannot be drawn either.
  * @param {Array<object>} locations
- * @param {string} [selectedId]
  */
-export function describeLocations(locations = [], selectedPosition = 0) {
+export function describeLocations(locations = []) {
   if (locations.length === 0) {
-    // Not empty: this field is the only place the Configuration screen can say
-    // anything, and "there is nothing here yet" is exactly what a user opening
-    // it for the first time needs to read.
-    return 'Aucun lieu configuré — ajoutez-en un avec l’action « Ajouter un lieu » ci-dessous.';
+    return 'aucun lieu configuré';
   }
   return locations
-    .map((location, index) => {
-      const mark = index + 1 === selectedPosition ? '▶ ' : '';
-      return `${mark}${index + 1}. ${describeLocation(location)}`;
-    })
+    .map((location, index) => `${index + 1}. ${describeLocation(location)}`)
     .join('   |   ');
+}
+
+// What separates two "columns" of a line of the table. A single-line text
+// input is all the Configuration screen can render, so the columns are the
+// closest thing to a header the section description can announce: Nom |
+// Adresse | Latitude | Longitude.
+const COLUMN_SEPARATOR = ' | ';
+
+// An empty column, so the four of them stay aligned from one line to the next
+// even when a location has no address.
+const EMPTY_COLUMN = '—';
+
+/**
+ * One location as the line the Configuration screen displays it on.
+ *
+ * Five decimals is about a metre: enough to recognize the point that was
+ * geocoded, short enough to leave room for the name and the address in a text
+ * input.
+ * @param {object | null} location
+ * @returns {string} the empty string for a position nothing sits at
+ */
+export function locationRow(location) {
+  if (!location) {
+    return '';
+  }
+  return [
+    location.name,
+    location.address_label || EMPTY_COLUMN,
+    location.latitude === null ? EMPTY_COLUMN : location.latitude.toFixed(5),
+    location.longitude === null ? EMPTY_COLUMN : location.longitude.toFixed(5),
+  ].join(COLUMN_SEPARATOR);
+}
+
+/**
+ * The whole table, as the config patch that writes it: every line, including
+ * the empty ones.
+ *
+ * Positions nothing sits at are written EMPTY rather than skipped — a line
+ * left over from a location that has just been deleted would otherwise stay on
+ * screen for good, and only the configured locations are supposed to show.
+ * @param {Array<object>} locations
+ * @returns {Record<string, string>}
+ */
+export function locationRows(locations = []) {
+  const rows = {};
+  ROW_FIELDS.forEach((key, index) => {
+    rows[key] = locationRow(locations[index]);
+  });
+  return rows;
 }

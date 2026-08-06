@@ -6,8 +6,6 @@ import {
   isConfigured,
   formatCoordinate,
   toCoordinate,
-  readDetailFields,
-  legacyCoordinatePatch,
   DEFAULT_CONFIG,
 } from '../src/config.js';
 import { FIRST_LOCATION_ID } from '../src/locations.js';
@@ -26,49 +24,6 @@ test('normalizeConfig returns the defaults when called with no argument', () => 
   assert.deepEqual(normalizeConfig(), {
     ...DEFAULT_CONFIG,
     locations: [],
-    selectedPosition: 1,
-    selectedId: '',
-  });
-});
-
-test('the "lieu" dropdown IS the selection, and always lands inside the list', () => {
-  const locations = stored(
-    { id: 'loc-a', name: 'Maison', latitude: '48.8', longitude: '2.3' },
-    { id: 'loc-b', name: 'Jardin', latitude: '43.6', longitude: '1.4' },
-  ).map((location, index) => ({ ...location, id: index === 0 ? 'loc-a' : 'loc-b' }));
-
-  assert.equal(normalizeConfig({ locations, lieu: '2' }).selectedId, 'loc-b');
-  // The dropdown always offers ten entries — the manifest is a file — so a
-  // position the list does not reach is one click away at all times.
-  assert.equal(normalizeConfig({ locations, lieu: '9' }).selectedId, 'loc-b');
-  assert.equal(normalizeConfig({ locations }).selectedId, 'loc-a', 'the first one by default');
-  assert.equal(normalizeConfig({ locations: [] }).selectedId, '');
-  assert.equal(normalizeConfig({ locations: [] }).selectedPosition, 1);
-});
-
-test('readDetailFields hands back the four mirror fields as trimmed text', () => {
-  assert.deepEqual(
-    readDetailFields({
-      location_name: '  Maison ',
-      address_label: '12 rue des Lilas',
-      latitude: '48,8566',
-      longitude: 2.3522,
-      profil: 'particulier',
-    }),
-    {
-      location_name: 'Maison',
-      address_label: '12 rue des Lilas',
-      // Not parsed here: this is what the FORM holds, raw, so two snapshots of
-      // it can be compared field by field.
-      latitude: '48,8566',
-      longitude: '2.3522',
-    },
-  );
-  assert.deepEqual(readDetailFields(), {
-    location_name: '',
-    address_label: '',
-    latitude: '',
-    longitude: '',
   });
 });
 
@@ -216,19 +171,6 @@ test('the coordinates stored as numbers by <= 1.1.1 still migrate', () => {
   const config = normalizeConfig({ latitude: 48.8566, longitude: 2.3522 });
   assert.equal(config.locations[0].latitude, 48.8566);
   assert.equal(config.locations[0].longitude, 2.3522);
-});
-
-test('a coordinate stored as a number is rewritten as text', () => {
-  // The fields are still in the config_schema — they mirror the selected
-  // location — and they are `string`. Left as numbers, the first Save of an
-  // upgraded install would 422 as a whole: the front sends the untouched
-  // stored value back and the core refuses a number under a `string` field.
-  assert.deepEqual(legacyCoordinatePatch({ latitude: 48.8566, longitude: 2.3522 }), {
-    latitude: '48.8566',
-    longitude: '2.3522',
-  });
-  assert.deepEqual(legacyCoordinatePatch({ latitude: '48.8566', longitude: '2.3522' }), {});
-  assert.deepEqual(legacyCoordinatePatch({}), {});
 });
 
 // --- Recognizing the devices published by the versions <= 1.1.1 --------------

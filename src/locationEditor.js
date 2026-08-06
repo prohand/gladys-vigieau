@@ -1,140 +1,64 @@
 // -----------------------------------------------------------------------------
 // The location manager of the Configuration screen.
 //
-// WHAT THE USER SEES. The "Le lieu à surveiller" section carries its own
-// `lieu` dropdown, which points the four fields below it — name, address,
-// latitude, longitude — at one entry of the list. Those fields MIRROR the
-// selected location: its information is displayed, editable, and written back
-// by "Enregistrer la configuration". The delete action carries a SECOND,
-// independent dropdown, so removing a location never depends on what the
-// section above happens to be showing. Adding stays what it always was: type
-// an address, the integration geocodes it.
+// WHAT THE USER SEES. The "Informations sur les lieux" section is a TABLE: one
+// line per watched location — Nom | Adresse | Latitude | Longitude — written by
+// this module and read by nobody. It is read-only in spirit: a location is not
+// edited, it is added with "Ajouter un lieu" and removed with "Supprimer un
+// lieu". Whatever the user types over a line is overwritten by the stored value
+// on the next Save.
 //
-// WHY THE DROPDOWNS OFFER POSITIONS AND NOT NAMES. A `select` in a manifest has
-// STATIC options: `externalIntegration.validateConfigValue` reads the valid
-// values straight from the manifest file, and the only dynamic source the core
-// defines, `source: "devices"`, has no server-side implementation in any
-// released Gladys — checked at the v4.84.4 tag, `getDynamicOptions` exists only
-// on master. Every value such a dropdown offers is refused with a 422 before
-// the command reaches this container, which is exactly how a previous attempt
-// failed. So the options are POSITIONS, and the `lieux` field — written by this
-// integration — is what maps a position to a name.
+// WHY A TABLE, AND WHY THAT SHAPE. The Configuration screen is generated from
+// the manifest, which is a static file, and every field it renders that is not
+// a `section` is an `<input>`: no read-only widget, no multi-line one, no
+// repeatable one (see ConfigSchemaForm.jsx). One line per position, in a
+// `string` field the integration fills in, is therefore the only table the
+// screen can draw — hence ten lines whatever the list holds, the unused ones
+// left EMPTY so only the configured locations show.
 //
-// WHY A SAVE CANNOT ANSWER. The Configuration screen displays NOTHING an
+// WHY NOTHING IS EDITABLE ANY MORE. Editing a location meant pointing those
+// fields at ONE entry of the list with a dropdown, and a `select` in a manifest
+// has STATIC options: `externalIntegration.validateConfigValue` reads the valid
+// values straight from the manifest file, so the dropdown could only ever offer
+// POSITIONS, never the location names. Worse, the core pushes nothing to a
+// Configuration screen that is already open and `POST /config` answers with the
+// values read BEFORE the integration's own write, so the fields kept showing
+// the PREVIOUS location after every selection and saving them wrote its address
+// onto the newly selected one. The guard that made that safe was more machinery
+// than the feature was worth. Adding and deleting need no selection at all, and
+// they are enough: a location is a point, and a point that moved is another
+// location.
+//
+// WHY A SAVE STILL CANNOT ANSWER. The Configuration screen displays NOTHING an
 // integration says about a Save: `setConnectionStatus` is rendered on the
 // Supervision page and inside an `oauth2` field, nowhere else, and only an
-// ACTION's result message is shown under its button. A Save that could not do
-// what was asked therefore carries its reason in the `lieux` field, which the
-// next page load shows.
+// ACTION's result message is shown under its button. Everything the user has to
+// be told therefore happens under a button — which is exactly where adding and
+// deleting live.
 //
-// THE STALE FORM, and why `staleFields` exists. When this integration rewrites
-// the detail fields (on a selection, an add or a delete), the Configuration
-// screen already open in the browser keeps showing what it loaded: the core
-// pushes nothing back to an open form, and `POST /config` answers with the
-// values read BEFORE our own write. Saving that form would then write the
-// PREVIOUS location's address onto the newly selected one. So every rewrite
-// remembers what the form was showing, and the next Save treats a field still
-// equal to that snapshot as "not touched" — the stored value wins. A field the
-// user did actually change is applied. The snapshot then follows the tab: a
-// neutralized Save rewrites the mirror fields (the core has just stored what
-// the form sent) and re-arms on what the tab now displays, so the second Save
-// of an unreloaded page is as harmless as the first. It only stops once the
-// form and the store agree, which is what a reload achieves.
-//
-// Everything the outside world provides is injected (`getConfig`, `saveConfig`,
+// Everything the outside world provides is injected (`getConfig`, `setConfig`,
 // `resolveAddress`), so the whole set is testable without a Gladys server nor a
 // network: see `test/locationEditor.test.js`.
 // -----------------------------------------------------------------------------
 
 import { createLogger } from '@gladysassistant/integration-sdk';
-import { formatCoordinate, toCoordinate } from './coordinates.js';
 import { describeAddress, resolveAddress as geocodeAddress } from './address.js';
-import { DETAIL_FIELDS, readDetailFields } from './config.js';
 import {
-  clampPosition,
   describeLocation,
   describeLocations,
   findLocationById,
   LOCATIONS_KEY,
   locationAtPosition,
+  locationRows,
   MAX_LOCATIONS,
   newLocationId,
   positionOf,
   removeLocation,
-  SELECTION_FIELD,
   serializeLocations,
   upsertLocation,
 } from './locations.js';
 
 const logger = createLogger({ name: 'locations' });
-
-// Config field holding the one-line list of the watched locations, written by
-// this module and read by nobody else. It is the only place a user can find
-// out which location "Lieu 3" is in the dropdowns — and, when a Save could not
-// do what was asked, the only place its reason can be shown (the Configuration
-// screen renders no message of ours outside an action's result).
-export const SUMMARY_FIELD = 'lieux';
-
-/**
- * The detail fields as they must be STORED for a location: text, canonical.
- * @param {object | null} location
- * @returns {Record<string, string>}
- */
-export function detailFieldsOf(location) {
-  return {
-    location_name: location?.name ?? '',
-    address_label: location?.address_label ?? '',
-    latitude:
-      location && location.latitude !== null && location.latitude !== undefined
-        ? formatCoordinate(location.latitude)
-        : '',
-    longitude:
-      location && location.longitude !== null && location.longitude !== undefined
-        ? formatCoordinate(location.longitude)
-        : '',
-  };
-}
-
-/**
- * The same fields in a form two snapshots can be compared in: a coordinate
- * typed "48,8566" and one stored "48.8566" are the same point, and must not
- * look like an edit on every single Save.
- * @param {Record<string, string>} fields
- */
-function canonical(fields) {
-  const latitude = toCoordinate(fields.latitude, 'latitude');
-  const longitude = toCoordinate(fields.longitude, 'longitude');
-  return {
-    location_name: String(fields.location_name ?? '').trim(),
-    address_label: String(fields.address_label ?? '').trim(),
-    // An unusable coordinate keeps its raw text: it is what the user typed,
-    // and telling them so beats blanking the field they got wrong.
-    latitude: latitude === null ? String(fields.latitude ?? '') : formatCoordinate(latitude),
-    longitude: longitude === null ? String(fields.longitude ?? '') : formatCoordinate(longitude),
-  };
-}
-
-function sameFields(a, b) {
-  return DETAIL_FIELDS.every((key) => a[key] === b[key]);
-}
-
-/**
- * The fields to actually apply, given what the form sent, what it was showing
- * before we rewrote it, and what is stored now.
- *
- * A field still equal to the snapshot was never touched by the user — the form
- * simply had not been reloaded — so the stored value wins. See the header.
- * @param {Record<string, string>} incoming
- * @param {Record<string, string>} stale
- * @param {Record<string, string>} stored
- */
-export function mergeStaleFields(incoming, stale, stored) {
-  const merged = {};
-  for (const key of DETAIL_FIELDS) {
-    merged[key] = incoming[key] === stale[key] ? stored[key] : incoming[key];
-  }
-  return merged;
-}
 
 /**
  * Build the location manager.
@@ -155,52 +79,16 @@ export function createLocationEditor({
   findCreatedDevice = async () => null,
   resolveAddress = geocodeAddress,
 }) {
-  // What the Configuration screen was showing when we last rewrote the detail
-  // fields under it. In memory on purpose: it describes an open browser tab,
-  // not the install — a restarted container has no open tab to protect.
-  let staleFields = null;
-
-  // The position the open tab was loaded with. A Save carrying a different one
-  // is the user having moved the dropdown, which is the only way this
-  // integration can tell: the core sends the new configuration, never the old.
-  // Seeded from the store on connection, so a restart never reads as a change.
-  let shownPosition = null;
-
   /**
-   * Persist a new list and/or a new selection, and rewrite the detail fields
-   * to whatever the selected location holds afterwards.
-   * @param {object} params
-   * @param {Array<object>} params.locations - the new list
-   * @param {number} params.position - the entry to point the section at
-   * @param {string} [params.warning] - shown at the head of the `lieux` field
-   * @param {boolean} [params.republish] - false to only write the screen, when
-   *   the caller is already about to publish the catalog itself (connection)
+   * Persist a new list and redraw the table under it.
+   * @param {Array<object>} locations - the new list
    */
-  async function commit({ locations, position, warning = '', republish = true }) {
-    const selectedPosition = clampPosition(locations, position);
-    const selected = locationAtPosition(locations, selectedPosition);
-    const fields = detailFieldsOf(selected);
-    const showing = canonical(readDetailFields(getConfig()));
-
-    // Only arm the guard when the screen would actually be lying: rewriting a
-    // field with the value it already holds changes nothing to protect.
-    if (!sameFields(canonical(fields), showing)) {
-      staleFields = showing;
-    }
-
-    // The dropdown is rewritten too: a position the list no longer reaches
-    // would leave the screen pointing past its own end.
-    shownPosition = selectedPosition;
-    const summary = describeLocations(locations, selectedPosition);
+  async function commit(locations) {
     await setConfig({
       [LOCATIONS_KEY]: serializeLocations(locations),
-      [SELECTION_FIELD]: String(selectedPosition),
-      [SUMMARY_FIELD]: warning ? `${warning}   |   ${summary}` : summary,
-      ...fields,
+      ...locationRows(locations),
     });
-    if (republish) {
-      await onLocationsChanged();
-    }
+    await onLocationsChanged();
   }
 
   /**
@@ -241,105 +129,6 @@ export function createLocationEditor({
   }
 
   /**
-   * What one Save of the mirror fields does to a location.
-   *
-   * Split out because the dropdown and the fields travel in the SAME Save: when
-   * the user moves the selection and edits at once, the edits belong to the
-   * location the screen was showing, and this is what applies them there.
-   * @param {object} location - the location the fields describe
-   * @param {Record<string, string>} fields - what to apply, guard already run
-   * @param {Record<string, string>} stored - what that location holds now
-   * @returns {Promise<{ patch: object, problem: object | null }>}
-   */
-  async function planEdits(location, fields, stored) {
-    const patch = { id: location.id };
-    // Collected rather than assigned: the name and the point are edited in the
-    // same Save, and the first thing that went wrong is the one shown.
-    const problems = [];
-
-    // A renamed location keeps everything else; an emptied name is refused
-    // rather than applied, a device called "Vigilance sécheresse — " helps
-    // nobody.
-    if (fields.location_name === '') {
-      problems.push({
-        en: 'A location needs a name. It kept its previous one.',
-        fr: 'Un lieu a besoin d’un nom. Il a conservé le précédent.',
-      });
-    } else if (fields.location_name !== stored.location_name) {
-      patch.name = fields.location_name;
-    }
-
-    const latitude = toCoordinate(fields.latitude, 'latitude');
-    const longitude = toCoordinate(fields.longitude, 'longitude');
-    const coordinatesEdited =
-      fields.latitude !== stored.latitude || fields.longitude !== stored.longitude;
-    const addressEdited = fields.address_label !== stored.address_label;
-
-    if (coordinatesEdited && latitude !== null && longitude !== null) {
-      // Typed by hand, and they win over the address: someone who edits both
-      // means the point, and the label is theirs to describe it.
-      patch.latitude = latitude;
-      patch.longitude = longitude;
-      patch.address_label = fields.address_label;
-    } else if (coordinatesEdited) {
-      problems.push({
-        en: 'Latitude and longitude must BOTH be valid (-90/90 and -180/180). The location kept its previous point.',
-        fr: 'La latitude ET la longitude doivent être valides (-90/90 et -180/180). Le lieu a conservé son point précédent.',
-      });
-    } else if (addressEdited && fields.address_label !== '') {
-      // The address is the natural way to move a location: geocode it and let
-      // the coordinates follow.
-      const { point, problem: geocodingProblem } = await geocode(fields.address_label);
-      if (point) {
-        Object.assign(patch, point);
-      } else {
-        problems.push(geocodingProblem);
-      }
-    } else if (addressEdited) {
-      // Cleared on purpose: the point stays, it just loses its description.
-      patch.address_label = '';
-    }
-
-    return { patch, problem: problems[0] ?? null };
-  }
-
-  /**
-   * The one thing a Save cannot say on screen: the section now points at
-   * another location, and the fields will keep showing the previous one until
-   * the page is reloaded. It travels in the `lieux` field instead.
-   */
-  function reloadNotice(locations, position) {
-    const location = locationAtPosition(locations, position);
-    return `▶ Lieu ${position} « ${location?.name ?? ''} » sélectionné — rechargez la page (F5) pour voir ses informations.`;
-  }
-
-  /**
-   * "You picked a number nothing sits under."
-   *
-   * The dropdown offers ten entries whatever the list holds — the manifest is a
-   * file — so picking "Lieu 5" with two locations configured is one click away
-   * at all times. It used to be clamped in silence, which is indistinguishable
-   * from a Save that did nothing: the screen kept showing the same location and
-   * nothing, anywhere, said why.
-   */
-  function outOfRangeNotice(locations, requested, position) {
-    const shown = locationAtPosition(locations, position);
-    return (
-      `⚠ Le lieu ${requested} n’existe pas : ${locations.length} lieu(x) configuré(s). ` +
-      `Le lieu ${position} « ${shown?.name ?? ''} » reste affiché — ajoutez un lieu avec ` +
-      '« Ajouter un lieu » pour en surveiller un de plus.'
-    );
-  }
-
-  function selectionMessage(locations, position) {
-    const location = locationAtPosition(locations, position);
-    return {
-      en: `Location ${position} selected: ${describeLocation(location)}. Reload the page (F5) to see it in the fields.`,
-      fr: `Lieu ${position} sélectionné : ${describeLocation(location)}. Rechargez la page (F5) pour le voir dans les champs.`,
-    };
-  }
-
-  /**
    * The device a location has already been given, or null.
    *
    * Never fatal: failing to read the device list must not stop a deletion the
@@ -354,141 +143,32 @@ export function createLocationEditor({
     }
   }
 
-  /** "No location yet", the answer every action owes an empty list. */
-  function noLocationMessage() {
-    return {
-      en: 'No location yet. Add one with "Add a location".',
-      fr: 'Aucun lieu pour l’instant. Ajoutez-en un avec « Ajouter un lieu ».',
-    };
-  }
-
   return {
-    /** Exposed for the tests; the guard is otherwise entirely internal. */
-    _staleFields: () => staleFields,
-
     /**
-     * Write the screen from the stored state, without touching the list.
+     * Redraw the table from the stored list, and only when it is out of step.
      *
-     * Called once per connection: it publishes the `lieux` summary and the
-     * detail fields of the selected location, which is what makes an install
-     * upgraded from <= 1.2.0 — where the list has just been rebuilt from those
-     * very fields — open on something coherent. The caller publishes the
-     * catalog itself right after, hence `republish: false`.
+     * Called on every connection and after every configuration the user saves:
+     * the lines are config fields, so the form sends them back as it last
+     * loaded them, and the core stores whatever it was handed — a location
+     * added or deleted since that page load would otherwise stay on screen for
+     * good. Nothing here touches the list itself: the table is a display, and
+     * what it displays is authoritative.
+     * @returns {Promise<boolean>} whether anything had to be rewritten
      */
     async sync() {
-      const { locations, selectedPosition } = getConfig();
-      await commit({ locations, position: selectedPosition, republish: false });
-    },
-
-    /**
-     * Apply the "Le lieu à surveiller" section: the dropdown, and what the user
-     * typed in the four fields that mirror the location it points at. Called on
-     * every `config-updated`.
-     *
-     * Resolves to a message describing what happened, or null when nothing
-     * changed. Nobody can display it — the Configuration screen shows nothing
-     * an integration says about a Save — so it is logged, and anything the user
-     * has to know is carried into the `lieux` field, which the next page load
-     * shows.
-     * @returns {Promise<{ en: string, fr: string } | null>}
-     */
-    async applyFormEdits() {
       const config = getConfig();
-      const { locations, selectedPosition } = config;
-      const incoming = canonical(readDetailFields(config));
-
-      if (locations.length === 0) {
-        // Nothing to mirror. The fields are then just an empty form: adding a
-        // location is what the search action is for, and creating one from here
-        // would resurrect the location the user has just deleted, whose values
-        // the open form is still showing.
-        staleFields = null;
-        shownPosition = selectedPosition;
-        return null;
-      }
-
-      // The dropdown moved: the mirror fields the same Save carries describe
-      // the location the screen was showing BEFORE it moved, so the edits are
-      // applied there — dropping them would silently lose work — and the
-      // section then switches to the newly chosen one.
-      const movedFrom =
-        shownPosition !== null && shownPosition !== selectedPosition
-          ? locationAtPosition(locations, shownPosition)
-          : null;
-      // A number the list does not reach. `selectedPosition` has already been
-      // clamped back inside it, so the screen is coherent — but the user asked
-      // for something that does not exist and has to be told.
-      const requested = Number.parseInt(String(config[SELECTION_FIELD] ?? ''), 10);
-      const outOfRange = Number.isInteger(requested) && requested > locations.length;
-      const edited = movedFrom ?? locationAtPosition(locations, selectedPosition);
-      const stored = canonical(detailFieldsOf(edited));
-
-      let fields = incoming;
-      if (staleFields) {
-        fields = mergeStaleFields(incoming, staleFields, stored);
-        staleFields = null;
-      }
-
-      // What the next page load has to tell the user, in the only field that
-      // can carry it. Order matters: the refusal comes first.
-      const notice = () => {
-        if (outOfRange) {
-          return outOfRangeNotice(locations, requested, selectedPosition);
+      const rows = locationRows(config.locations);
+      const patch = {};
+      for (const [key, value] of Object.entries(rows)) {
+        if (String(config[key] ?? '') !== value) {
+          patch[key] = value;
         }
-        return movedFrom ? reloadNotice(locations, selectedPosition) : '';
-      };
-
-      if (sameFields(fields, stored)) {
-        // Nothing of the user's to apply. The screen still has to be rewritten
-        // when it is out of step with the store — because the dropdown moved,
-        // because it points past the end of the list (it always offers ten
-        // entries, the manifest being a file), or because the core has just
-        // stored what a stale form sent and the tab would send the same thing
-        // again.
-        const dropdownMoved = String(config[SELECTION_FIELD] ?? '') !== String(selectedPosition);
-        if (movedFrom || dropdownMoved || !sameFields(incoming, stored)) {
-          await commit({
-            locations,
-            position: selectedPosition,
-            warning: notice(),
-            republish: false,
-          });
-        }
-        if (outOfRange) {
-          return {
-            en: `There is no location ${requested}: ${locations.length} configured. Add one with "Add a location".`,
-            fr: `Il n’y a pas de lieu ${requested} : ${locations.length} configuré(s). Ajoutez-en un avec « Ajouter un lieu ».`,
-          };
-        }
-        return movedFrom ? selectionMessage(locations, selectedPosition) : null;
       }
-
-      const { patch, problem } = await planEdits(edited, fields, stored);
-      const changed = Object.keys(patch).length > 1;
-      // Committed even when nothing is stored: the core has already written
-      // what the form sent into the mirror fields, and leaving a refused name
-      // or an impossible latitude there would show them back on the next page
-      // load as if they had been accepted.
-      const warnings = [problem ? `⚠ ${problem.fr}` : '', notice()].filter(Boolean).join(' ');
-      await commit({
-        locations: changed ? upsertLocation(locations, patch) : locations,
-        position: selectedPosition,
-        warning: warnings,
-      });
-
-      const saved = findLocationById(getConfig().locations, edited.id);
-      logger.info(
-        `Section "Le lieu à surveiller" applied to "${saved.name}": ${describeLocation(saved)}`,
-      );
-      if (movedFrom) {
-        return selectionMessage(locations, selectedPosition);
+      if (Object.keys(patch).length === 0) {
+        return false;
       }
-      return (
-        problem ?? {
-          en: `Location updated: ${describeLocation(saved)}. Its device keeps its history.`,
-          fr: `Lieu mis à jour : ${describeLocation(saved)}. Son appareil conserve son historique.`,
-        }
-      );
+      await setConfig(patch);
+      return true;
     },
 
     // --- Manifest actions ---------------------------------------------------
@@ -521,37 +201,33 @@ export function createLocationEditor({
         }
 
         // A location the user did not name is named after the town it is in —
-        // "Vigilance sécheresse — Montauban" beats an empty device name, and
-        // the name is editable right after.
+        // "Vigilance sécheresse — Montauban" beats an empty device name.
         const name = String(fields.nom ?? '').trim() || match.city || match.label;
         const id = newLocationId(locations);
-        const next = upsertLocation(locations, { id, name, ...point });
-        // Selected right away: the location you have just added is the one you
-        // want to look at, and the section above now shows it — after a reload.
-        await commit({ locations: next, position: positionOf(next, id) });
+        await commit(upsertLocation(locations, { id, name, ...point }));
 
         const saved = findLocationById(getConfig().locations, id);
         const position = positionOf(getConfig().locations, id);
         return {
-          en: `Location ${position} "${name}" added and selected: ${describeLocation(saved)}. Add its device from the Discovery tab, and reload this page (F5) to see it in "The location to watch".`,
-          fr: `Lieu ${position} « ${name} » ajouté et sélectionné : ${describeLocation(saved)}. Ajoutez son appareil depuis l’onglet Découverte, et rechargez cette page (F5) pour le voir dans « Le lieu à surveiller ».`,
+          en: `Location ${position} "${name}" added: ${describeLocation(saved)}. Add its device from the Discovery tab, and reload this page (F5) to see it in "Watched locations".`,
+          fr: `Lieu ${position} « ${name} » ajouté : ${describeLocation(saved)}. Ajoutez son appareil depuis l’onglet Découverte, et rechargez cette page (F5) pour le voir dans « Informations sur les lieux ».`,
         };
       },
 
       /**
-       * Remove the location picked in THIS action's own dropdown.
-       *
-       * Deliberately independent of the section above: deleting is not "get rid
-       * of whatever I happen to be looking at", and making the two share a
-       * selection is how a user ends up deleting the wrong location.
+       * Remove the location this action's dropdown names — by its POSITION in
+       * the table, which is all a static `select` can offer.
        */
       async supprimer_lieu(fields = {}) {
         logger.info(
           `Action supprimer_lieu <- ${fields.lieu ?? ''} confirmation=${fields.confirmation ?? false}`,
         );
-        const { locations, selectedPosition } = getConfig();
+        const { locations } = getConfig();
         if (locations.length === 0) {
-          return noLocationMessage();
+          return {
+            en: 'No location yet. Add one with "Add a location".',
+            fr: 'Aucun lieu pour l’instant. Ajoutez-en un avec « Ajouter un lieu ».',
+          };
         }
 
         const location = locationAtPosition(locations, fields.lieu);
@@ -570,25 +246,20 @@ export function createLocationEditor({
           };
         }
 
-        // The section above keeps looking at the SAME location, wherever the
-        // deletion pushed it: positions shift, and a selection that silently
-        // slid onto its neighbour would be edited by mistake.
-        const stillShown = locationAtPosition(locations, selectedPosition);
-        const remaining = removeLocation(locations, location.id);
-        const position =
-          stillShown && stillShown.id !== location.id ? positionOf(remaining, stillShown.id) : 1;
         // Asked BEFORE the re-publish, while the location still has an
         // external_id to look for: a device the user has already created is the
         // one case an integration cannot clean up, and it must say so precisely
         // rather than leave a sensor that never updates again.
         const created = await createdDeviceOf(location);
-        await commit({ locations: remaining, position });
+        await commit(removeLocation(locations, location.id));
 
-        const reload =
-          stillShown?.id === location.id && remaining.length
+        // Deleting the third of four locations moves the fourth up a line, and
+        // the numbers of the table are what this very dropdown offers.
+        const renumbered =
+          positionOf(locations, location.id) < locations.length
             ? {
-                en: ` "${remaining[0].name}" is now shown in "The location to watch" — reload this page (F5).`,
-                fr: ` « ${remaining[0].name} » est maintenant affiché dans « Le lieu à surveiller » — rechargez cette page (F5).`,
+                en: ' The locations after it moved up one line: reload this page (F5).',
+                fr: ' Les lieux suivants remontent d’une ligne : rechargez cette page (F5).',
               }
             : { en: '', fr: '' };
 
@@ -596,15 +267,15 @@ export function createLocationEditor({
           // Never created: re-publishing the catalog without it is enough, the
           // Discovery screen stops offering it on the spot.
           return {
-            en: `Location "${location.name}" removed, and it is no longer offered in the Discovery tab.${reload.en}`,
-            fr: `Lieu « ${location.name} » supprimé, et il n’est plus proposé dans l’onglet Découverte.${reload.fr}`,
+            en: `Location "${location.name}" removed, and it is no longer offered in the Discovery tab.${renumbered.en}`,
+            fr: `Lieu « ${location.name} » supprimé, et il n’est plus proposé dans l’onglet Découverte.${renumbered.fr}`,
           };
         }
         // An integration can only stop OFFERING a device; deleting one the user
         // created is not something the host API lets it do, at any version.
         return {
-          en: `Location "${location.name}" removed. Its device "${created.name}" still exists in Gladys and will stop updating: delete it yourself from the integration's Devices tab — an integration is not allowed to delete a device.${reload.en}`,
-          fr: `Lieu « ${location.name} » supprimé. Son appareil « ${created.name} » existe toujours dans Gladys et ne se mettra plus à jour : supprimez-le vous-même depuis l’onglet Appareils de l’intégration — une intégration n’a pas le droit de supprimer un appareil.${reload.fr}`,
+          en: `Location "${location.name}" removed. Its device "${created.name}" still exists in Gladys and will stop updating: delete it yourself from the integration's Devices tab — an integration is not allowed to delete a device.${renumbered.en}`,
+          fr: `Lieu « ${location.name} » supprimé. Son appareil « ${created.name} » existe toujours dans Gladys et ne se mettra plus à jour : supprimez-le vous-même depuis l’onglet Appareils de l’intégration — une intégration n’a pas le droit de supprimer un appareil.${renumbered.fr}`,
         };
       },
     },

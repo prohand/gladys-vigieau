@@ -41,194 +41,6 @@
       ]
     },
     {
-      "key": "lieu_section",
-      "type": "section",
-      "label": {
-        "en": "The location to watch",
-        "fr": "Le lieu à surveiller"
-      },
-      "description": {
-        "en": "Pick the location whose information you want to see below. The numbers are the ones of the list underneath. IMPORTANT: choosing another one takes effect when you click \"Save the configuration\" — and the fields only show it after the page is reloaded (F5), because Gladys never pushes anything to a configuration screen that is already open.",
-        "fr": "Choisissez le lieu dont vous voulez voir les informations ci-dessous. Les numéros sont ceux de la liste juste en dessous. IMPORTANT : le changement prend effet quand vous cliquez sur « Enregistrer la configuration » — et les champs ne l'affichent qu'après rechargement de la page (F5), car Gladys n'envoie jamais rien à un écran de configuration déjà ouvert."
-      }
-    },
-    {
-      "key": "lieu",
-      "type": "select",
-      "label": {
-        "en": "Selected location",
-        "fr": "Lieu sélectionné"
-      },
-      "description": {
-        "en": "The position of the location in the list below. Save the configuration to apply the change, then reload the page.",
-        "fr": "La position du lieu dans la liste ci-dessous. Enregistrez la configuration pour appliquer le changement, puis rechargez la page."
-      },
-      "required": true,
-      "default": "1",
-      "options": [
-        {
-          "value": "1",
-          "label": {
-            "en": "Location 1",
-            "fr": "Lieu 1"
-          }
-        },
-        {
-          "value": "2",
-          "label": {
-            "en": "Location 2",
-            "fr": "Lieu 2"
-          }
-        },
-        {
-          "value": "3",
-          "label": {
-            "en": "Location 3",
-            "fr": "Lieu 3"
-          }
-        },
-        {
-          "value": "4",
-          "label": {
-            "en": "Location 4",
-            "fr": "Lieu 4"
-          }
-        },
-        {
-          "value": "5",
-          "label": {
-            "en": "Location 5",
-            "fr": "Lieu 5"
-          }
-        },
-        {
-          "value": "6",
-          "label": {
-            "en": "Location 6",
-            "fr": "Lieu 6"
-          }
-        },
-        {
-          "value": "7",
-          "label": {
-            "en": "Location 7",
-            "fr": "Lieu 7"
-          }
-        },
-        {
-          "value": "8",
-          "label": {
-            "en": "Location 8",
-            "fr": "Lieu 8"
-          }
-        },
-        {
-          "value": "9",
-          "label": {
-            "en": "Location 9",
-            "fr": "Lieu 9"
-          }
-        },
-        {
-          "value": "10",
-          "label": {
-            "en": "Location 10",
-            "fr": "Lieu 10"
-          }
-        }
-      ]
-    },
-    {
-      "key": "lieux",
-      "type": "string",
-      "label": {
-        "en": "Watched locations (▶ = selected)",
-        "fr": "Lieux surveillés (▶ = sélectionné)"
-      },
-      "description": {
-        "en": "Filled in by the integration, do not edit: the numbers are the ones the dropdowns offer, above and in \"Delete a location\". Reload the page (F5) after adding, selecting or deleting a location to see it up to date — a Save can only answer here, never on screen.",
-        "fr": "Renseigné par l'intégration, ne le modifiez pas : les numéros sont ceux que proposent les listes déroulantes, ci-dessus et dans « Supprimer un lieu ». Rechargez la page (F5) après avoir ajouté, sélectionné ou supprimé un lieu pour le voir à jour — un enregistrement ne peut répondre qu'ici, jamais à l'écran."
-      },
-      "required": false,
-      "default": "",
-      "placeholder": {
-        "en": "No location yet",
-        "fr": "Aucun lieu pour l'instant"
-      }
-    },
-    {
-      "key": "location_name",
-      "type": "string",
-      "label": {
-        "en": "Name of the selected location",
-        "fr": "Nom du lieu sélectionné"
-      },
-      "description": {
-        "en": "Shown in the device name, e.g. \"Maison\" or \"Jardin\". Edit it and save to rename the location: its device keeps its history.",
-        "fr": "Affiché dans le nom de l'appareil, par exemple « Maison » ou « Jardin ». Modifiez-le et enregistrez pour renommer le lieu : son appareil conserve son historique."
-      },
-      "required": false,
-      "default": "",
-      "placeholder": {
-        "en": "Maison",
-        "fr": "Maison"
-      }
-    },
-    {
-      "key": "address_label",
-      "type": "string",
-      "label": {
-        "en": "Address of the selected location",
-        "fr": "Adresse du lieu sélectionné"
-      },
-      "description": {
-        "en": "Type a new address here and save: it is geocoded on the Base Adresse Nationale and the coordinates below follow. The location is a precise point, not a postal code: a postal code covers several communes, and one commune can span several restriction zones — which is exactly when VigiEau refuses to answer and asks for a street.",
-        "fr": "Saisissez ici une nouvelle adresse puis enregistrez : elle est géocodée sur la Base Adresse Nationale et les coordonnées ci-dessous suivent. Le lieu est un point précis, pas un code postal : un code postal couvre plusieurs communes, et une commune peut relever de plusieurs zones de restriction — c'est justement le cas où VigiEau refuse de répondre et réclame une rue."
-      },
-      "required": false,
-      "default": "",
-      "placeholder": {
-        "en": "12 rue des Lilas, 82000 Montauban",
-        "fr": "12 rue des Lilas, 82000 Montauban"
-      }
-    },
-    {
-      "key": "latitude",
-      "type": "string",
-      "label": {
-        "en": "Latitude",
-        "fr": "Latitude"
-      },
-      "description": {
-        "en": "Filled in from the address. WGS-84, between -90 and 90. Both decimal separators are accepted: 48.8566 or 48,8566. Editing the coordinates by hand takes precedence over the address above.",
-        "fr": "Renseignée à partir de l'adresse. WGS-84, entre -90 et 90. Les deux séparateurs décimaux sont acceptés : 48,8566 ou 48.8566. Modifier les coordonnées à la main l'emporte sur l'adresse ci-dessus."
-      },
-      "required": false,
-      "default": "",
-      "placeholder": {
-        "en": "48.8566",
-        "fr": "48,8566"
-      }
-    },
-    {
-      "key": "longitude",
-      "type": "string",
-      "label": {
-        "en": "Longitude",
-        "fr": "Longitude"
-      },
-      "description": {
-        "en": "Filled in from the address. WGS-84, between -180 and 180. Both decimal separators are accepted: 2.3522 or 2,3522.",
-        "fr": "Renseignée à partir de l'adresse. WGS-84, entre -180 et 180. Les deux séparateurs décimaux sont acceptés : 2,3522 ou 2.3522."
-      },
-      "required": false,
-      "default": "",
-      "placeholder": {
-        "en": "2.3522",
-        "fr": "2,3522"
-      }
-    },
-    {
       "key": "settings_section",
       "type": "section",
       "label": {
@@ -299,6 +111,158 @@
       "default": 3600,
       "min": 900,
       "max": 86400
+    },
+    {
+      "key": "lieux_section",
+      "type": "section",
+      "label": {
+        "en": "Watched locations",
+        "fr": "Informations sur les lieux"
+      },
+      "description": {
+        "en": "The locations watched, one per line: Name | Address | Latitude | Longitude. The integration fills these lines in and rewrites them on every save: a location cannot be edited here. To change one, add the new one with \"Add a location\" and remove the old one with \"Delete a location\" below. The numbers are the ones the deletion dropdown offers. Reload the page (F5) after adding or deleting a location — Gladys never pushes anything to a configuration screen that is already open.",
+        "fr": "Les lieux surveillés, un par ligne : Nom | Adresse | Latitude | Longitude. Ces lignes sont renseignées par l’intégration et réécrites à chaque enregistrement : un lieu ne se modifie pas ici. Pour en changer un, ajoutez le nouveau avec « Ajouter un lieu » et supprimez l’ancien avec « Supprimer un lieu » ci-dessous. Les numéros sont ceux que propose la liste déroulante de la suppression. Rechargez la page (F5) après un ajout ou une suppression — Gladys n’envoie jamais rien à un écran de configuration déjà ouvert."
+      }
+    },
+    {
+      "key": "lieu_1",
+      "type": "string",
+      "label": {
+        "en": "Location 1",
+        "fr": "Lieu 1"
+      },
+      "required": false,
+      "default": "",
+      "placeholder": {
+        "en": "— no location —",
+        "fr": "— aucun lieu —"
+      }
+    },
+    {
+      "key": "lieu_2",
+      "type": "string",
+      "label": {
+        "en": "Location 2",
+        "fr": "Lieu 2"
+      },
+      "required": false,
+      "default": "",
+      "placeholder": {
+        "en": "— no location —",
+        "fr": "— aucun lieu —"
+      }
+    },
+    {
+      "key": "lieu_3",
+      "type": "string",
+      "label": {
+        "en": "Location 3",
+        "fr": "Lieu 3"
+      },
+      "required": false,
+      "default": "",
+      "placeholder": {
+        "en": "— no location —",
+        "fr": "— aucun lieu —"
+      }
+    },
+    {
+      "key": "lieu_4",
+      "type": "string",
+      "label": {
+        "en": "Location 4",
+        "fr": "Lieu 4"
+      },
+      "required": false,
+      "default": "",
+      "placeholder": {
+        "en": "— no location —",
+        "fr": "— aucun lieu —"
+      }
+    },
+    {
+      "key": "lieu_5",
+      "type": "string",
+      "label": {
+        "en": "Location 5",
+        "fr": "Lieu 5"
+      },
+      "required": false,
+      "default": "",
+      "placeholder": {
+        "en": "— no location —",
+        "fr": "— aucun lieu —"
+      }
+    },
+    {
+      "key": "lieu_6",
+      "type": "string",
+      "label": {
+        "en": "Location 6",
+        "fr": "Lieu 6"
+      },
+      "required": false,
+      "default": "",
+      "placeholder": {
+        "en": "— no location —",
+        "fr": "— aucun lieu —"
+      }
+    },
+    {
+      "key": "lieu_7",
+      "type": "string",
+      "label": {
+        "en": "Location 7",
+        "fr": "Lieu 7"
+      },
+      "required": false,
+      "default": "",
+      "placeholder": {
+        "en": "— no location —",
+        "fr": "— aucun lieu —"
+      }
+    },
+    {
+      "key": "lieu_8",
+      "type": "string",
+      "label": {
+        "en": "Location 8",
+        "fr": "Lieu 8"
+      },
+      "required": false,
+      "default": "",
+      "placeholder": {
+        "en": "— no location —",
+        "fr": "— aucun lieu —"
+      }
+    },
+    {
+      "key": "lieu_9",
+      "type": "string",
+      "label": {
+        "en": "Location 9",
+        "fr": "Lieu 9"
+      },
+      "required": false,
+      "default": "",
+      "placeholder": {
+        "en": "— no location —",
+        "fr": "— aucun lieu —"
+      }
+    },
+    {
+      "key": "lieu_10",
+      "type": "string",
+      "label": {
+        "en": "Location 10",
+        "fr": "Lieu 10"
+      },
+      "required": false,
+      "default": "",
+      "placeholder": {
+        "en": "— no location —",
+        "fr": "— aucun lieu —"
+      }
     }
   ],
   "actions": [
@@ -309,8 +273,8 @@
         "fr": "Ajouter un lieu (rechercher une adresse)"
       },
       "description": {
-        "en": "Geocodes the address on the official Base Adresse Nationale, adds a location watching that point and selects it. Its device then shows up in the Discovery tab.",
-        "fr": "Géocode l'adresse sur la Base Adresse Nationale officielle, ajoute un lieu surveillant ce point et le sélectionne. Son appareil apparaît ensuite dans l'onglet Découverte."
+        "en": "Geocodes the address on the official Base Adresse Nationale and adds a location watching that point. Its device then shows up in the Discovery tab, and the location appears in \"Watched locations\" after a reload (F5).",
+        "fr": "Géocode l’adresse sur la Base Adresse Nationale officielle et ajoute un lieu surveillant ce point. Son appareil apparaît ensuite dans l’onglet Découverte, et le lieu s’affiche dans « Informations sur les lieux » après rechargement (F5)."
       },
       "timeout_seconds": 30,
       "fields": [
@@ -339,8 +303,8 @@
             "fr": "Adresse"
           },
           "description": {
-            "en": "Street, postal code and town. The more precise, the better the answer.",
-            "fr": "Rue, code postal et commune. Plus c'est précis, meilleure est la réponse."
+            "en": "Street, postal code and town: the location is a precise point, not a postal code. A postal code covers several communes, and one commune can span several restriction zones — which is exactly when VigiEau refuses to answer and asks for a street.",
+            "fr": "Rue, code postal et commune : le lieu est un point précis, pas un code postal. Un code postal couvre plusieurs communes, et une commune peut relever de plusieurs zones de restriction — c’est justement le cas où VigiEau refuse de répondre et réclame une rue."
           },
           "required": true,
           "placeholder": {
@@ -357,8 +321,8 @@
         "fr": "Supprimer un lieu"
       },
       "description": {
-        "en": "Stops watching the location you pick here — this dropdown is its own, independent of the one in \"The location to watch\". Its Gladys device is not deleted (an integration cannot do that): delete it yourself if you no longer want it.",
-        "fr": "Arrête de surveiller le lieu choisi ici — cette liste déroulante lui est propre, indépendante de celle de « Le lieu à surveiller ». Son appareil Gladys n’est pas supprimé (une intégration ne peut pas le faire) : supprimez-le vous-même si vous n’en voulez plus."
+        "en": "Stops watching the location whose number you pick here — the numbers are the ones of the \"Watched locations\" table above. Its Gladys device is not deleted (an integration cannot do that): delete it yourself if you no longer want it.",
+        "fr": "Arrête de surveiller le lieu dont vous choisissez le numéro ici — ce sont les numéros du tableau « Informations sur les lieux » ci-dessus. Son appareil Gladys n’est pas supprimé (une intégration ne peut pas le faire) : supprimez-le vous-même si vous n’en voulez plus."
       },
       "timeout_seconds": 15,
       "fields": [
@@ -370,8 +334,8 @@
             "fr": "Lieu à supprimer"
           },
           "description": {
-            "en": "The position of the location in the \"Watched locations\" field.",
-            "fr": "La position du lieu dans le champ « Lieux surveillés »."
+            "en": "The number of the line to delete in the \"Watched locations\" table.",
+            "fr": "Le numéro de la ligne à supprimer dans le tableau « Informations sur les lieux »."
           },
           "required": true,
           "default": "1",
