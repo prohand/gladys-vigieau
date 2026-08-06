@@ -41,105 +41,23 @@
       ]
     },
     {
-      "key": "location_name",
-      "type": "string",
-      "label": {
-        "en": "Location name",
-        "fr": "Nom du lieu"
-      },
-      "description": {
-        "en": "Shown in the device name, e.g. \"Maison\" or \"Jardin\".",
-        "fr": "Affiché dans le nom de l'appareil, par exemple « Maison » ou « Jardin »."
-      },
-      "required": true,
-      "default": "Maison"
-    },
-    {
-      "key": "address_help",
+      "key": "settings_section",
       "type": "section",
       "label": {
-        "en": "Where to watch",
-        "fr": "Le lieu à surveiller"
+        "en": "General settings",
+        "fr": "Réglages généraux"
       },
       "description": {
-        "en": "The location is a precise point, not a postal code: a postal code covers several communes, and one commune can span several restriction zones — which is exactly when VigiEau refuses to answer and asks for a street. Click \"Search for my address\" below, type your address, and the latitude and longitude are filled in for you. If several addresses match without a clear winner, be more precise and search again. If you rather type the coordinates yourself, a dot and a comma work equally well.",
-        "fr": "Le lieu est un point précis, pas un code postal : un code postal couvre plusieurs communes, et une commune peut relever de plusieurs zones de restriction — c'est justement le cas où VigiEau refuse de répondre et réclame une rue. Cliquez sur « Rechercher mon adresse » ci-dessous, saisissez votre adresse, et la latitude et la longitude sont renseignées à votre place. Si plusieurs adresses correspondent sans évidence, précisez et relancez la recherche. Si vous préférez saisir les coordonnées vous-même, la virgule et le point fonctionnent aussi bien l'un que l'autre."
-      },
-      "links": [
-        {
-          "url": "https://vigieau.gouv.fr",
-          "label": {
-            "en": "Check on the VigiEau website",
-            "fr": "Vérifier sur le site VigiEau"
-          }
-        },
-        {
-          "url": "https://adresse.data.gouv.fr",
-          "label": {
-            "en": "Base Adresse Nationale",
-            "fr": "Base Adresse Nationale"
-          }
-        }
-      ]
-    },
-    {
-      "key": "address_label",
-      "type": "string",
-      "label": {
-        "en": "Last address searched",
-        "fr": "Dernière adresse recherchée"
-      },
-      "description": {
-        "en": "Informational: the address the coordinates below were resolved from. Filled in by the search button.",
-        "fr": "Pour information : l'adresse dont proviennent les coordonnées ci-dessous. Renseignée par le bouton de recherche."
-      },
-      "required": false,
-      "default": "",
-      "placeholder": {
-        "en": "Not searched yet",
-        "fr": "Pas encore recherchée"
-      }
-    },
-    {
-      "key": "latitude",
-      "type": "string",
-      "label": {
-        "en": "Latitude",
-        "fr": "Latitude"
-      },
-      "description": {
-        "en": "Filled in by the \"Search for my address\" button. WGS-84, between -90 and 90. Both decimal separators are accepted: 48.8566 or 48,8566.",
-        "fr": "Renseignée par le bouton « Rechercher mon adresse ». WGS-84, entre -90 et 90. Les deux séparateurs décimaux sont acceptés : 48,8566 ou 48.8566."
-      },
-      "required": true,
-      "placeholder": {
-        "en": "48.8566",
-        "fr": "48,8566"
-      }
-    },
-    {
-      "key": "longitude",
-      "type": "string",
-      "label": {
-        "en": "Longitude",
-        "fr": "Longitude"
-      },
-      "description": {
-        "en": "Filled in by the \"Search for my address\" button. WGS-84, between -180 and 180. Both decimal separators are accepted: 2.3522 or 2,3522.",
-        "fr": "Renseignée par le bouton « Rechercher mon adresse ». WGS-84, entre -180 et 180. Les deux séparateurs décimaux sont acceptés : 2,3522 ou 2.3522."
-      },
-      "required": true,
-      "placeholder": {
-        "en": "2.3522",
-        "fr": "2,3522"
+        "en": "These two settings apply to every watched location.",
+        "fr": "Ces deux réglages s’appliquent à tous les lieux surveillés."
       }
     },
     {
       "key": "profil",
       "type": "select",
       "label": {
-        "en": "User profile",
-        "fr": "Profil d'usager"
+        "en": "User profile (all locations)",
+        "fr": "Profil d'usager (tous les lieux)"
       },
       "description": {
         "en": "Restrictions differ per profile: VigiEau returns the ones that apply to yours.",
@@ -199,15 +117,32 @@
     {
       "key": "rechercher_adresse",
       "label": {
-        "en": "Search for my address (fills the coordinates)",
-        "fr": "Rechercher mon adresse (remplit les coordonnées)"
+        "en": "Add a location (search for an address)",
+        "fr": "Ajouter un lieu (rechercher une adresse)"
       },
       "description": {
-        "en": "Geocodes your address on the official Base Adresse Nationale and writes the latitude and longitude into the fields above.",
-        "fr": "Géocode votre adresse sur la Base Adresse Nationale officielle et écrit la latitude et la longitude dans les champs ci-dessus."
+        "en": "Geocodes the address on the official Base Adresse Nationale and adds a location watching that point. Fill the latitude and the longitude in instead to add a point directly: the address it falls on is then looked up for you, as the location's label. Its device shows up in the Discovery tab, and \"Show the locations\" lists it.",
+        "fr": "Géocode l’adresse sur la Base Adresse Nationale officielle et ajoute un lieu surveillant ce point. Renseignez plutôt la latitude et la longitude pour ajouter un point directement : l’adresse correspondante est alors recherchée pour vous, comme libellé du lieu. Son appareil apparaît dans l’onglet Découverte, et « Afficher les lieux » le liste."
       },
       "timeout_seconds": 30,
       "fields": [
+        {
+          "key": "nom",
+          "type": "string",
+          "label": {
+            "en": "Location name",
+            "fr": "Nom du lieu"
+          },
+          "description": {
+            "en": "Optional: the town of the address is used when left empty.",
+            "fr": "Facultatif : la commune de l'adresse est utilisée si vous le laissez vide."
+          },
+          "required": false,
+          "placeholder": {
+            "en": "Jardin",
+            "fr": "Jardin"
+          }
+        },
         {
           "key": "adresse",
           "type": "string",
@@ -216,32 +151,200 @@
             "fr": "Adresse"
           },
           "description": {
-            "en": "Street, postal code and town. The more precise, the better the answer.",
-            "fr": "Rue, code postal et commune. Plus c'est précis, meilleure est la réponse."
+            "en": "Street, postal code and town: the location is a precise point, not a postal code. A postal code covers several communes, and one commune can span several restriction zones — which is exactly when VigiEau refuses to answer and asks for a street. Optional if you fill the two coordinates in below.",
+            "fr": "Rue, code postal et commune : le lieu est un point précis, pas un code postal. Un code postal couvre plusieurs communes, et une commune peut relever de plusieurs zones de restriction — c’est justement le cas où VigiEau refuse de répondre et réclame une rue. Facultatif si vous renseignez les deux coordonnées ci-dessous."
           },
-          "required": true,
+          "required": false,
           "placeholder": {
             "en": "12 rue des Lilas, 82000 Montauban",
             "fr": "12 rue des Lilas, 82000 Montauban"
+          }
+        },
+        {
+          "key": "latitude",
+          "type": "string",
+          "label": {
+            "en": "Latitude (optional)",
+            "fr": "Latitude (facultatif)"
+          },
+          "description": {
+            "en": "WGS-84 decimal degrees, -90 to 90. Filled in together with the longitude, this point is used as it is; the address above is then only a label, and is looked up automatically when you leave it empty.",
+            "fr": "Degrés décimaux WGS-84, de -90 à 90. Renseignée avec la longitude, ce point est utilisé tel quel ; l’adresse ci-dessus ne sert plus que de libellé, et elle est recherchée automatiquement si vous la laissez vide."
+          },
+          "required": false,
+          "placeholder": {
+            "en": "48.8566",
+            "fr": "48,8566"
+          }
+        },
+        {
+          "key": "longitude",
+          "type": "string",
+          "label": {
+            "en": "Longitude (optional)",
+            "fr": "Longitude (facultatif)"
+          },
+          "description": {
+            "en": "WGS-84 decimal degrees, -180 to 180. Both coordinates go together: one alone is not a point.",
+            "fr": "Degrés décimaux WGS-84, de -180 à 180. Les deux coordonnées vont ensemble : une seule ne fait pas un point."
+          },
+          "required": false,
+          "placeholder": {
+            "en": "2.3522",
+            "fr": "2,3522"
           }
         }
       ]
     },
     {
+      "key": "afficher_lieux",
+      "label": {
+        "en": "Show the locations",
+        "fr": "Afficher les lieux"
+      },
+      "description": {
+        "en": "Lists every configured location: name, address and coordinates. Each entry opens with a \"•\" and its number — the numbers the deletion dropdown offers.",
+        "fr": "Liste tous les lieux configurés : nom, adresse et coordonnées. Chaque entrée commence par « • » et son numéro — les numéros que propose la liste déroulante de la suppression."
+      },
+      "timeout_seconds": 15
+    },
+    {
       "key": "test_vigieau",
       "label": {
-        "en": "Test the VigiEau connection",
-        "fr": "Tester la connexion VigiEau"
+        "en": "Test the VigiEau connection (all locations)",
+        "fr": "Tester la connexion VigiEau (tous les lieux)"
       },
-      "timeout_seconds": 30
+      "description": {
+        "en": "Queries VigiEau for every location and shows its level, in the format of \"Show the locations\": each entry opens with a \"•\" and its number.",
+        "fr": "Interroge VigiEau pour chaque lieu et affiche son niveau, au format d’« Afficher les lieux » : chaque entrée commence par « • » et son numéro."
+      },
+      "timeout_seconds": 60
     },
     {
       "key": "show_restrictions",
       "label": {
-        "en": "Show the restrictions in force",
-        "fr": "Afficher les restrictions en vigueur"
+        "en": "Show the restrictions in force (all locations)",
+        "fr": "Afficher les restrictions en vigueur (tous les lieux)"
       },
-      "timeout_seconds": 30
+      "description": {
+        "en": "Lists the restricted usages of every location, in the format of \"Show the locations\": each entry opens with a \"•\" and its number.",
+        "fr": "Liste les usages restreints de chaque lieu, au format d’« Afficher les lieux » : chaque entrée commence par « • » et son numéro."
+      },
+      "timeout_seconds": 60
+    },
+    {
+      "key": "supprimer_lieu",
+      "label": {
+        "en": "Delete a location",
+        "fr": "Supprimer un lieu"
+      },
+      "description": {
+        "en": "Stops watching the location whose number you pick here — the numbers are the ones \"Show the locations\" lists. Its Gladys device is not deleted (an integration cannot do that): delete it yourself if you no longer want it.",
+        "fr": "Arrête de surveiller le lieu dont vous choisissez le numéro ici — ce sont les numéros qu’affiche « Afficher les lieux ». Son appareil Gladys n’est pas supprimé (une intégration ne peut pas le faire) : supprimez-le vous-même si vous n’en voulez plus."
+      },
+      "timeout_seconds": 15,
+      "fields": [
+        {
+          "key": "lieu",
+          "type": "select",
+          "label": {
+            "en": "Location to delete",
+            "fr": "Lieu à supprimer"
+          },
+          "description": {
+            "en": "The number of the location to delete, as \"Show the locations\" numbers them.",
+            "fr": "Le numéro du lieu à supprimer, tel que « Afficher les lieux » les numérote."
+          },
+          "required": true,
+          "default": "1",
+          "options": [
+            {
+              "value": "1",
+              "label": {
+                "en": "Location 1",
+                "fr": "Lieu 1"
+              }
+            },
+            {
+              "value": "2",
+              "label": {
+                "en": "Location 2",
+                "fr": "Lieu 2"
+              }
+            },
+            {
+              "value": "3",
+              "label": {
+                "en": "Location 3",
+                "fr": "Lieu 3"
+              }
+            },
+            {
+              "value": "4",
+              "label": {
+                "en": "Location 4",
+                "fr": "Lieu 4"
+              }
+            },
+            {
+              "value": "5",
+              "label": {
+                "en": "Location 5",
+                "fr": "Lieu 5"
+              }
+            },
+            {
+              "value": "6",
+              "label": {
+                "en": "Location 6",
+                "fr": "Lieu 6"
+              }
+            },
+            {
+              "value": "7",
+              "label": {
+                "en": "Location 7",
+                "fr": "Lieu 7"
+              }
+            },
+            {
+              "value": "8",
+              "label": {
+                "en": "Location 8",
+                "fr": "Lieu 8"
+              }
+            },
+            {
+              "value": "9",
+              "label": {
+                "en": "Location 9",
+                "fr": "Lieu 9"
+              }
+            },
+            {
+              "value": "10",
+              "label": {
+                "en": "Location 10",
+                "fr": "Lieu 10"
+              }
+            }
+          ]
+        },
+        {
+          "key": "confirmation",
+          "type": "boolean",
+          "label": {
+            "en": "I confirm the deletion",
+            "fr": "Je confirme la suppression"
+          },
+          "description": {
+            "en": "Run the action once unchecked to see which location would be deleted.",
+            "fr": "Lancez l'action une fois sans cocher pour voir quel lieu serait supprimé."
+          },
+          "required": false,
+          "default": false
+        }
+      ]
     }
   ]
 }

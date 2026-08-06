@@ -10,7 +10,10 @@ The VigiEau API is free and public: **no account, no API key**. It covers
 
 ## What you get
 
-One device, "Vigilance sécheresse — _your location_", carrying five sensors:
+**One device per watched location**, named "Vigilance sécheresse — _your
+location_", each carrying five sensors. You can watch up to **ten locations**: a
+house, a second home and an allotment garden are rarely under the same
+prefectoral decree.
 
 | Sensor                   | Value                                        |
 | ------------------------ | -------------------------------------------- |
@@ -42,30 +45,87 @@ separately, in addition to the overall level.
 ## Configuration
 
 1. Open the integration's **Configuration** tab.
-2. Give the **location a name** ("Maison", "Jardin"…): it shows up in the device
-   name.
-3. Click **"Search for my address"**, type your address (street, postal code,
-   town) and confirm: the **latitude** and **longitude** are filled in for you,
-   and the address it settled on is kept in **"Last address searched"** so you
-   can see at a glance where the device is looking.
-   If you rather type the coordinates yourself — read off a map, say — both
-   decimal separators are accepted: `48.8566` and `48,8566` are the same point.
-4. Pick your **user profile**: household, company, local authority or farm.
+2. Click **"Add a location (search for an address)"**, type your address
+   (street, postal code, town) and, if you like, a **name** ("Maison",
+   "Jardin"… — the town is used when you leave it empty). The location is
+   created, its coordinates are geocoded for you, and its device shows up in the
+   **Discovery** tab, ready to be added. If you already know the point, fill the
+   optional **Latitude** and **Longitude** fields in instead: they are used as
+   they are, with no geocoding.
+3. Repeat for every location you want to watch, up to ten.
+4. In **"General settings"**, pick your **user profile**: household, company, local authority or farm.
    Restrictions differ per profile, and VigiEau returns the ones that apply to
-   yours.
+   yours. This setting applies to **every location**.
 5. Leave the **refresh interval** at 3600 s (1 hour): prefectoral decrees change
    once a day at most. The integration keeps that pace itself; a 5-minute floor
    applies whatever you type.
-6. Save: the device shows up in the **Discovery** tab, ready to be added.
+6. Save.
 
-> Until an address has been geocoded, no device is offered and the integration
-> says so in its Configuration screen. That is deliberate: no device beats a
-> device pinned to an empty location.
+> Until one location has a usable point, no device is offered. That is
+> deliberate: no device beats a device pinned to an empty location.
 
-> If you change the location later (a new address, or coordinates typed by
-> hand), the **existing device follows it**: it keeps its name, its history, its
-> rooms and its scenes, and simply reports on the new point. There is nothing to
-> delete and nothing to add again.
+### Viewing your locations
+
+Run the **"Show the locations"** action: the message under the button lists
+**every configured location**, numbered, in the form
+
+```
+• number. name — address (latitude, longitude)
+```
+
+The numbers are the ones the **"Delete a location"** dropdown offers — that is
+where you read which location "Location 2" is. A location whose coordinates are
+unusable is listed too, with a dash where its point should be: it is neither
+published nor queried, and that line is the only thing that says so.
+
+> **Why does every location run on one single line?** The integration does send
+> a real line break between two locations — the container logs show it. The
+> Configuration screen, though, displays an action's answer as the **text** of a
+> plain alert box, and a browser renders a line break there as a space: no
+> formatting is possible, whatever the integration sends. Hence the **"•"**
+> opening every location — it is what visibly separates the entries for as long
+> as Gladys collapses the line breaks.
+
+> **Why a button and not a table on the page?** The Configuration screen shows
+> nothing an integration has to say, except the message of an **action**, under
+> its button — and it only renders input fields, never a read-only text. A list
+> you build as you go has no place there. That is also what makes "Show the
+> locations" always current: there is nothing to reload.
+
+> **A location cannot be edited.** To change an address, add the new location
+> with "Add a location", then delete the old one. What you get is a **new
+> device** in the Discovery tab: the old one keeps its own history, and a
+> location's name is the one you give it when you create it.
+>
+> Why the limitation? Editing a location meant designating one on the
+> Configuration screen, and an integration's dropdown can only offer options
+> written in advance in its manifest — never your location names. The fields
+> that followed such a dropdown also kept showing the previous location until
+> the page was reloaded, with the risk of writing one location's address onto
+> another.
+
+### Deleting a location
+
+In the **"Delete a location"** action, pick the **number** shown by "Show the
+locations", tick **"I confirm the deletion"** and run it. Run unticked, it only
+tells you which location would go.
+
+> The locations after the one you delete **move up a rank**: the message says
+> so. Run "Show the locations" again to see the new numbering before the next
+> deletion.
+
+What happens to the device depends on what you had done with it:
+
+- **You never added it** (it was only offered in the Discovery tab): it leaves
+  the discovery straight away, the integration having stopped offering it. The
+  message confirms it.
+- **You had added it to Gladys**: it **stays**, and stops updating. An
+  integration is not allowed to delete a device — Gladys gives it no way to. The
+  message gives you its exact name: delete it yourself from the integration's
+  **Devices** tab.
+
+> Deleting a location does not delete its Gladys device — an integration is not
+> allowed to. Delete it yourself if you no longer want it.
 
 ## Why an address and not a postal code
 
@@ -81,14 +141,13 @@ water type. The integration therefore always queries VigiEau by coordinates.
 
 ### The search button
 
-1. Click **"Search for my address (fills the coordinates)"**.
+1. Click **"Add a location (search for an address)"**.
 2. Type your address. The more precise, the better: "12 rue des Lilas, 82000
    Montauban" beats "Montauban".
 3. The integration geocodes it on the official
    [Base Adresse Nationale](https://adresse.data.gouv.fr) — the same service
-   the VigiEau website uses — writes the latitude and longitude into the
-   fields, and publishes the device in the **Discovery** tab. Reload the page
-   to see the fields filled in.
+   the VigiEau website uses — creates the location and publishes its device in
+   the **Discovery** tab.
 
 When several addresses match with **no clear winner**, the integration **does
 not guess**: it lists the candidates and asks you to be more precise. Add the
@@ -97,16 +156,42 @@ number, the street or the town, and search again.
 The confirmation message shows the address it settled on and its coordinates:
 check it at a glance before moving on.
 
+### Typing a latitude and a longitude yourself
+
+The **"Latitude"** and **"Longitude"** fields of the same action are
+**optional**. Fill both in and the location is created on that point **as it
+is**, with no geocoding: the way out of the cases an address cannot serve — a
+plot with no street, a hamlet the Base Adresse Nationale does not know, or a
+point read off a map.
+
+- They are **WGS-84 decimal degrees**: latitude -90 to 90, longitude -180 to 180. Both the comma and the dot are accepted ("48,8566" as well as "48.8566"),
+  and a value out of range is refused with a message showing what was received.
+- **Both go together**: a latitude alone is not a point, and the action refuses
+  it rather than completing it with a zero — which would have you watching the
+  Gulf of Guinea.
+- If you type an **address as well**, the **coordinates win**: the address is
+  then only the label "Show the locations" displays (and the name, if you give
+  none). With neither address nor name, the location is named after its own
+  coordinates.
+- A point picked off a map is still just a point: check it with **"Test the
+  VigiEau connection"** right after adding it.
+
 ## Actions
 
-- **Search for my address (fills the coordinates)** — geocodes your address and
-  fills in the latitude and longitude. See "Why an address and not a postal
-  code" above.
-- **Test the VigiEau connection** — runs a live request and shows the current
-  level for the three water types. Use it right after the configuration to check
-  that your location is covered.
-- **Show the restrictions in force** — lists the water usages currently
-  restricted at this address for your profile, with a link to the decree.
+- **Add a location (search for an address)** — geocodes the address and creates
+  the location, or creates it straight on the latitude and longitude you type
+  (both optional). See "Why an address and not a postal code" above.
+- **Show the locations** — lists every configured location, numbered, with its
+  name, address and coordinates. Those numbers are the ones the deletion offers.
+- **Test the VigiEau connection (all locations)** — runs a live request and
+  shows the current level of every location, for the three water types. Use it
+  right after the configuration to check that your locations are covered.
+- **Show the restrictions in force (all locations)** — lists the water usages
+  currently restricted at each address for your profile, with a link to the
+  decree.
+- **Delete a location** — stops watching the location whose number you pick,
+  after confirmation. Its Gladys device stays: delete it yourself. It is the
+  last button of the screen, the only one that destroys anything.
 
 ## Scene ideas
 
@@ -120,9 +205,10 @@ check it at a glance before moving on.
 ## Troubleshooting
 
 - **No device in the Discovery tab** — in order:
-  1. Are the **latitude and longitude filled in**? Without them the integration
-     deliberately publishes no device, and the Configuration screen says so.
-     Use the **"Search for my address"** button.
+  1. **Have you added a location?** Without a located location the integration
+     deliberately publishes no device. Use the
+     **"Add a location (search for an address)"** button; the
+     **"Show the locations"** action lists what is actually stored.
   2. Click **Scan** in the Discovery tab to force a new publication.
   3. Read the **integration logs**. A line starting with `Published` confirms
      Gladys accepted the device. If you see
@@ -131,11 +217,10 @@ check it at a glance before moving on.
   4. Check that the container is actually running: a Docker image that cannot
      be pulled (`manifest unknown`) stops the integration from starting, and
      nothing is ever published.
-- **A latitude or longitude typed by hand is not saved** — that was the case up
-  to version 1.1.1: the fields only took the decimal separator of your browser,
-  and a value it refused was dropped with no message. Both separators work now
-  (`48.8566` as well as `48,8566`). Update the integration, then type the
-  coordinate again — or simply use **"Search for my address"**.
+- **I would like to correct a location's latitude or longitude** — a location is
+  never edited: add a new one, either with a more precise address or by typing
+  the coordinates you want straight into "Add a location", then delete the old
+  one.
 - **Two "Vigilance sécheresse" devices after changing the address** — that was
   the case up to version 1.1.1: the device id was built from the coordinates, so
   every address created its own device and the previous one stopped refreshing.
@@ -143,6 +228,18 @@ check it at a glance before moving on.
   the device you already created, history included — the log line
   `Keeping the existing identity of drought-zone` says which one. Any other
   device left over from an older address can be deleted in Gladys.
+- **I cannot find my locations anywhere on the page** — that is deliberate: a
+  configuration screen only renders input fields, and shows nothing an
+  integration has to say except the message of an action. Run **"Show the
+  locations"**: the list appears under the button, always current, with nothing
+  to reload.
+- **The deletion dropdown shows "Location 1", "Location 2"… rather than my
+  names** — the options of a dropdown are written in advance in the integration
+  manifest: they can only be numbers. "Show the locations" is what maps a number
+  to a name.
+- **A device that stopped refreshing after a location was deleted** — that is
+  expected: an integration cannot delete a Gladys device, it can only stop
+  offering it. Delete it in Gladys.
 - **"No recent value" on every feature** — right after adding the device this
   is normal for a few seconds: Gladys drops the states published before the
   device existed. The integration notices the creation and refreshes straight
@@ -154,8 +251,9 @@ check it at a glance before moving on.
   text, surface water, groundwater, drinking water. On a dashboard or in a
   scene, the four levels do show their real names.
 - **"VigiEau cannot tell which zone applies here"** — the configured point does
-  not fall inside a single zone. Run **"Search for my address"** again with a
-  more precise address (number and street rather than just the town name).
+  not fall inside a single zone. The message names the location: add it again
+  with a more precise address (number and street rather than just the town
+  name), then delete the old one.
 - **No data / errors in the logs** — start with the **Test the VigiEau
   connection** action. A `VigiEau HTTP 5xx` error means the service is
   temporarily unavailable: it is shown in the Configuration screen, and the

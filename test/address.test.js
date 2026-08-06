@@ -5,6 +5,7 @@ import {
   MIN_SCORE,
   pickAddress,
   resolveAddress,
+  reverseAddress,
   searchAddresses,
 } from '../src/address.js';
 
@@ -109,6 +110,58 @@ test('searchAddresses surfaces a geocoder outage', async () => {
 test('searchAddresses tolerates a payload without features', async () => {
   globalThis.fetch = async () => ({ ok: true, status: 200, json: async () => ({}) });
   assert.deepEqual(await searchAddresses('Montauban'), []);
+});
+
+// --- Reverse geocoding -------------------------------------------------------
+// What names a location added straight from a latitude and a longitude: the
+// point is watched as it is, and this is the address the listing shows for it.
+
+test('reverseAddress returns the address the point falls on', async () => {
+  stubGeocoder([
+    feature({
+      label: 'Grande Rue 69600 Oullins-Pierre-Bénite',
+      lon: 4.80517,
+      lat: 45.71368,
+      score: 0.99,
+      city: 'Oullins-Pierre-Bénite',
+      postcode: '69600',
+    }),
+  ]);
+  const match = await reverseAddress(45.71368, 4.80517);
+  assert.equal(match.label, 'Grande Rue 69600 Oullins-Pierre-Bénite');
+  assert.equal(match.city, 'Oullins-Pierre-Bénite');
+});
+
+test('reverseAddress sends lon and lat to the /reverse endpoint, in that order', async () => {
+  // [longitude, latitude] again, in the query string this time: swapping them
+  // would label the point with an address hundreds of kilometres away.
+  const calls = stubGeocoder([]);
+  await reverseAddress(45.71368, 4.80517);
+  assert.match(calls[0], /\/reverse\/\?/);
+  assert.match(calls[0], /lon=4\.80517/);
+  assert.match(calls[0], /lat=45\.71368/);
+});
+
+test('reverseAddress answers null for a point no street covers', async () => {
+  // The Base Adresse Nationale only covers France, and a plot in the middle of
+  // a field legitimately has no address: the location is added all the same.
+  stubGeocoder([]);
+  assert.equal(await reverseAddress(45.71368, 4.80517), null);
+});
+
+test('reverseAddress refuses to query anything but a real point', async () => {
+  globalThis.fetch = async () => {
+    throw new Error('nothing to reverse');
+  };
+  assert.equal(await reverseAddress(null, 4.80517), null);
+  assert.equal(await reverseAddress(45.71368, undefined), null);
+});
+
+test('reverseAddress surfaces a geocoder outage', async () => {
+  // The CALLER decides it is not fatal (see src/locationEditor.js): the driver
+  // does not hide an outage behind a null.
+  stubGeocoder(null, 503);
+  await assert.rejects(() => reverseAddress(45.71368, 4.80517), /Base Adresse Nationale HTTP 503/);
 });
 
 // --- Picking -----------------------------------------------------------------

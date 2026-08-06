@@ -59,7 +59,15 @@ export async function searchAddresses(query) {
     throw new Error(`Base Adresse Nationale HTTP ${response.status}`);
   }
 
-  const body = await response.json();
+  return toMatches(await response.json());
+}
+
+/**
+ * The usable matches of a GeoJSON answer. Shared by the two endpoints: /search
+ * and /reverse return the very same feature shape.
+ * @param {unknown} body
+ */
+function toMatches(body) {
   return (Array.isArray(body?.features) ? body.features : [])
     .map((feature) => {
       // GeoJSON order: [longitude, latitude]. Swapping them silently moves the
@@ -80,6 +88,48 @@ export async function searchAddresses(query) {
       };
     })
     .filter((match) => Number.isFinite(match.latitude) && Number.isFinite(match.longitude));
+}
+
+/**
+ * The address a POINT falls on — the reverse of `searchAddresses`.
+ *
+ * The add action lets the user type a latitude and a longitude instead of an
+ * address, for the cases geocoding cannot serve. Their point is then watched as
+ * it is, but the location has NO address to show: the listing read
+ * "45.71368, 4.80517 — 45.71368, 4.80517", and the device was named after two
+ * decimals. This fills that label in, so a typed point ends up described like a
+ * geocoded one.
+ *
+ * It is a LABEL, never the point: the coordinates the user typed are the ones
+ * watched, and this answer never moves them.
+ *
+ * @param {number} latitude
+ * @param {number} longitude
+ * @returns {Promise<object | null>} the closest known address, or null when the
+ *   point falls on none — the Base Adresse Nationale only covers France, and a
+ *   plot in the middle of a field legitimately has no street
+ */
+export async function reverseAddress(latitude, longitude) {
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return null;
+  }
+  // Same [longitude, latitude] trap as above, in the query string this time.
+  const params = new URLSearchParams({ lon: String(longitude), lat: String(latitude) });
+  const url = `${API_BASE_URL}/reverse/?${params.toString()}`;
+  logger.debug('Base Adresse Nationale reverse request ->', url);
+
+  const response = await fetch(url, {
+    headers: { Accept: 'application/json' },
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  });
+  if (!response.ok) {
+    throw new Error(`Base Adresse Nationale HTTP ${response.status}`);
+  }
+
+  // /reverse answers the closest addresses, best first; there is nothing to
+  // disambiguate here — a point is not a vague query, so no score threshold.
+  const [closest] = toMatches(await response.json());
+  return closest ?? null;
 }
 
 /**
