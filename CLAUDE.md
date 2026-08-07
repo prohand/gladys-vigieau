@@ -60,7 +60,9 @@ no business logic. Everything else lives under `src/`:
   arithmetic the delete dropdown needs, and `locationLine()` / `describeLocations()`, which render
   the ONE entry format the three reporting actions share.
 - **`src/richText.js`** — `boldLabel()`, the only emphasis the Configuration screen can render.
-- **`src/locationEditor.js`** — the location manager: the add, list and delete actions. All its
+- **`src/houses.js`** — `GET /house` driver: the houses the user configured in Gladys, and the
+  authorization the manifest has to declare to read them.
+- **`src/locationEditor.js`** — the location manager: the add, import, list and delete actions. All its
   dependencies are injected, so it is tested offline.
 - **`src/vigieau.js`** — VigiEau driver. Deliberately split: `fetchZones()` is the only impure part,
   `summarize()` / `toSeverityLevel()` are pure and carry all the mapping logic, which is why the
@@ -77,8 +79,8 @@ optionally `onPoll`, `refresh`, `startPolling`, `actions`.
 ### Several locations, one device each — and NOTHING about them on the Configuration screen
 
 The user watches a LIST of locations, one device per entry, capped at `MAX_LOCATIONS` (10). It is
-built by three actions and by nothing else: **a location is added, listed and deleted, never
-edited.**
+built by four actions and by nothing else — added one at a time, imported wholesale from the Gladys
+houses, listed, deleted: **a location is added, listed and deleted, never edited.**
 
 **Where the list lives.** Not in the `config_schema`: it is a fixed set of fields with no repeatable
 one, and a `select` only takes the options written in the manifest. It lives under the off-schema
@@ -186,6 +188,25 @@ silently watch the Gulf of Guinea — and, when both are given, they WIN over th
 then only kept as the location's label. They are `string` fields parsed by `toCoordinate()`, for the
 locale reason below. The geocoder is not a fallback for a point typed wrong: a malformed coordinate
 is refused before the address is ever resolved.
+
+**Adding the Gladys houses in one click.** `importer_maisons` reads `GET /house` (`src/houses.js`)
+and adds a location per house not watched yet. Three things make it what it is. It needs
+`"location": true` in the manifest — where somebody lives is personal data, so the core turns that
+line into an authorization shown on the install screen and enforced server-side, and an integration
+that omits it gets a **403 that no retry fixes**, only a re-install; hence `HOUSE_ACCESS_DENIED`,
+told apart from every other failure so the message can name the one thing that works. It needs
+`gladys_version >= 4.85.0`, the version that opened the endpoint. And it is **not a sync**: the
+houses are read once, at the click, and what comes out is ordinary locations — a house moved in
+Gladys afterwards leaves its location where it was, which is the same rule as everywhere else here
+(a point that moved is another point, and the device keeps its own history).
+
+The import is computed against ONE list and committed ONCE — a `setConfig` per house would republish
+the Discovery tab as many times, and a failure halfway would leave half an import behind — and every
+house that did NOT become a location is named: a house never placed on the map (its `latitude` is
+`null`, never `0`), one whose point is already watched (`findLocationAtPoint`, five decimals, which
+is what makes clicking twice harmless), one past `MAX_LOCATIONS`. Nothing is written when nothing is
+added. The label lookups run in a `Promise.all`: ten sequential 15 s reverse geocodings outlive the
+action's own `timeout_seconds`.
 
 A point typed with NO address is labelled by `reverseAddress()` (BAN `/reverse/`), so the listing
 shows the street it sits on instead of repeating its own coordinates, and the device is named after
@@ -345,13 +366,14 @@ The traps, each pinned by a test in `test/manifest.test.js`:
 
 Manifest actions are registered per key. The ones that QUERY VigiEau (`test_vigieau`,
 `show_restrictions`) live in `blueprint.actions`; the three that are about the location LIST
-(`rechercher_adresse`, `afficher_lieux`, `supprimer_lieu`) come from `createLocationEditor()`,
+(`rechercher_adresse`, `importer_maisons`, `afficher_lieux`, `supprimer_lieu`) come from
+`createLocationEditor()`,
 because writing the config back and re-publishing the catalog is not a device's business.
 `test/manifest.test.js` reads `REGISTRY_LEVEL_ACTIONS` off that factory, so a handler added there
 cannot silently skip the manifest.
 
 The ORDER of the `actions` array is the order of the buttons — `ActionsCard.jsx` maps over it. It
-runs add → list → test → restrictions → **delete last**: `supprimer_lieu` is the only destructive
+runs add → import houses → list → test → restrictions → **delete last**: `supprimer_lieu` is the only destructive
 button of the page, and between the listing and the two reports it sat right where a mis-click
 lands. A test pins it there, and pins the listing above it (its dropdown offers positions, and the
 listing is what maps a position to a name).

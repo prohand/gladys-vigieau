@@ -414,6 +414,37 @@ test('the intro comes before the settings it explains', () => {
   );
 });
 
+test('the manifest asks for the house coordinates the import button reads', () => {
+  // `GET /house` is an authorization contract, not just an endpoint: it is shown
+  // on the install screen and enforced server-side, so without this line the
+  // core answers 403 and "Ajouter mes maisons Gladys" can only apologize.
+  assert.equal(manifest.location, true, 'importer_maisons reads GET /house');
+  assert.ok(
+    (manifest.actions ?? []).some((declared) => declared.key === 'importer_maisons'),
+    'declaring the permission without the button asks the user for nothing in return',
+  );
+});
+
+test('the compatibility range covers the version that opened GET /house', () => {
+  // House coordinates landed in Gladys 4.85.0, and the manifest field asking
+  // for them with it: the range is what keeps this version away from the
+  // instances that cannot serve the import button.
+  assert.match(manifest.gladys_version, /^>=4\.(8[5-9]|9\d|\d{3,})\./);
+});
+
+test('the import button sits right under the button that adds one location', () => {
+  // Both add locations, and this one is the shortcut for the other: separating
+  // them by the reports would hide it under the fold of the add form.
+  const keys = (manifest.actions ?? []).map((a) => a.key);
+  assert.equal(keys[keys.indexOf('rechercher_adresse') + 1], 'importer_maisons');
+});
+
+test('the import button asks for nothing before it runs', () => {
+  // Everything it needs is in Gladys already — that is the whole point of a
+  // one-click import.
+  assert.deepEqual(action('importer_maisons').fields ?? [], []);
+});
+
 test('the manifest declares the cloud transport only', () => {
   // VigiEau is a public HTTP API: there is no local channel, so Gladys must not
   // show the "Prefer the local connection" toggle.

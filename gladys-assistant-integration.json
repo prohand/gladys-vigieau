@@ -8,9 +8,10 @@
   },
   "version": "2.0.0",
   "docker_image": "ghcr.io/prohand/gladys-vigieau:2.0.0",
-  "gladys_version": ">=4.62.0",
+  "gladys_version": ">=4.85.0",
   "cover_image": "https://raw.githubusercontent.com/prohand/gladys-vigieau/main/cover.png",
   "transports": ["cloud"],
+  "location": true,
   "config_schema": [
     {
       "key": "intro",
@@ -195,6 +196,19 @@
           }
         }
       ]
+    },
+    {
+      "key": "importer_maisons",
+      "label": {
+        "en": "Add my Gladys houses",
+        "fr": "Ajouter mes maisons Gladys"
+      },
+      "description": {
+        "en": "Reads the houses you configured in Gladys and adds a location for each one that is not watched yet — no address to type. A house you never placed on the map has no coordinates: locate it in Settings > Houses first. The houses are read once, when you click: a location added this way is an ordinary one, which you delete like the others.",
+        "fr": "Lit les maisons que vous avez configurées dans Gladys et ajoute un lieu pour chacune qui n’est pas déjà surveillée — aucune adresse à saisir. Une maison jamais placée sur la carte n’a pas de coordonnées : localisez-la d’abord dans Réglages > Maisons. Les maisons sont lues une fois, au clic : un lieu ajouté ainsi est un lieu ordinaire, que vous supprimez comme les autres."
+      },
+      "timeout_seconds": 30,
+      "fields": []
     },
     {
       "key": "afficher_lieux",

@@ -51,7 +51,10 @@ sont exposés séparément, en plus du niveau global.
    dans l'onglet **Découverte**, prêt à être ajouté. Si vous connaissez déjà le
    point, renseignez plutôt les champs facultatifs **Latitude** et
    **Longitude** : ils sont utilisés tels quels, sans géocodage.
-3. Recommencez pour chaque lieu à surveiller, jusqu'à dix.
+3. Recommencez pour chaque lieu à surveiller, jusqu'à dix. Si les lieux que vous
+   voulez surveiller sont vos **maisons Gladys**, le bouton
+   **« Ajouter mes maisons Gladys »** vous évite de saisir quoi que ce soit :
+   voir « Ajouter vos maisons Gladys en un clic » ci-dessous.
 4. Dans **« Réglages généraux »**, choisissez votre **profil d'usager** : particulier, entreprise, collectivité
    ou exploitation agricole. Les restrictions ne sont pas les mêmes pour tous, et
    VigiEau renvoie celles qui s'appliquent au vôtre. Ce réglage vaut pour **tous
@@ -65,6 +68,33 @@ sont exposés séparément, en plus du niveau global.
 > Tant qu'aucun lieu n'a de point utilisable, aucun appareil n'est proposé.
 > C'est voulu : mieux vaut pas d'appareil qu'un appareil rattaché à un lieu
 > vide.
+
+### Ajouter vos maisons Gladys en un clic
+
+Vous avez déjà dit à Gladys où vous habitez : c'est la carte de
+**Réglages > Maisons**. Le bouton **« Ajouter mes maisons Gladys »** lit ces
+maisons et crée un lieu pour chacune qui n'est pas déjà surveillée — aucune
+adresse à saisir, aucun risque de géocoder la mauvaise commune. Le nom du lieu
+est celui de la maison dans Gladys, et l'adresse affichée dans la liste est
+recherchée pour vous à partir du point.
+
+Quelques règles, que le message affiché sous le bouton rappelle à chaque fois :
+
+- **L'accès aux coordonnées de vos maisons est une autorisation.** Votre domicile
+  est une donnée personnelle : l'intégration la demande dans son manifeste, et
+  Gladys vous montre cette demande à l'installation. Si le bouton répond que
+  Gladys refuse de partager ces coordonnées, c'est que la version installée ne
+  l'avait pas demandée : mettez l'intégration à jour, ou supprimez-la et
+  réinstallez-la en acceptant la demande.
+- **Une maison jamais placée sur la carte n'a pas de coordonnées.** Elle est
+  nommée dans la réponse, et rien n'est surveillé à sa place : localisez-la dans
+  **Réglages > Maisons**, puis relancez l'action.
+- **Une maison déjà surveillée n'est pas ajoutée deux fois.** Vous pouvez cliquer
+  autant de fois que vous voulez : le message vous dit quel lieu la surveille
+  déjà.
+- **Ce n'est pas une synchronisation.** Les maisons sont lues une fois, au clic.
+  Un lieu ainsi créé est un lieu ordinaire : si vous déplacez la maison dans
+  Gladys ensuite, le lieu, lui, ne bouge pas — supprimez-le et relancez l'action.
 
 ### Consulter les lieux
 
@@ -191,6 +221,10 @@ connaît pas, ou un point relevé sur une carte.
   lieu, ou crée le lieu directement sur la latitude et la longitude que vous
   saisissez (facultatives). Voir « Pourquoi une adresse et pas un code postal »
   plus haut.
+- **Ajouter mes maisons Gladys** — lit les maisons configurées dans Gladys et
+  ajoute un lieu pour chacune qui n'est pas déjà surveillée, sans rien saisir.
+  Nécessite Gladys 4.85.0 ou plus récent, et l'autorisation acceptée à
+  l'installation.
 - **Afficher les lieux** — liste tous les lieux configurés, numérotés, avec leur
   nom, leur adresse et leurs coordonnées. Ce sont ces numéros que propose la
   suppression.

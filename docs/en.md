@@ -52,7 +52,9 @@ separately, in addition to the overall level.
    **Discovery** tab, ready to be added. If you already know the point, fill the
    optional **Latitude** and **Longitude** fields in instead: they are used as
    they are, with no geocoding.
-3. Repeat for every location you want to watch, up to ten.
+3. Repeat for every location you want to watch, up to ten. If the locations you
+   want are your **Gladys houses**, the **"Add my Gladys houses"** button spares
+   you all typing: see "Adding your Gladys houses in one click" below.
 4. In **"General settings"**, pick your **user profile**: household, company, local authority or farm.
    Restrictions differ per profile, and VigiEau returns the ones that apply to
    yours. This setting applies to **every location**.
@@ -63,6 +65,31 @@ separately, in addition to the overall level.
 
 > Until one location has a usable point, no device is offered. That is
 > deliberate: no device beats a device pinned to an empty location.
+
+### Adding your Gladys houses in one click
+
+You have already told Gladys where you live: that is the map in
+**Settings > Houses**. The **"Add my Gladys houses"** button reads those houses
+and creates a location for each one that is not watched yet — no address to
+type, no risk of geocoding the wrong town. The location takes the name the house
+has in Gladys, and the address shown in the listing is looked up for you from
+the point.
+
+A few rules, which the message under the button repeats every time:
+
+- **Reading your houses' coordinates is an authorization.** Where you live is
+  personal data: the integration asks for it in its manifest, and Gladys shows
+  you that request when you install it. If the button answers that Gladys
+  refuses to share those coordinates, the installed version never asked for it:
+  update the integration, or remove and re-install it and accept the request.
+- **A house you never placed on the map has no coordinates.** It is named in the
+  answer and nothing is watched in its place: locate it in
+  **Settings > Houses**, then click again.
+- **A house already watched is not added twice.** Click as often as you like:
+  the message tells you which location already watches it.
+- **It is not a sync.** The houses are read once, when you click. A location
+  created this way is an ordinary one: move the house in Gladys afterwards and
+  the location stays where it was — delete it and click again.
 
 ### Viewing your locations
 
@@ -181,6 +208,9 @@ point read off a map.
 - **Add a location (search for an address)** — geocodes the address and creates
   the location, or creates it straight on the latitude and longitude you type
   (both optional). See "Why an address and not a postal code" above.
+- **Add my Gladys houses** — reads the houses configured in Gladys and adds a
+  location for each one that is not watched yet, with nothing to type. Requires
+  Gladys 4.85.0 or newer, and the authorization accepted at install time.
 - **Show the locations** — lists every configured location, numbered, with its
   name, address and coordinates. Those numbers are the ones the deletion offers.
 - **Test the VigiEau connection (all locations)** — runs a live request and

@@ -1,9 +1,10 @@
 // -----------------------------------------------------------------------------
 // The location manager of the Configuration screen.
 //
-// WHAT THE USER SEES: three buttons and nothing else. The watched locations are
-// added with "Ajouter un lieu", listed by "Afficher les lieux" and removed with
-// "Supprimer un lieu". The Configuration screen holds NO field about them.
+// WHAT THE USER SEES: four buttons and nothing else. The watched locations are
+// added with "Ajouter un lieu" or, in one click, with "Ajouter mes maisons
+// Gladys", listed by "Afficher les lieux" and removed with "Supprimer un lieu".
+// The Configuration screen holds NO field about them.
 //
 // WHY EVERYTHING HAPPENS UNDER A BUTTON. The screen is generated from the
 // manifest, which is a static file, and every field it renders that is not a
@@ -29,8 +30,8 @@
 // enough: a location is a point, and a point that moved is another location.
 //
 // Everything the outside world provides is injected (`getConfig`, `setConfig`,
-// `resolveAddress`), so the whole set is testable without a Gladys server nor a
-// network: see `test/locationEditor.test.js`.
+// `resolveAddress`, `listHouses`), so the whole set is testable without a Gladys
+// server nor a network: see `test/locationEditor.test.js`.
 // -----------------------------------------------------------------------------
 
 import { createLogger } from '@gladysassistant/integration-sdk';
@@ -40,14 +41,19 @@ import {
   reverseAddress as reverseGeocodeAddress,
 } from './address.js';
 import { toCoordinate } from './coordinates.js';
+import { fetchHouses, HOUSE_ACCESS_DENIED } from './houses.js';
 import {
   describeLocation,
   describeLocations,
+  findLocationAtPoint,
   findLocationById,
+  hasCoordinates,
   LOCATION_LINE_MARKER,
   LOCATION_LINE_SEPARATOR,
   LOCATIONS_KEY,
   locationAtPosition,
+  locationDetail,
+  locationLine,
   MAX_LOCATIONS,
   newLocationId,
   positionOf,
@@ -70,6 +76,7 @@ const logger = createLogger({ name: 'locations' });
  *   the Gladys device a location has already been given, if any
  * @param {typeof geocodeAddress} [deps.resolveAddress] - injected in tests
  * @param {typeof reverseGeocodeAddress} [deps.reverseAddress] - injected in tests
+ * @param {typeof fetchHouses} [deps.listHouses] - injected in tests
  */
 export function createLocationEditor({
   getConfig,
@@ -78,6 +85,7 @@ export function createLocationEditor({
   findCreatedDevice = async () => null,
   resolveAddress = geocodeAddress,
   reverseAddress = reverseGeocodeAddress,
+  listHouses = fetchHouses,
 }) {
   /**
    * Persist a new list, then re-publish the catalog on it.
@@ -176,6 +184,20 @@ export function createLocationEditor({
   }
 
   /**
+   * The houses of a report, quoted the way each language quotes.
+   *
+   * A house is named by the user in Gladys, so its name is the only thing that
+   * tells "Maison" from "Bureau" in a sentence about three of them.
+   * @param {Array<{ name: string }>} houses
+   * @param {'en' | 'fr'} language
+   */
+  function quoteNames(houses, language) {
+    return houses
+      .map((house) => (language === 'fr' ? `« ${house.name} »` : `"${house.name}"`))
+      .join(', ');
+  }
+
+  /**
    * The device a location has already been given, or null.
    *
    * Never fatal: failing to read the device list must not stop a deletion the
@@ -267,6 +289,163 @@ export function createLocationEditor({
         return {
           en: `Location ${position} "${name}" added: ${describeLocation(saved)}. Add its device from the Discovery tab; "Show the locations" lists them all.`,
           fr: `Lieu ${position} « ${name} » ajouté : ${describeLocation(saved)}. Ajoutez son appareil depuis l’onglet Découverte ; « Afficher les lieux » les liste tous.`,
+        };
+      },
+
+      /**
+       * Add every Gladys house that is not watched yet, in one click.
+       *
+       * WHY IT EXISTS. The user has already placed their home on a map, in
+       * Gladys. Making them type that same address again, in this form, to
+       * learn whether their garden may be watered is asking twice for
+       * something the core hands over — see `src/houses.js` for the
+       * authorization that makes it readable.
+       *
+       * WHAT IT IS NOT. It is not a sync: the houses are READ once, when the
+       * button is clicked, and what comes out is ordinary locations the user
+       * deletes like any other. A house moved in Gladys afterwards leaves its
+       * location where it was — the same rule as everywhere else here, a point
+       * that moved is another point, and the device keeps its own history.
+       *
+       * Nothing is written unless something is actually added, and everything
+       * skipped is named: a button that answers "0 added" without saying why is
+       * a button the user clicks again.
+       */
+      async importer_maisons() {
+        logger.info('Action importer_maisons');
+
+        let houses;
+        try {
+          houses = await listHouses();
+        } catch (err) {
+          if (err?.code === HOUSE_ACCESS_DENIED) {
+            // Not an outage: the INSTALLED manifest never asked for the
+            // permission, and only re-installing the integration grants it.
+            logger.warn('The house coordinates are not granted to this integration');
+            return {
+              en: 'Gladys refuses to share the coordinates of your houses with this integration. That access is granted when the integration is installed: update it to a version that asks for it, or remove and re-install it, and accept the request shown on the install screen. Meanwhile "Add a location" does the same job with an address.',
+              fr: 'Gladys refuse de partager les coordonnées de vos maisons avec cette intégration. Cet accès s’accorde à l’installation : mettez l’intégration à jour vers une version qui le demande, ou supprimez-la et réinstallez-la en acceptant la demande affichée sur l’écran d’installation. En attendant, « Ajouter un lieu » fait le même travail avec une adresse.',
+            };
+          }
+          logger.warn('Could not read the houses configured in Gladys', err);
+          const reason = String(err?.message ?? err).slice(0, 150);
+          return {
+            en: `Could not read the houses configured in Gladys: ${reason}. Add the location with its address instead.`,
+            fr: `Impossible de lire les maisons configurées dans Gladys : ${reason}. Ajoutez plutôt le lieu avec son adresse.`,
+          };
+        }
+
+        if (houses.length === 0) {
+          return {
+            en: 'Gladys has no house configured. Create one in Settings > Houses, place it on the map, then click this button again.',
+            fr: 'Gladys ne contient aucune maison. Créez-en une dans Réglages > Maisons, placez-la sur la carte, puis relancez cette action.',
+          };
+        }
+
+        // The whole import is computed against ONE list and written ONCE: a
+        // setConfig per house would re-publish the Discovery tab as many times,
+        // and a failure halfway would leave half an import behind.
+        const { locations } = getConfig();
+        let updated = locations;
+        const added = [];
+        const duplicates = [];
+        const unlocated = [];
+        const overflow = [];
+
+        // WHICH houses become locations. Each one is added to `updated` right
+        // away, so the next house is compared — and the cap counted — against
+        // the list as it WILL be: two houses of Gladys sharing one point are
+        // one location, and the second is reported against the first.
+        for (const house of houses) {
+          // A house the user never placed on the map: `latitude` is null, and a
+          // null taken as 0 would watch the Gulf of Guinea.
+          if (!hasCoordinates(house)) {
+            unlocated.push(house);
+            continue;
+          }
+          const duplicate = findLocationAtPoint(updated, house);
+          if (duplicate) {
+            duplicates.push({ house, location: duplicate });
+            continue;
+          }
+          if (updated.length >= MAX_LOCATIONS) {
+            overflow.push(house);
+            continue;
+          }
+          const id = newLocationId(updated);
+          updated = upsertLocation(updated, {
+            id,
+            // The name the user gave the house in Gladys is their own wording,
+            // and it is what tells "Maison" from "Bureau" in the listing.
+            name: house.name,
+            latitude: house.latitude,
+            longitude: house.longitude,
+          });
+          added.push({ id, house });
+        }
+
+        // A house is a point, exactly like a point typed by hand, so it is
+        // labelled exactly like one: the address it sits on, best effort, so the
+        // listing shows a street instead of repeating the coordinates. The
+        // lookup never moves the point and never refuses the import — and the
+        // ten of them run TOGETHER, because ten 15 s timeouts one after the
+        // other outlive the action's own.
+        const labels = await Promise.all(added.map(({ house }) => addressOfPoint(house)));
+        added.forEach(({ id }, index) => {
+          if (labels[index]?.label) {
+            updated = upsertLocation(updated, { id, address_label: labels[index].label });
+          }
+        });
+
+        const addedIds = added.map(({ id }) => id);
+        if (addedIds.length > 0) {
+          await commit(updated);
+        }
+
+        const current = getConfig().locations;
+        const lines = addedIds
+          .map((id) => findLocationById(current, id))
+          .map((location) =>
+            locationLine(positionOf(current, location.id), location.name, locationDetail(location)),
+          )
+          .join(LOCATION_LINE_SEPARATOR);
+
+        // Every house that did NOT become a location gets a sentence naming it.
+        const notes = { en: '', fr: '' };
+        if (duplicates.length > 0) {
+          const en = duplicates
+            .map(
+              ({ house, location }) =>
+                `"${house.name}" (already location ${positionOf(current, location.id)} "${location.name}")`,
+            )
+            .join(', ');
+          const fr = duplicates
+            .map(
+              ({ house, location }) =>
+                `« ${house.name} » (déjà le lieu ${positionOf(current, location.id)} « ${location.name} »)`,
+            )
+            .join(', ');
+          notes.en += ` Already watched: ${en}.`;
+          notes.fr += ` Déjà surveillé(s) : ${fr}.`;
+        }
+        if (unlocated.length > 0) {
+          notes.en += ` Not placed on the map in Gladys, so there is no point to watch: ${quoteNames(unlocated, 'en')}. Set their location in Settings > Houses and click again.`;
+          notes.fr += ` Sans position sur la carte dans Gladys, donc sans point à surveiller : ${quoteNames(unlocated, 'fr')}. Renseignez leur emplacement dans Réglages > Maisons puis relancez l’action.`;
+        }
+        if (overflow.length > 0) {
+          notes.en += ` Maximum ${MAX_LOCATIONS} locations reached, left out: ${quoteNames(overflow, 'en')}.`;
+          notes.fr += ` Maximum de ${MAX_LOCATIONS} lieux atteint, laissée(s) de côté : ${quoteNames(overflow, 'fr')}.`;
+        }
+
+        if (addedIds.length === 0) {
+          return {
+            en: `No house to add: your ${houses.length} Gladys house(s) are already watched or cannot be.${notes.en}`,
+            fr: `Aucune maison à ajouter : vos ${houses.length} maison(s) Gladys sont déjà surveillées ou ne peuvent pas l’être.${notes.fr}`,
+          };
+        }
+        return {
+          en: `${addedIds.length} Gladys house(s) added. Add their devices from the Discovery tab:${LOCATION_LINE_SEPARATOR}${lines}${notes.en}`,
+          fr: `${addedIds.length} maison(s) Gladys ajoutée(s). Ajoutez leurs appareils depuis l’onglet Découverte :${LOCATION_LINE_SEPARATOR}${lines}${notes.fr}`,
         };
       },
 

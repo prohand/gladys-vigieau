@@ -41,9 +41,11 @@ and its two links) and **Réglages généraux** (profile and refresh interval,
 shared by every location). It holds no field about the locations at all — those
 live entirely under the buttons.
 
-Five buttons, in that order: **Ajouter un lieu** (geocodes an address, or takes
+Six buttons, in that order: **Ajouter un lieu** (geocodes an address, or takes
 a latitude and a longitude typed by hand, and adds a location watching that
-point), **Afficher les lieux** (the numbered list: name, address, coordinates),
+point), **Ajouter mes maisons Gladys** (reads the houses the user placed on the
+map in Gladys and adds the ones not watched yet, in one click),
+**Afficher les lieux** (the numbered list: name, address, coordinates),
 **Tester la connexion VigiEau** (live check, shows the current level of every
 location), **Afficher les restrictions en vigueur** (lists the restricted usages
 and links the decree, per location) and, last, **Supprimer un lieu** (a number
@@ -153,8 +155,9 @@ A few decisions are worth knowing about:
 │  │  └─ identity.js                 #   which external_id a device keeps for life
 │  ├─ vigieau.js                     # VigiEau API driver + severity mapping (pure part)
 │  ├─ address.js                     # geocoder driver: address -> lat/lon
+│  ├─ houses.js                      # GET /house driver: the houses configured in Gladys
 │  ├─ locations.js                   # the watched location list: model + storage format
-│  ├─ locationEditor.js              # the location manager: the add/list/delete actions
+│  ├─ locationEditor.js              # the location manager: add/import/list/delete actions
 │  ├─ coordinates.js                 # reading and writing a WGS-84 coordinate
 │  └─ config.js                      # config defaults, normalization, legacy location id
 ├─ docs/
