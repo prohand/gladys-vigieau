@@ -14,6 +14,7 @@
 
 import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
+import { HOUSE_ACCESS_DENIED } from '../src/houses.js';
 import { createLocationEditor } from '../src/locationEditor.js';
 import { normalizeConfig } from '../src/config.js';
 import { MAX_LOCATIONS } from '../src/locations.js';
@@ -33,7 +34,10 @@ afterEach(() => {
  * `stored` is the whole raw config as `getConfig()` hands it back, the
  * off-schema `locations` key included — it is where the list lives.
  */
-function harness(stored = {}, { createdDeviceNames = {}, reverse = null } = {}) {
+function harness(
+  stored = {},
+  { createdDeviceNames = {}, reverse = null, houses = [], houseError = null } = {},
+) {
   let raw = { ...stored };
   let config = normalizeConfig(raw);
   const writes = [];
@@ -59,6 +63,14 @@ function harness(stored = {}, { createdDeviceNames = {}, reverse = null } = {}) 
     reverseAddress: async (latitude, longitude) => {
       reverseCalls.push([latitude, longitude]);
       return typeof reverse === 'function' ? reverse(latitude, longitude) : reverse;
+    },
+    // What GET /house answers: the houses the user placed on the map in Gladys,
+    // or the failure that read ran into.
+    listHouses: async () => {
+      if (houseError) {
+        throw houseError;
+      }
+      return houses;
     },
   });
 
@@ -369,6 +381,191 @@ test('a typed point is refused before the geocoder is even called', async () => 
   });
   assert.equal(h.locations().length, 0);
   assert.match(message.fr, /latitude/);
+});
+
+// --- Adding the Gladys houses in one click -----------------------------------
+
+/** A house of Gladys, as `fetchHouses` normalizes it. */
+function house(name, latitude = null, longitude = null) {
+  return { id: `house-${name}`, name, selector: name.toLowerCase(), latitude, longitude };
+}
+
+test('importer_maisons turns the Gladys houses into watched locations', async () => {
+  const h = harness(
+    {},
+    {
+      houses: [house('Maison', 48.8566, 2.3522), house('Chalet', 45.764, 4.8357)],
+      reverse: (latitude) =>
+        latitude === 48.8566 ? { label: '12 Rue des Lilas 75001 Paris', city: 'Paris' } : null,
+    },
+  );
+
+  const message = await h.editor.actions.importer_maisons();
+
+  assert.match(message.fr, /2 maison\(s\) Gladys ajoutée\(s\)/);
+  assert.match(message.fr, /Découverte/, 'the devices still have to be added by the user');
+  assert.equal(h.locations().length, 2);
+  const [maison, chalet] = h.locations();
+  assert.equal(maison.name, 'Maison', 'the name given in Gladys is the user’s own wording');
+  assert.equal(maison.latitude, 48.8566);
+  assert.equal(maison.longitude, 2.3522);
+  assert.equal(
+    maison.address_label,
+    '12 Rue des Lilas 75001 Paris',
+    'a house is a point, labelled with the address it sits on',
+  );
+  assert.equal(chalet.name, 'Chalet');
+  assert.equal(
+    chalet.address_label,
+    '',
+    'a point the BAN knows no street for is added all the same',
+  );
+  assert.equal(h.writes.length, 1, 'the whole import is ONE write');
+  assert.equal(h.republished(), 1, 'and ONE re-publish of the Discovery tab');
+});
+
+test('a house already watched is named rather than added twice', async () => {
+  const h = harness(installed([MAISON]), {
+    houses: [house('Maison', 48.8566, 2.3522), house('Chalet', 45.764, 4.8357)],
+  });
+
+  const message = await h.editor.actions.importer_maisons();
+
+  assert.match(message.fr, /1 maison\(s\) Gladys ajoutée\(s\)/);
+  assert.match(message.fr, /déjà le lieu 1 « Maison »/, 'the number is the delete dropdown’s');
+  assert.equal(h.locations().length, 2);
+});
+
+test('a house with no position on the map is not watched at (0, 0)', async () => {
+  const h = harness({}, { houses: [house('Bureau'), house('Maison', 48.8566, 2.3522)] });
+
+  const message = await h.editor.actions.importer_maisons();
+
+  assert.match(message.fr, /Sans position sur la carte/);
+  assert.match(message.fr, /« Bureau »/);
+  assert.match(message.fr, /Réglages > Maisons/, 'and where to give it one');
+  assert.equal(h.locations().length, 1);
+  assert.equal(h.locations()[0].name, 'Maison');
+});
+
+test('nothing to import writes nothing at all', async () => {
+  const h = harness(installed([MAISON]), { houses: [house('Maison', 48.8566, 2.3522)] });
+
+  const message = await h.editor.actions.importer_maisons();
+
+  assert.match(message.fr, /Aucune maison à ajouter/);
+  assert.equal(h.writes.length, 0, 'no write means no needless Discovery refresh');
+  assert.equal(h.republished(), 0);
+});
+
+test('an install with no house says where to create one', async () => {
+  const h = harness({}, { houses: [] });
+  const message = await h.editor.actions.importer_maisons();
+  assert.match(message.fr, /aucune maison/i);
+  assert.match(message.fr, /Réglages > Maisons/);
+});
+
+test('a refused permission tells the user to re-install, not to retry', async () => {
+  // A 403 is the install screen's answer, not an outage: nothing the user does
+  // in this screen grants it.
+  const denied = Object.assign(new Error('HTTP 403'), { code: HOUSE_ACCESS_DENIED });
+  const h = harness({}, { houseError: denied });
+
+  const message = await h.editor.actions.importer_maisons();
+
+  assert.match(message.fr, /réinstallez/i);
+  assert.match(message.en, /re-install/i);
+  assert.equal(h.locations().length, 0);
+});
+
+test('the houses being unreadable falls back on the address, and never throws', async () => {
+  const h = harness({}, { houseError: new Error('Gladys host API HTTP 500') });
+  const message = await h.editor.actions.importer_maisons();
+  assert.match(message.fr, /HTTP 500/);
+  assert.match(message.fr, /adresse/);
+});
+
+test('the import respects the cap and names what it left out', async () => {
+  const locations = Array.from({ length: MAX_LOCATIONS - 1 }, (unused, index) => ({
+    id: `loc-${index}`,
+    name: `Lieu ${index}`,
+    latitude: String(40 + index),
+    longitude: '2',
+  }));
+  const h = harness(installed(locations), {
+    houses: [house('Maison', 48.8566, 2.3522), house('Chalet', 45.764, 4.8357)],
+  });
+
+  const message = await h.editor.actions.importer_maisons();
+
+  assert.equal(h.locations().length, MAX_LOCATIONS);
+  assert.match(message.fr, new RegExp(`Maximum de ${MAX_LOCATIONS} lieux`));
+  assert.match(message.fr, /« Chalet »/);
+});
+
+test('an imported house is listed in the format every other location is', async () => {
+  const h = harness(
+    {},
+    {
+      houses: [house('Maison', 48.8566, 2.3522)],
+      reverse: () => ({ label: '12 Rue des Lilas 75001 Paris', city: 'Paris' }),
+    },
+  );
+
+  const message = await h.editor.actions.importer_maisons();
+
+  assert.match(
+    plain(message.fr),
+    /• 1\. Maison — 12 Rue des Lilas 75001 Paris \(48\.85660, 2\.35220\)/,
+  );
+});
+
+test('an imported house is an ordinary location, deleted like any other', async () => {
+  const h = harness({}, { houses: [house('Maison', 48.8566, 2.3522)] });
+  await h.editor.actions.importer_maisons();
+
+  const message = await h.editor.actions.supprimer_lieu({ lieu: '1', confirmation: true });
+
+  assert.match(message.fr, /supprimé/);
+  assert.equal(h.locations().length, 0);
+});
+
+test('a label lookup that fails never refuses the houses', async () => {
+  // The point is what is watched; the address is only what the listing shows.
+  const h = harness(
+    {},
+    {
+      houses: [house('Maison', 48.8566, 2.3522)],
+      reverse: () => {
+        throw new Error('Base Adresse Nationale HTTP 503');
+      },
+    },
+  );
+
+  const message = await h.editor.actions.importer_maisons();
+
+  assert.match(message.fr, /1 maison\(s\) Gladys ajoutée\(s\)/);
+  assert.equal(h.locations()[0].latitude, 48.8566);
+  assert.equal(h.locations()[0].address_label, '');
+});
+
+test('every answer of the location manager is a multi-language object', async () => {
+  // The SDK acks a THROWN error as a plain English string, which a French
+  // screen then shows as-is: every expected outcome is returned, never thrown.
+  const h = harness({}, { houses: [house('Maison', 48.8566, 2.3522)] });
+  forbidGeocoder();
+  const answers = [
+    await h.editor.actions.rechercher_adresse({}),
+    await h.editor.actions.rechercher_adresse({ latitude: '1' }),
+    await h.editor.actions.importer_maisons(),
+    await h.editor.actions.importer_maisons(),
+    await h.editor.actions.afficher_lieux(),
+    await h.editor.actions.supprimer_lieu({ lieu: '1' }),
+  ];
+  for (const answer of answers) {
+    assert.equal(typeof answer.en, 'string', JSON.stringify(answer));
+    assert.equal(typeof answer.fr, 'string', JSON.stringify(answer));
+  }
 });
 
 // --- Listing -----------------------------------------------------------------

@@ -134,10 +134,10 @@ async function republish() {
 }
 
 // The location manager owns everything the user does with the watched
-// locations: the three actions that add, list and delete them. It is given the
-// two capabilities it cannot have on its own — writing the configuration, and
-// re-publishing the catalog — and nothing else, which is what makes it testable
-// offline.
+// locations: the four actions that add, import, list and delete them. It is
+// given the two capabilities it cannot have on its own — writing the
+// configuration and re-publishing the catalog — and nothing else, which is what
+// makes it testable offline.
 const locationEditor = createLocationEditor({
   getConfig: () => config,
   async setConfig(patch) {

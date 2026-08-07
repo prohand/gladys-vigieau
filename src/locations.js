@@ -167,6 +167,30 @@ export function findLocationById(locations = [], id) {
 }
 
 /**
+ * The location already watching a point, if there is one.
+ *
+ * Compared at five decimals — about a metre, the precision the listing prints
+ * and far below anything VigiEau tells apart, its zones being cut along
+ * catchment basins. It is what keeps "Ajouter mes maisons Gladys" idempotent:
+ * clicking it twice must not publish a second device for the same roof, and a
+ * house is recognized by WHERE it is, its Gladys id being no business of a
+ * location (a location outlives the house it was imported from).
+ * @param {Array<object>} locations
+ * @param {{ latitude: number, longitude: number }} point
+ * @returns {object | undefined}
+ */
+export function findLocationAtPoint(locations = [], point) {
+  if (!hasCoordinates(point)) {
+    return undefined;
+  }
+  return usableLocations(locations).find(
+    (location) =>
+      location.latitude.toFixed(5) === point.latitude.toFixed(5) &&
+      location.longitude.toFixed(5) === point.longitude.toFixed(5),
+  );
+}
+
+/**
  * The location a 1-based POSITION designates — what the `lieu` select of the
  * delete action carries.
  *

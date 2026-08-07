@@ -13,6 +13,7 @@ import {
   LOCATION_LINE_MARKER,
   MAX_LOCATIONS,
   describeLocation,
+  findLocationAtPoint,
   findLocationById,
   describeLocations,
   locationAtPosition,
@@ -174,6 +175,23 @@ test('nothing mutates the list it was given', () => {
 });
 
 // --- Lookups -----------------------------------------------------------------
+
+test('findLocationAtPoint recognizes a point already watched', () => {
+  // What keeps "Ajouter mes maisons Gladys" idempotent: the same roof, clicked
+  // twice, is one location and one device history.
+  assert.equal(findLocationAtPoint([paris, lyon], { latitude: 45.764, longitude: 4.8357 }), lyon);
+  assert.equal(
+    findLocationAtPoint([paris], { latitude: 48.8566001, longitude: 2.3522001 }),
+    paris,
+    'five decimals is about a metre — far below anything VigiEau tells apart',
+  );
+  assert.equal(findLocationAtPoint([paris], { latitude: 44.01, longitude: 1.35 }), undefined);
+  assert.equal(
+    findLocationAtPoint([paris], { latitude: null, longitude: null }),
+    undefined,
+    'a house never placed on the map matches nothing, least of all a location at 0',
+  );
+});
 
 test('findLocationById finds the entry a device external_id was built on', () => {
   assert.equal(findLocationById([paris, lyon], 'loc-2'), lyon);
