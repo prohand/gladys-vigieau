@@ -16,8 +16,8 @@ and the
 
 ## What it exposes
 
-One device per watched location — `Vigilance sécheresse — <location>` — with five
-read-only features:
+One device per watched location — `Vigilance sécheresse — <location>` — with
+seven read-only features:
 
 | Feature                        | Category / type  | Value                                         |
 | ------------------------------ | ---------------- | --------------------------------------------- |
@@ -26,6 +26,16 @@ read-only features:
 | Niveau eau superficielle       | `risk` / integer | 0-3, `SUP` zones (rivers, lakes)              |
 | Niveau eau souterraine         | `risk` / integer | 0-3, `SOU` zones (aquifers)                   |
 | Niveau eau potable             | `risk` / integer | 0-3, `AEP` zones (tap water network)          |
+| Dernière mise à jour           | `text` / text    | `15/06/2026 09:26`, the last successful read  |
+| Arrêté en vigueur depuis       | `text` / text    | `15/06/2026`, the decree's first day          |
+
+VigiEau publishes **no timestamp of its own data** — the field exists in the API
+server but is serialized nowhere — so "Dernière mise à jour" is when this
+integration last read the API for that location, which is what tells a frozen
+sensor from a level that has not moved. It only advances on a successful read.
+"Arrêté en vigueur depuis" is a source date, the day the applicable decree came
+into force, and reads `Aucun arrêté en vigueur` when there is none. Both are
+rendered in Paris time whatever the container's timezone (see `src/datetime.js`).
 
 The numeric scale is the prefectoral one folded onto the four values Gladys can
 name — `0` Pas de risque, `1` Faible, `2` Moyen, `3` Élevé. VigiEau has five

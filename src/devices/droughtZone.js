@@ -5,7 +5,8 @@
 // by polling:
 //   - the overall severity level (0 to 3), the one to use in scenes;
 //   - the same level for each water type (surface, groundwater, drinking water);
-//   - the official French wording of the level, for dashboards and notifications.
+//   - the official French wording of the level, for dashboards and notifications;
+//   - when the values were last read, and since when the decree is in force.
 //
 // There is no hardware here: the "work" is an HTTP call to the VigiEau API,
 // isolated in `src/vigieau.js`. The list of locations lives in the
@@ -26,6 +27,7 @@ import {
   positionOf,
   usableLocations,
 } from '../locations.js';
+import { formatDate, formatDateTime } from '../datetime.js';
 import {
   AMBIGUOUS_COMMUNE,
   fetchZones,
@@ -53,7 +55,36 @@ export const FEATURE = {
   LEVEL_SUP: 'level-sup',
   LEVEL_SOU: 'level-sou',
   LEVEL_AEP: 'level-aep',
+  UPDATED_AT: 'updated-at',
+  DECREE_SINCE: 'decree-since',
 };
+
+// What the decree feature says when the location IS readable and carries no
+// decree at all. Left as a wording rather than as an empty text: blank reads
+// like a sensor that never fired, and keeping the PREVIOUS date instead would
+// show a decree that has been lifted as if it were still in force.
+const NO_DECREE_TEXT = 'Aucun arrêté en vigueur';
+
+// Shared shape of the three label features — the wording of the level, and the
+// two dates. The dates are TEXT because Gladys has no date/time feature
+// category at all (see src/datetime.js). None keeps history: a label is not a
+// measure, and the history of the two dates is already the history of the level
+// they date.
+function textFeature(externalId, name) {
+  return {
+    name,
+    external_id: externalId,
+    category: DEVICE_FEATURE_CATEGORIES.TEXT,
+    type: DEVICE_FEATURE_TYPES.TEXT.TEXT,
+    // Meaningless for a label, but the core column is NOT NULL and has no
+    // default: a feature without min/max is refused at creation time.
+    min: 0,
+    max: 0,
+    read_only: true,
+    has_feedback: false,
+    keep_history: false,
+  };
+}
 
 // The per-water-type features, in the order they appear on the device.
 const TYPE_FEATURES = {
@@ -138,7 +169,7 @@ async function pollLocation(gladys, config, location) {
   // DO THE WORK: read the current drought status from the VigiEau API.
   // ------------------------------------------------------------------ //
   const zones = await fetchZones(locationQuery(config, location));
-  const { level, levelsByType, restrictedUsages } = summarize(zones);
+  const { level, levelsByType, restrictedUsages, arrete } = summarize(zones);
 
   logger.info(
     `Read ${location.name}: level=${level ?? 'unknown'} (${ZONE_TYPES.map(
@@ -156,6 +187,14 @@ async function pollLocation(gladys, config, location) {
       // The text keeps the exact official wording, "Crise" included, which
       // the squeezed numeric scale can no longer tell from "Alerte renforcée".
       { device_feature_external_id: ids.feature(FEATURE.LEVEL_TEXT), text: severityLabel(level) },
+      // Since when the level published just above has been in force. Tied to
+      // the SAME condition as the level: an unreadable severity means we do not
+      // know which zone is the worst one, so `arrete` is not that level's
+      // decree and dating it would be a guess.
+      {
+        device_feature_external_id: ids.feature(FEATURE.DECREE_SINCE),
+        text: formatDate(arrete?.dateDebutValidite) ?? NO_DECREE_TEXT,
+      },
     );
   }
   for (const type of ZONE_TYPES) {
@@ -170,6 +209,15 @@ async function pollLocation(gladys, config, location) {
   if (states.length === 0) {
     throw new Error('VigiEau answered with no severity we could understand');
   }
+
+  // Stamped LAST, and only on a read that produced something: this feature says
+  // "the values next to me were read at", so a failed cycle must leave it on
+  // its previous value — a timestamp that moves while the level is stale is
+  // exactly the lie the feature exists to prevent.
+  states.push({
+    device_feature_external_id: ids.feature(FEATURE.UPDATED_AT),
+    text: formatDateTime(),
+  });
 
   // Publish every value in a single request (batch, up to 100).
   await gladys.publishStates(states);
@@ -279,22 +327,17 @@ export const droughtZone = {
         // refresh instead — see startPolling below.
         features: [
           severityFeature(ids.feature(FEATURE.LEVEL), 'Niveau de vigilance sécheresse'),
-          {
-            name: 'Niveau (texte)',
-            external_id: ids.feature(FEATURE.LEVEL_TEXT),
-            category: DEVICE_FEATURE_CATEGORIES.TEXT,
-            type: DEVICE_FEATURE_TYPES.TEXT.TEXT,
-            // Meaningless for a label, but the core column is NOT NULL and has
-            // no default: a feature without min/max is refused at creation time.
-            min: 0,
-            max: 0,
-            read_only: true,
-            has_feedback: false,
-            keep_history: false, // a label, not a measure: nothing to chart
-          },
+          textFeature(ids.feature(FEATURE.LEVEL_TEXT), 'Niveau (texte)'),
           ...ZONE_TYPES.map((type) =>
             severityFeature(ids.feature(TYPE_FEATURES[type].key), TYPE_FEATURES[type].name),
           ),
+          // The two dates the user can have. VigiEau publishes NO timestamp of
+          // its own data — see the header of src/datetime.js and the section in
+          // CLAUDE.md — so "Dernière mise à jour" is the moment THIS integration
+          // last read the API for this location, which is what tells a frozen
+          // sensor from a level that simply has not changed.
+          textFeature(ids.feature(FEATURE.UPDATED_AT), 'Dernière mise à jour'),
+          textFeature(ids.feature(FEATURE.DECREE_SINCE), 'Arrêté en vigueur depuis'),
         ],
       };
     });

@@ -10,17 +10,31 @@ L'API VigiEau est gratuite et publique : **aucun compte, aucune clé d'API**.
 ## Ce que vous obtenez
 
 **Un appareil par lieu surveillé**, nommé « Vigilance sécheresse — _votre lieu_ »,
-avec cinq capteurs chacun. Vous pouvez suivre jusqu'à **dix lieux** : une maison,
+avec sept capteurs chacun. Vous pouvez suivre jusqu'à **dix lieux** : une maison,
 une résidence secondaire et un jardin relèvent rarement du même arrêté
 préfectoral.
 
-| Capteur                            | Valeur                                      |
-| ---------------------------------- | ------------------------------------------- |
-| **Niveau de vigilance sécheresse** | 0 à 3 — le plus élevé des trois types d'eau |
-| **Niveau (texte)**                 | « Alerte renforcée », « Crise »…            |
-| **Niveau eau superficielle**       | 0 à 3 — rivières, lacs (zones `SUP`)        |
-| **Niveau eau souterraine**         | 0 à 3 — nappes phréatiques (zones `SOU`)    |
-| **Niveau eau potable**             | 0 à 3 — réseau d'eau potable (zones `AEP`)  |
+| Capteur                            | Valeur                                                                   |
+| ---------------------------------- | ------------------------------------------------------------------------ |
+| **Niveau de vigilance sécheresse** | 0 à 3 — le plus élevé des trois types d'eau                              |
+| **Niveau (texte)**                 | « Alerte renforcée », « Crise »…                                         |
+| **Niveau eau superficielle**       | 0 à 3 — rivières, lacs (zones `SUP`)                                     |
+| **Niveau eau souterraine**         | 0 à 3 — nappes phréatiques (zones `SOU`)                                 |
+| **Niveau eau potable**             | 0 à 3 — réseau d'eau potable (zones `AEP`)                               |
+| **Dernière mise à jour**           | « 15/06/2026 09:26 » — dernière lecture réussie de VigiEau pour ce lieu  |
+| **Arrêté en vigueur depuis**       | « 15/06/2026 » — date d'entrée en vigueur de l'arrêté qui fixe le niveau |
+
+> **Les deux dates ne disent pas la même chose.** VigiEau ne publie aucun
+> horodatage de ses propres données : rien dans l'API ne dit « ces informations
+> datent de… ». **Dernière mise à jour** est donc le moment où _l'intégration_ a
+> interrogé VigiEau avec succès pour ce lieu — c'est ce qui distingue un capteur
+> figé d'un niveau qui n'a simplement pas bougé. Elle n'avance que sur une
+> lecture réussie : après une panne, elle reste sur sa valeur précédente, en même
+> temps que le niveau. **Arrêté en vigueur depuis** est, elle, une date de la
+> source : celle à laquelle l'arrêté préfectoral applicable est entré en
+> vigueur. Quand rien n'est en vigueur, le capteur affiche « Aucun arrêté en
+> vigueur » plutôt que de conserver la date d'un arrêté levé. Les deux sont
+> affichées à l'heure de Paris, quel que soit le fuseau du serveur.
 
 L'échelle numérique suit celle des arrêtés préfectoraux, ramenée aux quatre
 valeurs que Gladys sait nommer :
@@ -299,9 +313,12 @@ connaît pas, ou un point relevé sur une carte.
 - **Les fonctionnalités s'appellent toutes « Niveau de risque »** — c'est
   l'affichage de Gladys : la liste « Fonctionnalités » de la fiche appareil
   montre le libellé générique de la catégorie, pas le nom publié par
-  l'intégration. Dans l'ordre, ce sont : niveau global, texte, eau
-  superficielle, eau souterraine, eau potable. Sur un tableau de bord ou dans
-  une scène, les quatre niveaux affichent bien leurs vrais noms.
+  l'intégration. Les trois capteurs textuels — niveau (texte), dernière mise à
+  jour, arrêté en vigueur depuis — souffrent du même travers et portent eux
+  aussi un libellé générique identique. Dans l'ordre, ce sont : niveau global,
+  texte, eau superficielle, eau souterraine, eau potable, dernière mise à jour,
+  arrêté en vigueur depuis. Sur un tableau de bord ou dans une scène, tous
+  affichent bien leurs vrais noms.
 - **« VigiEau n'arrive pas à déterminer la zone applicable ici »** — le point
   configuré ne tombe pas dans une seule zone. Le message nomme le lieu
   concerné : ajoutez-le à nouveau avec une adresse plus précise (numéro et rue
