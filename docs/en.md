@@ -11,17 +11,30 @@ The VigiEau API is free and public: **no account, no API key**. It covers
 ## What you get
 
 **One device per watched location**, named "Vigilance sécheresse — _your
-location_", each carrying five sensors. You can watch up to **ten locations**: a
+location_", each carrying seven sensors. You can watch up to **ten locations**: a
 house, a second home and an allotment garden are rarely under the same
 prefectoral decree.
 
-| Sensor                   | Value                                        |
-| ------------------------ | -------------------------------------------- |
-| **Drought alert level**  | 0 to 3 — the worst of the three water types  |
-| **Level (text)**         | "Alerte renforcée", "Crise"…                 |
-| **Surface water level**  | 0 to 3 — rivers and lakes (`SUP` zones)      |
-| **Groundwater level**    | 0 to 3 — aquifers (`SOU` zones)              |
-| **Drinking water level** | 0 to 3 — the tap water network (`AEP` zones) |
+| Sensor                       | Value                                                                   |
+| ---------------------------- | ----------------------------------------------------------------------- |
+| **Drought alert level**      | 0 to 3 — the worst of the three water types                             |
+| **Level (text)**             | "Alerte renforcée", "Crise"…                                            |
+| **Surface water level**      | 0 to 3 — rivers and lakes (`SUP` zones)                                 |
+| **Groundwater level**        | 0 to 3 — aquifers (`SOU` zones)                                         |
+| **Drinking water level**     | 0 to 3 — the tap water network (`AEP` zones)                            |
+| **Dernière mise à jour**     | "15/06/2026 09:26" — the last successful VigiEau read for this location |
+| **Arrêté en vigueur depuis** | "15/06/2026" — the day the decree setting this level came into force    |
+
+> **The two dates do not say the same thing.** VigiEau publishes no timestamp of
+> its own data: nothing in the API says "this information dates from…". So
+> **Dernière mise à jour** is the moment _the integration_ last queried VigiEau
+> successfully for this location — what tells a frozen sensor from a level that
+> simply has not changed. It only moves on a successful read: after an outage it
+> stays on its previous value, alongside the level. **Arrêté en vigueur depuis**
+> is a date from the source: the day the applicable prefectoral decree came into
+> force. When nothing is in force, the sensor reads "Aucun arrêté en vigueur"
+> rather than keeping the date of a decree that has been lifted. Both are shown
+> in Paris time, whatever the server's timezone.
 
 The numeric scale follows the prefectoral decrees, folded onto the four values
 Gladys knows how to name:
@@ -277,9 +290,11 @@ point read off a map.
   connection** action: it queries the API live and shows any error.
 - **Every feature is called "Risk level"** — that is how Gladys displays them:
   the "Features" list on the device page shows the generic category label, not
-  the name published by the integration. In order they are: overall level,
-  text, surface water, groundwater, drinking water. On a dashboard or in a
-  scene, the four levels do show their real names.
+  the name published by the integration. The three text sensors — level (text),
+  last update, decree in force since — share the same fate and carry an
+  identical generic label. In order they are: overall level, text, surface
+  water, groundwater, drinking water, last update, decree in force since. On a
+  dashboard or in a scene, they all do show their real names.
 - **"VigiEau cannot tell which zone applies here"** — the configured point does
   not fall inside a single zone. The message names the location: add it again
   with a more precise address (number and street rather than just the town

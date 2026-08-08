@@ -244,14 +244,29 @@ test('the device carries the level as text alongside the numbers', () => {
   assert.equal(text.read_only, true);
 });
 
-test('the device carries exactly five features', () => {
-  // Four severity levels + the text label. A binary "restrictions in force"
-  // used to sit here too; it only ever meant "level >= 1", which a scene can
-  // test on the numeric level directly, and the core rendered it as the
-  // baffling "Etat de l'entrée".
+test('the two dates are read-only text features that keep no history', () => {
+  // Gladys has no date/time feature CATEGORY at all: TEXT is the only way to
+  // publish a timestamp a human can read.
   const gladys = createFakeGladys();
   const [device] = buildDiscoveredDevices(gladys, config);
-  assert.equal(device.features.length, 5);
+  for (const key of [FEATURE.UPDATED_AT, FEATURE.DECREE_SINCE]) {
+    const feature = device.features.find((f) => f.external_id.endsWith(key));
+    assert.ok(feature, `${key} must be published`);
+    assert.equal(feature.category, DEVICE_FEATURE_CATEGORIES.TEXT);
+    assert.equal(feature.type, DEVICE_FEATURE_TYPES.TEXT.TEXT);
+    assert.equal(feature.read_only, true);
+    assert.equal(feature.keep_history, false, 'a label is not a measure');
+  }
+});
+
+test('the device carries exactly seven features', () => {
+  // Four severity levels + the text label + the two dates. A binary
+  // "restrictions in force" used to sit here too; it only ever meant
+  // "level >= 1", which a scene can test on the numeric level directly, and the
+  // core rendered it as the baffling "Etat de l'entrée".
+  const gladys = createFakeGladys();
+  const [device] = buildDiscoveredDevices(gladys, config);
+  assert.equal(device.features.length, 7);
   assert.equal(
     device.features.filter((f) => f.type === DEVICE_FEATURE_TYPES.SENSOR.BINARY).length,
     0,
@@ -279,6 +294,57 @@ test('onPoll publishes the overall level, the text and every water type', async 
   assert.equal(byFeature.get(ids.feature(FEATURE.LEVEL_SOU)).state, 3);
   assert.equal(byFeature.get(ids.feature(FEATURE.LEVEL_AEP)).state, 1);
   assert.equal(byFeature.get(ids.feature(FEATURE.LEVEL_TEXT)).text, 'Alerte renforcée');
+});
+
+test('onPoll stamps the read time and dates the decree of the worst zone', async () => {
+  const gladys = createFakeGladys();
+  stubVigieau(zonesFixture());
+  await droughtZone.onPoll(gladys, config, deviceIdOf(gladys, MAISON));
+
+  const byFeature = new Map(gladys.published.map((p) => [p.featureExternalId, p]));
+  const ids = deviceIds(gladys, 'drought-zone', MAISON.id);
+
+  assert.match(
+    byFeature.get(ids.feature(FEATURE.UPDATED_AT)).text,
+    /^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}$/,
+  );
+  // The SOU zone is the worst one, so its decree is the one that dates the
+  // published level — NOT the SUP one, which starts a fortnight earlier.
+  assert.equal(byFeature.get(ids.feature(FEATURE.DECREE_SINCE)).text, '15/06/2026');
+});
+
+test('a location with no decree at all says so, instead of keeping the old date', async () => {
+  // The level is readable and there is nothing in force: showing the date of a
+  // decree that has been lifted would read as if it still applied.
+  const gladys = createFakeGladys();
+  stubVigieau([], 404);
+  await droughtZone.onPoll(gladys, config, deviceIdOf(gladys, MAISON));
+
+  const ids = deviceIds(gladys, 'drought-zone', MAISON.id);
+  const byFeature = new Map(gladys.published.map((p) => [p.featureExternalId, p]));
+  assert.equal(byFeature.get(ids.feature(FEATURE.DECREE_SINCE)).text, 'Aucun arrêté en vigueur');
+});
+
+test('an unreadable severity leaves the decree date alone but still stamps the read', async () => {
+  const gladys = createFakeGladys();
+  // SUP is unreadable: the overall level is unknown, so which zone carries the
+  // decree is unknown too. The read itself did happen, though.
+  stubVigieau([{ type: 'SUP', niveauGravite: 'niveau_martien' }]);
+  await droughtZone.onPoll(gladys, config, deviceIdOf(gladys, MAISON));
+
+  const ids = deviceIds(gladys, 'drought-zone', MAISON.id);
+  const publishedIds = gladys.published.map((p) => p.featureExternalId);
+  assert.ok(!publishedIds.includes(ids.feature(FEATURE.DECREE_SINCE)), 'no decree to date');
+  assert.ok(publishedIds.includes(ids.feature(FEATURE.UPDATED_AT)));
+});
+
+test('a failed read never moves the timestamp', async () => {
+  // The whole point of the feature: a stale level under a fresh timestamp is
+  // worse than no timestamp at all.
+  const gladys = createFakeGladys();
+  stubVigieau(null, 503);
+  await assert.rejects(() => droughtZone.onPoll(gladys, config, deviceIdOf(gladys, MAISON)));
+  assert.equal(gladys.published.length, 0);
 });
 
 test('onPoll only publishes the states of the device it was asked about', async () => {

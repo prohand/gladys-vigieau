@@ -60,6 +60,10 @@ no business logic. Everything else lives under `src/`:
   arithmetic the delete dropdown needs, and `locationLine()` / `describeLocations()`, which render
   the ONE entry format the three reporting actions share.
 - **`src/richText.js`** — `boldLabel()`, the only emphasis the Configuration screen can render.
+- **`src/datetime.js`** — rendering the two published dates. Gladys has NO date/time feature
+  category, so they are TEXT and the wording is ours; Europe/Paris always (the container runs in
+  UTC), and the string is assembled from `formatToParts` because a small-ICU Node silently falls
+  back to en-US instead of throwing.
 - **`src/houses.js`** — `GET /house` driver: the houses the user configured in Gladys, and the
   authorization the manifest has to declare to read them.
 - **`src/locationEditor.js`** — the location manager: the add, import, list and delete actions. All its
@@ -296,6 +300,23 @@ Confirmed against the API sources (`MTES-MCT/vigieau-api`, public), not guessed:
 - **A zone with no severity at all** is level 0, not "unknown". `formatZones` pads the water types a
   commune has no real zone for with placeholders holding only `type` and the municipal decree URL.
   `zoneSeverity()` makes that distinction; only a non-empty wording it cannot map returns `null`.
+
+- **There is NO "last updated" timestamp anywhere in the API.** Checked in the
+  sources, not guessed: `ZonesService` holds a `lastUpdate` field, but it is internal
+  bookkeeping for the reload cron (`src/zones/zones.service.ts`) and is serialized by no
+  endpoint; `ZoneDto` has no date field at all, and neither the entity's `createdAt`/`updatedAt`
+  nor anything else reaches the wire. The only dates in a `/api/zones` answer are
+  `arrete.dateDebutValidite` / `dateFinValidite` — the decree's validity, days without a time,
+  per zone. `dateSignature` exists only on `/api/arretes_restrictions`, which is a
+  by-department listing, not a point query. Hence the two features
+  (`FEATURE.UPDATED_AT`, `FEATURE.DECREE_SINCE`): the freshness of the values is OURS to
+  record — the moment `pollLocation` last read this location successfully, stamped after the
+  "no severity we could understand" throw so a failed cycle leaves the old timestamp next to the
+  old level — and the only source date is the decree's first day, published as
+  `NO_DECREE_TEXT` when the level is readable and no decree covers it, and NOT published at
+  all when the level itself is unknown (`arrete` is then not that level's decree).
+  Both are per-location, which is why they sit on the location's own device rather than on a
+  global one. Do not go looking for a source timestamp again.
 
 `niveauGravite` is the current field (`pas_restriction | vigilance | alerte | alerte_renforcee |
 crise`); `niveauAlerte` was the previous generation's name, spelled out in French, and is read as a
