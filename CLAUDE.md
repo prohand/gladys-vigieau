@@ -383,7 +383,17 @@ The traps, each pinned by a test in `test/manifest.test.js`:
 - `description.en` / `.fr` are capped at **100 characters**;
 - a `select` takes static `options` or the core's `source: "devices"` — and that source has no
   server-side implementation in any released Gladys, so the only usable options are the static ones,
-  which is why the delete dropdown offers position numbers.
+  which is why the delete dropdown offers position numbers;
+- **`categories` costs a `gladys_version` floor of `>=4.86.0`.** It is the catalog shelf, 1 to 3
+  keys of a controlled vocabulary (`climate`, `lighting`, `energy`, `security`, `multimedia`,
+  `appliances`, `environment`, `protocols`, `network`, `notifications`, `assistants`, `services`) —
+  decoupled from `type`, and without it the integration shows only under "All" and in search. The
+  vocabulary is filtered, not enforced: the store DROPS an unknown key with a warning rather than
+  refusing the manifest, so a newer shelf name still installs. The version floor is the real rule,
+  and the store indexer enforces it: an older core rejects any manifest field it does not know.
+  Ours is `["environment"]`, which is also the shelf the store's own `data/category-fallback.json`
+  files `prohand/gladys-vigieau` under — declaring it just takes that placement out of a file this
+  repo does not own.
 
 Manifest actions are registered per key. The ones that QUERY VigiEau (`test_vigieau`,
 `show_restrictions`) live in `blueprint.actions`; the three that are about the location LIST

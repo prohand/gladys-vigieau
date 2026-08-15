@@ -237,8 +237,7 @@ connaît pas, ou un point relevé sur une carte.
   plus haut.
 - **Ajouter mes maisons Gladys** — lit les maisons configurées dans Gladys et
   ajoute un lieu pour chacune qui n'est pas déjà surveillée, sans rien saisir.
-  Nécessite Gladys 4.85.0 ou plus récent, et l'autorisation acceptée à
-  l'installation.
+  Nécessite l'autorisation acceptée à l'installation.
 - **Afficher les lieux** — liste tous les lieux configurés, numérotés, avec leur
   nom, leur adresse et leurs coordonnées. Ce sont ces numéros que propose la
   suppression.
