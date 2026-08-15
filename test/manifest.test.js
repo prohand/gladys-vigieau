@@ -432,6 +432,29 @@ test('the compatibility range covers the version that opened GET /house', () => 
   assert.match(manifest.gladys_version, /^>=4\.(8[5-9]|9\d|\d{3,})\./);
 });
 
+test('the catalog shelf is declared, and requires Gladys >= 4.86.0 to be', () => {
+  // The vocabulary itself is the store's business — an unknown key is dropped
+  // there with a warning, never a rejection, so a manifest can name a shelf a
+  // running instance does not know yet. What has to hold HERE is the coupling
+  // rule: an older core rejects any manifest field it does not know, so
+  // declaring `categories` at all forbids claiming compatibility below the
+  // first release that accepts it. VigiEau publishes drought levels and water
+  // restrictions: `environment`, which is also the shelf the store's fallback
+  // mapping already files this integration under.
+  assert.deepEqual(manifest.categories, ['environment']);
+  assert.ok(
+    manifest.categories.length >= 1 && manifest.categories.length <= 3,
+    'the store schema takes 1 to 3 unique keys',
+  );
+  const minVersion = manifest.gladys_version.match(/>=\s*(\d+)\.(\d+)\.\d+/);
+  assert.ok(minVersion, 'gladys_version must declare a minimum version');
+  const [, major, minor] = minVersion.map(Number);
+  assert.ok(
+    major > 4 || (major === 4 && minor >= 86),
+    `categories requires gladys_version >= 4.86.0, got "${manifest.gladys_version}"`,
+  );
+});
+
 test('the import button sits right under the button that adds one location', () => {
   // Both add locations, and this one is the shortcut for the other: separating
   // them by the reports would hide it under the fold of the add form.
