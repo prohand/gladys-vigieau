@@ -6,8 +6,8 @@
     "en": "French drought alert levels and water restrictions, from the official VigiEau service.",
     "fr": "Vigilance sécheresse et restrictions d'eau en France, depuis le service officiel VigiEau."
   },
-  "version": "2.0.2",
-  "docker_image": "ghcr.io/prohand/gladys-vigieau:2.0.2",
+  "version": "2.0.3",
+  "docker_image": "ghcr.io/prohand/gladys-vigieau:2.0.3",
   "gladys_version": ">=4.86.0",
   "cover_image": "https://raw.githubusercontent.com/prohand/gladys-vigieau/main/cover.png",
   "categories": ["environment"],
