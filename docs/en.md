@@ -236,12 +236,69 @@ point read off a map.
   after confirmation. Its Gladys device stays: delete it yourself. It is the
   last button of the screen, the only one that destroys anything.
 
+## Widgets, scene triggers and scene actions (Gladys 5.1)
+
+Since Gladys 5.1, the integration adds its own cards to the dashboard and its
+own blocks to the scene editor. They all designate a location by **its
+device**: a location whose device you have not added from the Discovery tab
+yet does not show in those lists.
+
+### Dashboard widgets
+
+- **Drought watch** — one location, picked in the widget's settings: the
+  overall level and the level of each water type (colored dot), the decree
+  date, the time of the last read, the number of restricted uses and their list
+  (tap a use to read the details). Two buttons: **View the decree** and
+  **Refresh**.
+- **Drought: all locations** — every location on one card, one colored row
+  each, with the number of locations under restriction (Alerte level or above)
+  and a **Refresh** button.
+
+The widgets follow the integration's reads, without querying VigiEau every time
+a dashboard is displayed.
+
+### Scene triggers
+
+- **The drought level changed** — a read gives a location another level than
+  the previous one. Optional filters (empty = any): the location, the new level
+  (the five VigiEau levels, **Crise** included, which the numeric sensor cannot
+  tell from "Alerte renforcée") and the direction (worsening or easing).
+- **A new decree is in force** — a read finds a prefectoral decree the
+  previous read did not have, even at an unchanged level. Optional filter: the
+  location.
+
+Both hand the following actions the location name, the level in words, the
+decree link, and so on: insert them in a message with the editor's variable
+picker ("Location name", "Level (wording)"…).
+
+The **first** read of a location fires nothing: it sets the reference. That
+reference survives a restart, so a change that happened during an update of
+the integration still fires the scene at the next read. A trigger fires at the
+pace of the reads: at most once per "Refresh interval".
+
+### Scene actions
+
+- **Read the drought level** — queries VigiEau right away for a location and
+  hands the following actions its level (in words, and a 0-4 code where
+  4 = Crise), the level of each water type, the restricted uses and the decree.
+- **Check whether a water use is restricted** — queries VigiEau for a location
+  and tells whether a use is restricted: type a word of its French name or
+  theme ("arrosage", "piscine", "lavage"…). The `Restricted` output
+  (true / false) can be tested in a condition of the scene.
+
+These actions publish nothing: they move neither the sensors nor the triggers,
+so a scene can never restart itself.
+
 ## Scene ideas
 
 - **Stop the automatic watering** as soon as "Drought alert level" reaches 1
   (Vigilance) or 2 (Alerte), depending on how cautious you want to be.
-- **Get notified** when the level changes: trigger on the "Level (text)" sensor,
-  which carries the official wording.
+- **Get notified** when the level changes: trigger "The drought level
+  changed", then a message carrying the "Level (wording)" and "Decree URL"
+  variables.
+- **Check before watering**: in the watering scene, action "Check whether a
+  water use is restricted" with "arrosage", then a condition on `Restricted`
+  before opening the valve.
 - **Follow the season**: the numeric sensors keep their history, so a chart shows
   the severity climbing through the summer.
 

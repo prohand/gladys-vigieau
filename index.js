@@ -10,7 +10,10 @@
 //   2. registers the event handlers BEFORE connect();
 //   3. connects and publishes the discovered devices;
 //   4. gives the location manager the two things it cannot do itself: write the
-//      configuration, and re-publish the catalog when the list changes.
+//      configuration, and re-publish the catalog when the list changes;
+//   5. registers the dashboard widgets (src/widgets.js) and the scene actions
+//      (src/sceneActions.js) of Gladys >= 5.1.0. The scene TRIGGERS need no
+//      handler: they are fired by the refresh cycle (src/readings.js).
 //
 // Environment variables provided by the Gladys supervisor to the container:
 //   - GLADYS_HOST_API_URL         (host API URL)
@@ -31,6 +34,10 @@ import {
   forgetDeletedDevice,
   locationDeviceIds,
 } from './src/devices/index.js';
+import { droughtZone, locationForDevice, readLocation } from './src/devices/droughtZone.js';
+import { READINGS_KEY, latestReading, seedBaselines } from './src/readings.js';
+import { WIDGET, createWidgets } from './src/widgets.js';
+import { createSceneActions } from './src/sceneActions.js';
 
 const gladys = new GladysIntegration();
 
@@ -130,6 +137,13 @@ async function republish() {
     await gladys.setConnectionStatus(true).catch(() => {});
   } else {
     stopPolling();
+    // No cycle will run to nudge it: the overview card must still learn that
+    // its last location is gone.
+    try {
+      gladys.requestWidgetRefresh(WIDGET.OVERVIEW);
+    } catch (err) {
+      logger.warn('Could not nudge the overview widget', err);
+    }
   }
 }
 
@@ -155,6 +169,44 @@ const locationEditor = createLocationEditor({
     return (devices ?? []).find((device) => ours.has(device?.external_id)) ?? null;
   },
 });
+
+// A widget setting and a scene field name a location by its DEVICE (they list
+// the integration's devices, `source: "devices"`): this maps one back.
+const resolveLocation = (currentConfig, deviceExternalId) =>
+  typeof deviceExternalId === 'string'
+    ? locationForDevice(gladys, currentConfig, deviceExternalId)
+    : undefined;
+
+// --- Dashboard widgets (Gladys >= 5.1.0) -------------------------------------
+// Pulled by the core when a dashboard shows them, cached core-side, re-pulled
+// when the refresh cycle nudges them. Their content comes from the readings
+// memory the cycle fills, not from a VigiEau call per dashboard mount.
+const widgets = createWidgets({
+  getConfig: () => config,
+  resolveLocation,
+  readingOf: latestReading,
+  readNow: readLocation,
+  refreshLocation: (currentConfig, location) =>
+    droughtZone.refreshLocation(gladys, currentConfig, location),
+  refreshAll: (currentConfig) => droughtZone.refresh(gladys, currentConfig),
+});
+for (const [key, widget] of Object.entries(widgets)) {
+  gladys.onWidgetGet(key, (request) => widget.get(request));
+  gladys.onWidgetAction(key, (actionKey, params, options) =>
+    widget.action(actionKey, params, options),
+  );
+}
+
+// --- Scene actions (Gladys >= 5.1.0) -----------------------------------------
+// Live reads with NO side effect: see the header of src/sceneActions.js.
+const sceneActions = createSceneActions({
+  getConfig: () => config,
+  resolveLocation,
+  read: readLocation,
+});
+for (const [key, handler] of Object.entries(sceneActions)) {
+  gladys.onSceneAction(key, (fields) => handler(fields));
+}
 
 // --- Discovery: Gladys asks for the list of devices --------------------------
 gladys.onScanRequest(async () => {
@@ -256,6 +308,11 @@ gladys.on('connected', async () => {
     // without this, upgrading would leave that device orphaned and discover a
     // new one.
     await adoptExistingDevices(gladys, config);
+
+    // 1 quater) The levels the scene triggers compare the next read against,
+    // as they stood before this (re)start — without them, a decree published
+    // while the container was down would never fire (see src/readings.js).
+    seedBaselines(rawConfig?.[READINGS_KEY]);
 
     // 2) (Re)publish the devices as soon as we are connected. They report
     // their own status when no location is configured yet.

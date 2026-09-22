@@ -66,6 +66,25 @@ Every list those buttons print opens each entry with a `•`: the Configuration
 screen renders an action's answer as the text of a plain alert box, and a
 browser collapses the real newline the integration sends into a space.
 
+### Dashboard widgets and scenes (Gladys ≥ 5.1.0)
+
+| Kind          | Key               | What it does                                                                    |
+| ------------- | ----------------- | ------------------------------------------------------------------------------- |
+| Widget        | `vigilance_lieu`  | One location: level per water type, decree, restricted uses, Refresh button     |
+| Widget        | `vigilance_lieux` | Every location on one card, one colored row each                                |
+| Scene trigger | `niveau_change`   | A read gives a location another level (filters: location, new level, direction) |
+| Scene trigger | `nouvel_arrete`   | A read finds a decree the previous read did not have (filter: location)         |
+| Scene action  | `lire_niveau`     | Live read of one location, level and decree as outputs                          |
+| Scene action  | `verifier_usage`  | Is a water use (« arrosage »…) restricted at a location? `restreint` output     |
+
+They pick a location through its **device** (`source: "devices"`, validated
+server-side since Gladys 5.1.0). The widgets answer from the last refresh
+cycle, which nudges them once it has read. The triggers compare each read with
+a baseline persisted under the off-schema `last_readings` key, so the first
+read of a location only sets it and a restart loses nothing. The scene actions
+read VigiEau live and publish nothing — an action that fired an event could
+loop through a scene.
+
 User documentation, re-hosted by Gladys and linked from the Configuration
 screen: [`docs/fr.md`](./docs/fr.md) — [`docs/en.md`](./docs/en.md).
 
@@ -168,6 +187,9 @@ A few decisions are worth knowing about:
 │  ├─ houses.js                      # GET /house driver: the houses configured in Gladys
 │  ├─ locations.js                   # the watched location list: model + storage format
 │  ├─ locationEditor.js              # the location manager: add/import/list/delete actions
+│  ├─ readings.js                    # last reads per location + scene trigger detection
+│  ├─ widgets.js                     # dashboard widget contents and their Refresh button
+│  ├─ sceneActions.js                # scene actions: read a level, check a water use
 │  ├─ coordinates.js                 # reading and writing a WGS-84 coordinate
 │  └─ config.js                      # config defaults, normalization, legacy location id
 ├─ docs/

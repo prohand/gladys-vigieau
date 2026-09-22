@@ -1,6 +1,9 @@
 import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  SEVERITY_CODES,
+  collectDecrees,
+  decreeKey,
   AMBIGUOUS_COMMUNE,
   SEVERITY_LEVELS,
   buildZonesUrl,
@@ -245,4 +248,32 @@ test('collectUsages de-duplicates the usages shared by several zones', () => {
 
 test('collectUsages copes with zones carrying no usage at all', () => {
   assert.deepEqual(collectUsages([{ type: 'SUP' }, { type: 'SOU', usages: null }]), []);
+});
+
+test('SEVERITY_CODES reads the scale the other way, crise included', () => {
+  assert.deepEqual(SEVERITY_CODES, [
+    'pas_restriction',
+    'vigilance',
+    'alerte',
+    'alerte_renforcee',
+    'crise',
+  ]);
+  SEVERITY_CODES.forEach((code, level) => assert.equal(toSeverityLevel(code), level));
+});
+
+test('collectDecrees lists every decree once, not only the worst zone one', () => {
+  const zones = zonesFixture();
+  zones.push({ ...zones[0], type: 'SUP', id: 9999 }); // same decree, second zone
+  assert.deepEqual(
+    collectDecrees(zones).map((arrete) => arrete.id),
+    [4501, 4502],
+  );
+  assert.deepEqual(summarize(zonesFixture()).decrees.map(decreeKey), ['4501', '4502']);
+});
+
+test('a decree with no id is recognized by its file, and no decree by nothing', () => {
+  assert.equal(decreeKey({ cheminFichier: 'https://x/1.pdf' }), 'https://x/1.pdf');
+  assert.equal(decreeKey(null), null);
+  assert.equal(decreeKey({}), null);
+  assert.deepEqual(collectDecrees([{ type: 'SUP', arrete: null }, null]), []);
 });
