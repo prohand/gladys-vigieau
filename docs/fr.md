@@ -253,12 +253,71 @@ connaît pas, ou un point relevé sur une carte.
   supprimez-le vous-même. C'est le dernier bouton de l'écran, le seul qui
   détruise quelque chose.
 
+## Widgets, déclencheurs et actions de scène (Gladys 5.1)
+
+Depuis Gladys 5.1, l'intégration ajoute ses propres cartes au tableau de bord
+et ses propres blocs à l'éditeur de scènes. Tous désignent un lieu par **son
+appareil** : un lieu dont vous n'avez pas encore ajouté l'appareil depuis
+l'onglet Découverte n'apparaît pas dans ces listes.
+
+### Widgets du tableau de bord
+
+- **Vigilance sécheresse** — un lieu, choisi dans les réglages du widget : le
+  niveau global et celui de chaque type d'eau (pastille colorée), la date de
+  l'arrêté, l'heure du dernier relevé, le nombre d'usages restreints et leur
+  liste (touchez un usage pour lire le détail). Deux boutons : **Voir
+  l'arrêté** et **Actualiser**.
+- **Sécheresse : tous les lieux** — tous vos lieux sur une seule carte, une
+  ligne colorée par lieu, avec le nombre de lieux en restriction (niveau Alerte
+  ou plus) et un bouton **Actualiser**.
+
+Les widgets se mettent à jour après chaque relevé de l'intégration, sans
+interroger VigiEau à chaque affichage du tableau de bord.
+
+### Déclencheurs de scène
+
+- **Le niveau de sécheresse a changé** — un relevé donne à un lieu un autre
+  niveau que le précédent. Filtres facultatifs (vide = tout) : le lieu, le
+  nouveau niveau (les cinq niveaux VigiEau, **Crise** comprise, que le capteur
+  numérique confond avec « Alerte renforcée ») et le sens (aggravation ou
+  amélioration).
+- **Un nouvel arrêté est en vigueur** — un relevé trouve un arrêté préfectoral
+  absent du relevé précédent, même si le niveau n'a pas bougé. Filtre
+  facultatif : le lieu.
+
+Les deux mettent à disposition des actions suivantes le nom du lieu, le niveau
+en toutes lettres, le lien de l'arrêté, etc. : insérez-les dans un message avec
+le sélecteur de variables de l'éditeur (« Nom du lieu », « Niveau (texte) »…).
+
+Le **premier** relevé d'un lieu ne déclenche rien : il sert de référence.
+Cette référence est conservée entre deux redémarrages, donc un changement
+survenu pendant une mise à jour de l'intégration déclenche bien la scène au
+relevé suivant. Un déclencheur part au rythme des relevés : au plus une fois
+par « Intervalle de rafraîchissement ».
+
+### Actions de scène
+
+- **Lire le niveau de sécheresse** — interroge VigiEau tout de suite pour un
+  lieu et transmet aux actions suivantes le niveau (texte, et code de 0 à 4 où
+  4 = Crise), le niveau de chaque type d'eau, les usages restreints et l'arrêté.
+- **Vérifier si un usage de l'eau est restreint** — interroge VigiEau pour un
+  lieu et indique si un usage est restreint : tapez un mot de son nom ou de son
+  thème (« arrosage », « piscine », « lavage »…). Le résultat `Restreint`
+  (vrai / faux) se teste dans une condition de la scène.
+
+Ces actions ne publient rien : elles ne changent ni les capteurs ni les
+déclencheurs, pour qu'une scène ne puisse pas se relancer elle-même.
+
 ## Idées de scènes
 
 - **Couper l'arrosage automatique** dès que « Niveau de vigilance sécheresse »
   atteint 1 (Vigilance) ou 2 (Alerte), selon votre prudence.
-- **Recevoir une notification** quand le niveau change : déclencheur sur le
-  capteur « Niveau (texte) », qui contient le libellé officiel.
+- **Recevoir une notification** quand le niveau change : déclencheur
+  « Le niveau de sécheresse a changé », puis un message contenant les
+  variables « Niveau (texte) » et « Lien de l’arrêté ».
+- **Vérifier avant d'arroser** : dans la scène de l'arrosage, action
+  « Vérifier si un usage de l'eau est restreint » avec « arrosage », puis une
+  condition sur `Restreint` avant d'ouvrir la vanne.
 - **Suivre la saison** : les capteurs numériques conservent leur historique, un
   graphique montre la montée en gravité de l'été.
 

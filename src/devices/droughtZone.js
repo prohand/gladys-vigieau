@@ -28,6 +28,8 @@ import {
   usableLocations,
 } from '../locations.js';
 import { formatDate, formatDateTime } from '../datetime.js';
+import { READINGS_KEY, recordReading, sceneEvents, serializeBaselines } from '../readings.js';
+import { WIDGET } from '../widgets.js';
 import {
   AMBIGUOUS_COMMUNE,
   fetchZones,
@@ -148,13 +150,81 @@ function failureMessage(err, locationName) {
 }
 
 /**
- * The location a device external_id belongs to.
+ * The location a device external_id belongs to — also what a widget setting or
+ * a scene field carries, since both list the integration's devices.
  * @returns {object | undefined}
  */
-function locationForDevice(gladys, config, externalId) {
+export function locationForDevice(gladys, config, externalId) {
   return config.locations.find(
     (location) => deviceIds(gladys, DEVICE_TYPE, location.id).device === externalId,
   );
+}
+
+/**
+ * Read VigiEau for ONE location, WITHOUT publishing anything: what the scene
+ * actions and the reporting buttons need. A scene action in particular must
+ * have no side effect — a state it published could start another scene.
+ * @returns {Promise<ReturnType<typeof summarize>>}
+ */
+export async function readLocation(config, location) {
+  return summarize(await fetchZones(locationQuery(config, location)));
+}
+
+// Writes of the baselines, chained: every read that moves one persists the
+// WHOLE map, and two requests in flight could land in the wrong order — the
+// older map overwriting the newer one.
+let persisting = Promise.resolve();
+
+/**
+ * Persist the scene triggers' baselines (see src/readings.js). Never throws: a
+ * failed write only means a restart compares against an older baseline.
+ */
+function persistBaselines(gladys, config) {
+  persisting = persisting.then(async () => {
+    try {
+      await gladys.setConfig({ [READINGS_KEY]: serializeBaselines(config.locations) });
+    } catch (err) {
+      logger.warn('Could not persist the last levels read', err);
+    }
+  });
+  return persisting;
+}
+
+/**
+ * Ask Gladys to re-pull the dashboard widgets: they answer from the readings
+ * memory, which a cycle just moved. Fire-and-forget, rate-limited core-side.
+ */
+function nudgeWidgets(gladys) {
+  for (const key of Object.values(WIDGET)) {
+    try {
+      gladys.requestWidgetRefresh(key);
+    } catch (err) {
+      logger.warn(`Could not nudge the widget ${key}`, err);
+    }
+  }
+}
+
+/**
+ * Everything a successful read moves besides the states: the readings memory,
+ * the scene events of what changed, and the persisted baseline.
+ *
+ * An event that fails to publish is logged and dropped rather than thrown: the
+ * states are already out, and failing the read would leave the timestamp
+ * feature behind the level it dates.
+ */
+async function afterRead(gladys, config, location, deviceId, summary) {
+  const { previous, changed } = recordReading(location.id, summary);
+  for (const { key, data } of sceneEvents({ location, deviceId, previous, summary })) {
+    try {
+      await gladys.publishSceneEvent(key, data);
+      logger.info(`Scene event ${key} for ${location.name}`);
+    } catch (err) {
+      logger.error(`Could not publish the scene event ${key} for ${location.name}`, err);
+    }
+  }
+  if (changed) {
+    await persistBaselines(gladys, config);
+  }
 }
 
 /**
@@ -168,8 +238,8 @@ async function pollLocation(gladys, config, location) {
   // ------------------------------------------------------------------ //
   // DO THE WORK: read the current drought status from the VigiEau API.
   // ------------------------------------------------------------------ //
-  const zones = await fetchZones(locationQuery(config, location));
-  const { level, levelsByType, restrictedUsages, arrete } = summarize(zones);
+  const summary = await readLocation(config, location);
+  const { level, levelsByType, restrictedUsages, arrete } = summary;
 
   logger.info(
     `Read ${location.name}: level=${level ?? 'unknown'} (${ZONE_TYPES.map(
@@ -221,6 +291,11 @@ async function pollLocation(gladys, config, location) {
 
   // Publish every value in a single request (batch, up to 100).
   await gladys.publishStates(states);
+
+  // Only now, with the states out: a scene started by the event may well read
+  // the device, and must find the new level there.
+  await afterRead(gladys, config, location, ids.device, summary);
+  return summary;
 }
 
 /**
@@ -355,9 +430,7 @@ export const droughtZone = {
       }
       logger.info(`Action test_vigieau -> live request for ${locations.length} location(s)`);
       const { lines, failed } = await readEachLocation(config, locations, async (location) => {
-        const { level, levelsByType } = summarize(
-          await fetchZones(locationQuery(config, location)),
-        );
+        const { level, levelsByType } = await readLocation(config, location);
         const byType = ZONE_TYPES.map((type) => `${type}: ${levelsByType[type] ?? '?'}`).join(', ');
         return {
           en: `${severityLabel(level, 'en')} (${byType})`,
@@ -386,9 +459,7 @@ export const droughtZone = {
       }
       logger.info(`Action show_restrictions -> live request for ${locations.length} location(s)`);
       const { lines } = await readEachLocation(config, locations, async (location) => {
-        const { restrictedUsages, arrete } = summarize(
-          await fetchZones(locationQuery(config, location)),
-        );
+        const { restrictedUsages, arrete } = await readLocation(config, location);
         if (restrictedUsages.length === 0) {
           return {
             en: 'no restricted usage',
@@ -430,6 +501,17 @@ export const droughtZone = {
       throw new Error(`No location watches the device ${externalId}`);
     }
     await pollLocation(gladys, config, location);
+    nudgeWidgets(gladys);
+  },
+
+  /**
+   * Refresh ONE location right now, states and scene events included: the
+   * "Actualiser" button of the location widget. Throws, so the button can say
+   * why.
+   * @returns {Promise<ReturnType<typeof summarize>>}
+   */
+  refreshLocation(gladys, config, location) {
+    return pollLocation(gladys, config, location);
   },
 
   /**
@@ -462,6 +544,9 @@ export const droughtZone = {
    *
    * One location failing does not stop the others: a 409 on a badly geocoded
    * address must not silence the drought level of the house.
+   *
+   * @returns {Promise<{ total: number, failed: number }>} what the overview
+   *   widget's "Actualiser" button reports
    */
   async refresh(gladys, config) {
     const locations = usableLocations(config.locations);
@@ -477,10 +562,16 @@ export const droughtZone = {
       }),
     );
 
+    // Once per cycle, not per location: the core keeps one nudge per 10 s per
+    // widget, so a nudge per location would re-pull after the FIRST read and
+    // drop the rest.
+    nudgeWidgets(gladys);
+
     const failures = outcomes.filter(Boolean);
+    const result = { total: locations.length, failed: failures.length };
     if (failures.length === 0) {
       await gladys.setConnectionStatus(true).catch(() => {});
-      return;
+      return result;
     }
     // Only the first reason is spelled out: the status line is one line, and
     // two stack traces in it help nobody.
@@ -498,5 +589,6 @@ export const droughtZone = {
         fr: `${first.fr}${others.fr}`,
       })
       .catch(() => {});
+    return result;
   },
 };

@@ -46,6 +46,13 @@ export const SEVERITY_LEVELS = {
   crise: 4,
 };
 
+// The same scale read the other way, level -> `niveauGravite` code. It is the
+// vocabulary the scene trigger filters on: unlike the 0-3 risk feature, it
+// still tells `crise` from `alerte_renforcee`.
+export const SEVERITY_CODES = Object.keys(SEVERITY_LEVELS).sort(
+  (a, b) => SEVERITY_LEVELS[a] - SEVERITY_LEVELS[b],
+);
+
 // Gladys renders a `risk`/`integer` feature through ITS OWN label set, and that
 // set only knows four values — see BADGE_VALUE_CONVERTERS in
 // front/src/components/boxs/device-in-room/device-features/sensor-value/
@@ -211,6 +218,7 @@ export async function fetchZones(config) {
  *   worstZone: object | null,
  *   restrictedUsages: Array<object>,
  *   arrete: object | null,
+ *   decrees: Array<object>,
  * }}
  */
 export function summarize(zones = []) {
@@ -254,7 +262,36 @@ export function summarize(zones = []) {
     worstZone,
     restrictedUsages: collectUsages(zones),
     arrete: worstZone?.arrete ?? null,
+    decrees: collectDecrees(zones),
   };
+}
+
+/**
+ * The key a decree is recognized by from one read to the next: its id, or its
+ * file when a response carries no id. Null for a zone with no decree at all.
+ * @param {object | null | undefined} arrete
+ * @returns {string | null}
+ */
+export function decreeKey(arrete) {
+  const key = arrete?.id ?? arrete?.cheminFichier;
+  return key === null || key === undefined || key === '' ? null : String(key);
+}
+
+/**
+ * The distinct decrees in force across every zone, de-duplicated by
+ * `decreeKey`. Not only the worst zone's: a new decree on groundwater is news
+ * even while surface water carries the worst level.
+ * @param {Array<object>} zones
+ */
+export function collectDecrees(zones = []) {
+  const byKey = new Map();
+  for (const zone of zones) {
+    const key = decreeKey(zone?.arrete);
+    if (key !== null && !byKey.has(key)) {
+      byKey.set(key, zone.arrete);
+    }
+  }
+  return [...byKey.values()];
 }
 
 /**

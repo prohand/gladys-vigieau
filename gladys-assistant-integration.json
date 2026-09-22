@@ -8,7 +8,7 @@
   },
   "version": "2.0.3",
   "docker_image": "ghcr.io/prohand/gladys-vigieau:2.0.3",
-  "gladys_version": ">=4.86.0",
+  "gladys_version": ">=5.1.0",
   "cover_image": "https://raw.githubusercontent.com/prohand/gladys-vigieau/main/cover.png",
   "categories": ["environment"],
   "transports": ["cloud"],
@@ -358,6 +358,506 @@
           },
           "required": false,
           "default": false
+        }
+      ]
+    }
+  ],
+  "widgets": [
+    {
+      "key": "vigilance_lieu",
+      "label": {
+        "en": "Drought watch",
+        "fr": "Vigilance sécheresse"
+      },
+      "description": {
+        "en": "One location: its level per water type, the decree and the restricted uses.",
+        "fr": "Un lieu : son niveau par type d’eau, l’arrêté et les usages restreints."
+      },
+      "icon": "droplet",
+      "settings": [
+        {
+          "key": "lieu",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Location",
+            "fr": "Lieu"
+          },
+          "description": {
+            "en": "The device of the watched location to show.",
+            "fr": "L’appareil du lieu surveillé à afficher."
+          },
+          "required": true
+        }
+      ],
+      "action_timeout_seconds": 30
+    },
+    {
+      "key": "vigilance_lieux",
+      "label": {
+        "en": "Drought: all locations",
+        "fr": "Sécheresse : tous les lieux"
+      },
+      "description": {
+        "en": "Every watched location on one card, with its drought level.",
+        "fr": "Tous les lieux surveillés sur une carte, avec leur niveau de sécheresse."
+      },
+      "icon": "map-pin",
+      "action_timeout_seconds": 30
+    }
+  ],
+  "scene_triggers": [
+    {
+      "key": "niveau_change",
+      "label": {
+        "en": "The drought level changed",
+        "fr": "Le niveau de sécheresse a changé"
+      },
+      "description": {
+        "en": "Fires when a new VigiEau read gives a location another level than the previous one. The first read of a location only sets its reference.",
+        "fr": "Se déclenche quand un nouveau relevé VigiEau donne à un lieu un autre niveau que le précédent. Le premier relevé d’un lieu ne fait que fixer sa référence."
+      },
+      "fields": [
+        {
+          "key": "lieu",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Location",
+            "fr": "Lieu"
+          },
+          "description": {
+            "en": "Leave empty for every location.",
+            "fr": "Laissez vide pour tous les lieux."
+          },
+          "required": false
+        },
+        {
+          "key": "niveau",
+          "type": "multi_select",
+          "label": {
+            "en": "New level",
+            "fr": "Nouveau niveau"
+          },
+          "description": {
+            "en": "Leave empty for any level.",
+            "fr": "Laissez vide pour tous les niveaux."
+          },
+          "options": [
+            {
+              "value": "pas_restriction",
+              "label": {
+                "en": "No restriction",
+                "fr": "Pas de restriction"
+              }
+            },
+            {
+              "value": "vigilance",
+              "label": {
+                "en": "Watch",
+                "fr": "Vigilance"
+              }
+            },
+            {
+              "value": "alerte",
+              "label": {
+                "en": "Alert",
+                "fr": "Alerte"
+              }
+            },
+            {
+              "value": "alerte_renforcee",
+              "label": {
+                "en": "Reinforced alert",
+                "fr": "Alerte renforcée"
+              }
+            },
+            {
+              "value": "crise",
+              "label": {
+                "en": "Crisis",
+                "fr": "Crise"
+              }
+            }
+          ]
+        },
+        {
+          "key": "sens",
+          "type": "select",
+          "label": {
+            "en": "Direction",
+            "fr": "Sens"
+          },
+          "description": {
+            "en": "Leave empty for both.",
+            "fr": "Laissez vide pour les deux."
+          },
+          "options": [
+            {
+              "value": "hausse",
+              "label": {
+                "en": "Worsening",
+                "fr": "Aggravation"
+              }
+            },
+            {
+              "value": "baisse",
+              "label": {
+                "en": "Easing",
+                "fr": "Amélioration"
+              }
+            }
+          ]
+        }
+      ],
+      "variables": [
+        {
+          "key": "nom_lieu",
+          "type": "string",
+          "label": {
+            "en": "Location name",
+            "fr": "Nom du lieu"
+          }
+        },
+        {
+          "key": "niveau_texte",
+          "type": "string",
+          "label": {
+            "en": "Level (wording)",
+            "fr": "Niveau (texte)"
+          }
+        },
+        {
+          "key": "niveau_precedent_texte",
+          "type": "string",
+          "label": {
+            "en": "Previous level (wording)",
+            "fr": "Niveau précédent (texte)"
+          }
+        },
+        {
+          "key": "niveau_code",
+          "type": "number",
+          "label": {
+            "en": "Level (0 to 4)",
+            "fr": "Niveau (0 à 4)"
+          }
+        },
+        {
+          "key": "sens",
+          "type": "string",
+          "label": {
+            "en": "Direction (hausse / baisse)",
+            "fr": "Sens (hausse / baisse)"
+          }
+        },
+        {
+          "key": "nb_usages_restreints",
+          "type": "number",
+          "label": {
+            "en": "Number of restricted uses",
+            "fr": "Nombre d’usages restreints"
+          }
+        },
+        {
+          "key": "url_arrete",
+          "type": "string",
+          "label": {
+            "en": "Decree URL",
+            "fr": "Lien de l’arrêté"
+          }
+        }
+      ]
+    },
+    {
+      "key": "nouvel_arrete",
+      "label": {
+        "en": "A new decree is in force",
+        "fr": "Un nouvel arrêté est en vigueur"
+      },
+      "description": {
+        "en": "Fires when a VigiEau read finds a prefectoral decree that was not in force at the previous read of the location.",
+        "fr": "Se déclenche quand un relevé VigiEau trouve un arrêté préfectoral qui n’était pas en vigueur au relevé précédent du lieu."
+      },
+      "fields": [
+        {
+          "key": "lieu",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Location",
+            "fr": "Lieu"
+          },
+          "description": {
+            "en": "Leave empty for every location.",
+            "fr": "Laissez vide pour tous les lieux."
+          },
+          "required": false
+        }
+      ],
+      "variables": [
+        {
+          "key": "nom_lieu",
+          "type": "string",
+          "label": {
+            "en": "Location name",
+            "fr": "Nom du lieu"
+          }
+        },
+        {
+          "key": "niveau_texte",
+          "type": "string",
+          "label": {
+            "en": "Level (wording)",
+            "fr": "Niveau (texte)"
+          }
+        },
+        {
+          "key": "niveau_code",
+          "type": "number",
+          "label": {
+            "en": "Level (0 to 4)",
+            "fr": "Niveau (0 à 4)"
+          }
+        },
+        {
+          "key": "date_debut",
+          "type": "string",
+          "label": {
+            "en": "In force from",
+            "fr": "En vigueur depuis le"
+          }
+        },
+        {
+          "key": "date_fin",
+          "type": "string",
+          "label": {
+            "en": "In force until",
+            "fr": "En vigueur jusqu’au"
+          }
+        },
+        {
+          "key": "nb_usages_restreints",
+          "type": "number",
+          "label": {
+            "en": "Number of restricted uses",
+            "fr": "Nombre d’usages restreints"
+          }
+        },
+        {
+          "key": "url_arrete",
+          "type": "string",
+          "label": {
+            "en": "Decree URL",
+            "fr": "Lien de l’arrêté"
+          }
+        }
+      ]
+    }
+  ],
+  "scene_actions": [
+    {
+      "key": "lire_niveau",
+      "label": {
+        "en": "Read the drought level",
+        "fr": "Lire le niveau de sécheresse"
+      },
+      "description": {
+        "en": "Queries VigiEau now for a location and hands its level, per water type, to the next actions.",
+        "fr": "Interroge VigiEau maintenant pour un lieu et transmet son niveau, par type d’eau, aux actions suivantes."
+      },
+      "timeout_seconds": 30,
+      "fields": [
+        {
+          "key": "lieu",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Location",
+            "fr": "Lieu"
+          },
+          "description": {
+            "en": "The device of the watched location to query.",
+            "fr": "L’appareil du lieu surveillé à interroger."
+          },
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "key": "nom_lieu",
+          "type": "string",
+          "label": {
+            "en": "Location name",
+            "fr": "Nom du lieu"
+          }
+        },
+        {
+          "key": "niveau_texte",
+          "type": "string",
+          "label": {
+            "en": "Level (wording)",
+            "fr": "Niveau (texte)"
+          }
+        },
+        {
+          "key": "niveau_code",
+          "type": "number",
+          "label": {
+            "en": "Level (0 to 4)",
+            "fr": "Niveau (0 à 4)"
+          }
+        },
+        {
+          "key": "eau_superficielle",
+          "type": "string",
+          "label": {
+            "en": "Surface water level",
+            "fr": "Niveau eau superficielle"
+          }
+        },
+        {
+          "key": "eau_souterraine",
+          "type": "string",
+          "label": {
+            "en": "Groundwater level",
+            "fr": "Niveau eau souterraine"
+          }
+        },
+        {
+          "key": "eau_potable",
+          "type": "string",
+          "label": {
+            "en": "Drinking water level",
+            "fr": "Niveau eau potable"
+          }
+        },
+        {
+          "key": "nb_usages_restreints",
+          "type": "number",
+          "label": {
+            "en": "Number of restricted uses",
+            "fr": "Nombre d’usages restreints"
+          }
+        },
+        {
+          "key": "usages_restreints",
+          "type": "string",
+          "label": {
+            "en": "Restricted uses",
+            "fr": "Usages restreints"
+          }
+        },
+        {
+          "key": "arrete_depuis",
+          "type": "string",
+          "label": {
+            "en": "Decree in force since",
+            "fr": "Arrêté en vigueur depuis"
+          }
+        },
+        {
+          "key": "url_arrete",
+          "type": "string",
+          "label": {
+            "en": "Decree URL",
+            "fr": "Lien de l’arrêté"
+          }
+        }
+      ]
+    },
+    {
+      "key": "verifier_usage",
+      "label": {
+        "en": "Check whether a water use is restricted",
+        "fr": "Vérifier si un usage de l’eau est restreint"
+      },
+      "description": {
+        "en": "Queries VigiEau now and tells whether a use (watering, pool, car wash…) is restricted at a location.",
+        "fr": "Interroge VigiEau maintenant et indique si un usage (arrosage, piscine, lavage…) est restreint à un lieu."
+      },
+      "timeout_seconds": 30,
+      "fields": [
+        {
+          "key": "lieu",
+          "type": "select",
+          "source": "devices",
+          "label": {
+            "en": "Location",
+            "fr": "Lieu"
+          },
+          "description": {
+            "en": "The device of the watched location to query.",
+            "fr": "L’appareil du lieu surveillé à interroger."
+          },
+          "required": true
+        },
+        {
+          "key": "usage",
+          "type": "string",
+          "label": {
+            "en": "Water use",
+            "fr": "Usage de l’eau"
+          },
+          "description": {
+            "en": "A word of the use's name or theme, e.g. \"watering\" in French: \"arrosage\".",
+            "fr": "Un mot du nom ou du thème de l’usage, par exemple « arrosage » ou « piscine »."
+          },
+          "required": true,
+          "placeholder": {
+            "en": "arrosage",
+            "fr": "arrosage"
+          }
+        }
+      ],
+      "outputs": [
+        {
+          "key": "restreint",
+          "type": "boolean",
+          "label": {
+            "en": "Restricted",
+            "fr": "Restreint"
+          }
+        },
+        {
+          "key": "nb_usages",
+          "type": "number",
+          "label": {
+            "en": "Number of matching uses",
+            "fr": "Nombre d’usages trouvés"
+          }
+        },
+        {
+          "key": "usages",
+          "type": "string",
+          "label": {
+            "en": "Matching uses",
+            "fr": "Usages trouvés"
+          }
+        },
+        {
+          "key": "details",
+          "type": "string",
+          "label": {
+            "en": "Details of the restrictions",
+            "fr": "Détail des restrictions"
+          }
+        },
+        {
+          "key": "niveau_texte",
+          "type": "string",
+          "label": {
+            "en": "Level (wording)",
+            "fr": "Niveau (texte)"
+          }
+        },
+        {
+          "key": "url_arrete",
+          "type": "string",
+          "label": {
+            "en": "Decree URL",
+            "fr": "Lien de l’arrêté"
+          }
         }
       ]
     }

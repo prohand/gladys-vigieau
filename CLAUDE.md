@@ -76,9 +76,16 @@ no business logic. Everything else lives under `src/`:
   can parse one without a cycle through `config.js`.
 - **`src/config.js`** — defaults, normalization, and `legacyLocationId()`, which only reproduces the
   `external_id` of the devices published by ≤ 1.1.1 so they can be recognized.
+- **`src/readings.js`** — the last read of each location (memory, for the widgets) and the
+  baseline the scene triggers compare against (persisted under the off-schema `last_readings` key);
+  `sceneEvents()` is the pure transition detection.
+- **`src/widgets.js`** — the two dashboard widgets: pure content builders plus `createWidgets()`,
+  every dependency injected.
+- **`src/sceneActions.js`** — the two scene actions: pure output builders plus
+  `createSceneActions()`, every dependency injected.
 
 A blueprint exposes: `key`, `deviceExternalIds(gladys, config)`, `buildDevices(gladys, config)`, and
-optionally `onPoll`, `refresh`, `startPolling`, `actions`.
+optionally `onPoll`, `refresh`, `refreshLocation`, `startPolling`, `actions`.
 
 ### Several locations, one device each — and NOTHING about them on the Configuration screen
 
@@ -144,15 +151,15 @@ go through `plain()` (`test/helpers/text.js`).
 
 Three constraints forced this shape, and none is negotiable:
 
-- **A `select` is validated against the manifest's static `options`, so a dropdown can NEVER show
-  the location names.** Checked at the `v4.84.4` tag itself, not on master:
-  `externalIntegration.getDynamicOptions.js` does not exist there, and `validateConfigValue` reads
-  `(field.options || []).map(o => o.value)`. The core's only dynamic source, `source: "devices"`,
-  is therefore refused with a 422 in `runAction`/`saveConfigFromFront` before the command reaches
-  the container — a previous attempt shipped it and every action carrying it failed with "L'action
-  a échoué". A test fails the build if any field declares a `source` again. Hence the delete action
-  naming a location by its POSITION: `locationAtPosition` maps "Lieu 3" to an entry, and the listing
-  is what tells the user which one that is.
+- **A `select` offers static `options` or the CREATED devices, so a dropdown can NEVER show the
+  location list.** Up to `v4.84.4`, `source: "devices"` did not even validate server-side
+  (`getDynamicOptions` did not exist, every value 422'd — a previous attempt shipped it and every
+  action carrying it failed with "L'action a échoué"). From `v5.1.0` it does, but it lists the
+  devices the user CREATED from the Discovery tab, which is not the location list: a location added
+  a minute ago has none. A test forbids a `source` in the `config_schema` and the `actions`. Hence
+  the delete action naming a location by its POSITION: `locationAtPosition` maps "Lieu 3" to an
+  entry, and the listing is what tells the user which one that is. (The widgets and the scenes DO
+  use the source — there a device is exactly what the user picks, see below.)
 - **The Configuration screen displays NOTHING an integration says about a Save, and nothing can
   refresh it.** `setConnectionStatus` is rendered on the Supervision page and inside an `oauth2`
   field, nowhere else; only an ACTION's result message is shown, under its button. The page listens
@@ -337,6 +344,42 @@ single bare error naming no location. Each location now gets its own line — it
 `failureDetail()` saying what went wrong, in the same `• n. nom — …` format either way — and the
 `test_vigieau` header only claims "VigiEau OK" when none failed.
 
+### Widgets, scene triggers and scene actions (Gladys >= 5.1.0)
+
+The three manifest capability fields `widgets`, `scene_triggers`, `scene_actions` landed in Gladys
+5.1.0, and the store indexer refuses them below `gladys_version >=5.1.0` — which is the floor now.
+All of them name a location through a `lieu` field with `source: "devices"`: the value is a device
+`external_id`, mapped back by `locationForDevice()` (adoption-aware, so an upgraded ≤ 1.1.1 device
+works too). A device whose location was deleted resolves to nothing: the widget shows a "no longer
+watched" card, a scene action throws a message saying what to fix.
+
+- **Widgets answer from memory, never from VigiEau per mount.** The core pulls a widget on every
+  dashboard mount; `latestReading()` holds the last read of each location, filled by the refresh
+  cycle, which then calls `requestWidgetRefresh()` ONCE per cycle — the core keeps one nudge per 10 s
+  per widget, so a nudge per location would re-pull after the first read and drop the rest. The only
+  live read left is the fallback of a location the memory does not know yet. Every text is clipped
+  in `widgets.js` to the vocabulary's bounds; the tests run the SDK's `validateWidgetContent` on
+  every content, so what the core renders is exactly what was sent. A `value` tile holds 12
+  characters: "Alerte renforcée" does not fit, which is why the levels are a `status` list.
+- **A trigger is an EVENT, the level is a STATE.** `niveau_change` and `nouvel_arrete` are fired from
+  `pollLocation` (after the states, so a scene reading the device finds the new level) by comparing
+  the read with the location's BASELINE. The first read only sets it — an install or a new location
+  is not something that happened to the water. The baseline is persisted (`last_readings`, chained
+  writes so two in flight cannot land in the wrong order) because a container restart is exactly
+  when a decree would otherwise be missed; `seedBaselines()` only fills what memory lacks. An
+  unknown level neither fires nor moves the baseline. The `niveau` filter is the VigiEau CODE
+  (`SEVERITY_CODES`), which still tells `crise` from `alerte_renforcee` — the 0-3 risk feature
+  cannot, and the core's own device trigger already covers it. Filters are never `required` and
+  never `boolean`: empty must mean "any". Every declared filter AND variable key must be in the
+  event data (the core nulls a missing one, and a filter on null never matches) — a test checks it.
+- **Scene actions publish NOTHING.** `lire_niveau` and `verifier_usage` read VigiEau live through
+  `readLocation()` and return outputs; no state, no event, no baseline move — an action that fired an
+  event could start a scene bound to it and loop through the integration. `niveau_code` is VigiEau's
+  0-4 (crise = 4), and an unknown level returns `null`, which the core drops, rather than a 0 that
+  reads as "no restriction". `verifier_usage` matches the words against a usage's name and theme,
+  never its description: that is prose, and "arrosage" appears in half the car-wash rules.
+- **Keys are forever**: a scene or a dashboard stores them. Renaming one is removing it.
+
 ## Gladys core constraints that are not obvious
 
 Each of these caused a real bug. The core sources are worth cloning when in doubt
@@ -381,9 +424,12 @@ The traps, each pinned by a test in `test/manifest.test.js`:
 - the free-text field type is **`string`**, not `text`;
 - `placeholder` must be a multi-language **object**, never a bare string;
 - `description.en` / `.fr` are capped at **100 characters**;
-- a `select` takes static `options` or the core's `source: "devices"` — and that source has no
-  server-side implementation in any released Gladys, so the only usable options are the static ones,
-  which is why the delete dropdown offers position numbers;
+- a `select` takes static `options` or the core's `source: "devices"` — validated server-side only
+  from 5.1.0, and listing CREATED devices, never locations: the widgets and scenes use it, the
+  delete dropdown keeps its position numbers;
+- **`widgets`, `scene_triggers`, `scene_actions` cost a `gladys_version` floor of `>=5.1.0`**. A
+  widget label is 3-30 characters, its description ≤ 100; a scene trigger field cannot be `boolean`;
+  scene action `timeout_seconds` is 5-120;
 - **`categories` costs a `gladys_version` floor of `>=4.86.0`.** It is the catalog shelf, 1 to 3
   keys of a controlled vocabulary (`climate`, `lighting`, `energy`, `security`, `multimedia`,
   `appliances`, `environment`, `protocols`, `network`, `notifications`, `assistants`, `services`) —
@@ -401,7 +447,8 @@ Manifest actions are registered per key. The ones that QUERY VigiEau (`test_vigi
 `createLocationEditor()`,
 because writing the config back and re-publishing the catalog is not a device's business.
 `test/manifest.test.js` reads `REGISTRY_LEVEL_ACTIONS` off that factory, so a handler added there
-cannot silently skip the manifest.
+cannot silently skip the manifest. The widgets and scene actions are read off `createWidgets()` /
+`createSceneActions()` the same way, and the trigger keys off `SCENE_TRIGGER`.
 
 The ORDER of the `actions` array is the order of the buttons — `ActionsCard.jsx` maps over it. It
 runs add → import houses → list → test → restrictions → **delete last**: `supprimer_lieu` is the only destructive

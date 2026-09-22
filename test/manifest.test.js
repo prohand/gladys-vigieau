@@ -11,6 +11,10 @@ import { DEVICE_BLUEPRINTS } from '../src/devices/index.js';
 import { DEFAULT_CONFIG, PROFILES } from '../src/config.js';
 import { LOCATIONS_KEY, MAX_LOCATIONS } from '../src/locations.js';
 import { createLocationEditor } from '../src/locationEditor.js';
+import { WIDGET, WIDGET_ACTION, createWidgets } from '../src/widgets.js';
+import { SCENE_ACTION, createSceneActions } from '../src/sceneActions.js';
+import { SCENE_TRIGGER } from '../src/readings.js';
+import { SEVERITY_CODES } from '../src/vigieau.js';
 
 const manifest = JSON.parse(
   await readFile(new URL('../gladys-assistant-integration.json', import.meta.url), 'utf8'),
@@ -44,12 +48,43 @@ const ALLOWED_FIELD_TYPES = [
   'section',
 ];
 
-/** Every field of the manifest, config fields and action fields alike. */
+// The widgets and scene actions registered in index.js, read off their
+// factories for the same reason.
+const WIDGET_HANDLERS = createWidgets({});
+const SCENE_ACTION_HANDLERS = createSceneActions({});
+
+/**
+ * Every field of the Configuration screen: config fields and action fields.
+ * The widget settings and the scene fields are checked on their own, below —
+ * they live on other screens, under other rules.
+ */
 function allFields() {
   return [
     ...manifest.config_schema,
     ...(manifest.actions ?? []).flatMap((action) => action.fields ?? []),
   ];
+}
+
+/** The fields of the dashboard and scene editor: widget settings, scene fields. */
+function capabilityFields() {
+  return [
+    ...(manifest.widgets ?? []).flatMap((widget) => widget.settings ?? []),
+    ...(manifest.scene_triggers ?? []).flatMap((trigger) => trigger.fields ?? []),
+    ...(manifest.scene_actions ?? []).flatMap((declared) => declared.fields ?? []),
+  ];
+}
+
+/** The minimum Gladys version the manifest claims, as `[major, minor, patch]`. */
+function minGladysVersion() {
+  const match = manifest.gladys_version.match(/>=\s*(\d+)\.(\d+)\.(\d+)/);
+  assert.ok(match, 'gladys_version must declare a minimum version');
+  return match.slice(1).map(Number);
+}
+
+/** Whether the minimum claimed version is at least `major.minor.patch`. */
+function requiresAtLeast(major, minor, patch = 0) {
+  const [ma, mi, pa] = minGladysVersion();
+  return ma !== major ? ma > major : mi !== minor ? mi > minor : pa >= patch;
 }
 
 function action(key) {
@@ -180,22 +215,25 @@ test('"Pour commencer" carries the presentation and its two links, nothing else'
   assert.doesNotMatch(intro.description.fr, /liste deroulante|F5|rechargez/i);
 });
 
-test('NO field takes its options from a core-defined dynamic source', () => {
-  // THE bug this pins. A `select` with `source: "devices"` IS rendered as a
-  // dropdown of the integration's own devices by the Configuration screen —
-  // but the server side of that source (getDynamicOptions, Gladys PR #2779)
-  // ships in no released Gladys: up to 4.84.4 included, validateConfigValue
-  // reads a select's valid values from the manifest's STATIC `options`, which
-  // a field with a `source` does not have. Every value the dropdown offered
-  // was therefore refused with a 422 before the action reached the container,
-  // and the screen showed "L'action a échoué. Vérifiez que l'intégration est
-  // démarrée." Positions are validated on every version, past and future.
+test('a dynamic source only ever picks a CREATED device, never a location', () => {
+  // `source: "devices"` lists the integration's devices the user has CREATED —
+  // validated server-side since Gladys 5.1.0 (getDynamicOptions), which up to
+  // 4.84.4 refused every value with a 422 and broke every action carrying one.
+  //
+  // It is right where a device is what the user means: a widget shows one, a
+  // scene reads one. It is wrong on the Configuration screen, where the delete
+  // dropdown designates a LOCATION — one that may never have been added from
+  // the Discovery tab, and would then simply be missing from the list. That
+  // one keeps its positions (see locationAtPosition).
   for (const field of allFields()) {
-    assert.equal(
-      field.source,
-      undefined,
-      `"${field.key}": no released Gladys can validate a dynamic source`,
-    );
+    assert.equal(field.source, undefined, `"${field.key}": a location is not a created device`);
+  }
+  assert.ok(requiresAtLeast(5, 1), 'the source is only validated from Gladys 5.1.0 on');
+  for (const field of capabilityFields().filter((f) => f.source !== undefined)) {
+    assert.equal(field.source, 'devices');
+    assert.equal(field.key, 'lieu', 'one name for one meaning, everywhere');
+    assert.equal(field.options, undefined, 'options and source are mutually exclusive');
+    assert.equal(field.default, undefined, 'a device list has no default');
   }
 });
 
@@ -429,7 +467,8 @@ test('the compatibility range covers the version that opened GET /house', () => 
   // House coordinates landed in Gladys 4.85.0, and the manifest field asking
   // for them with it: the range is what keeps this version away from the
   // instances that cannot serve the import button.
-  assert.match(manifest.gladys_version, /^>=4\.(8[5-9]|9\d|\d{3,})\./);
+  assert.match(manifest.gladys_version, /^>=\d+\.\d+\.\d+$/);
+  assert.ok(requiresAtLeast(4, 85));
 });
 
 test('the catalog shelf is declared, and requires Gladys >= 4.86.0 to be', () => {
@@ -446,11 +485,8 @@ test('the catalog shelf is declared, and requires Gladys >= 4.86.0 to be', () =>
     manifest.categories.length >= 1 && manifest.categories.length <= 3,
     'the store schema takes 1 to 3 unique keys',
   );
-  const minVersion = manifest.gladys_version.match(/>=\s*(\d+)\.(\d+)\.\d+/);
-  assert.ok(minVersion, 'gladys_version must declare a minimum version');
-  const [, major, minor] = minVersion.map(Number);
   assert.ok(
-    major > 4 || (major === 4 && minor >= 86),
+    requiresAtLeast(4, 86),
     `categories requires gladys_version >= 4.86.0, got "${manifest.gladys_version}"`,
   );
 });
@@ -472,4 +508,112 @@ test('the manifest declares the cloud transport only', () => {
   // VigiEau is a public HTTP API: there is no local channel, so Gladys must not
   // show the "Prefer the local connection" toggle.
   assert.deepEqual(manifest.transports, ['cloud']);
+});
+
+// --- Widgets, scene triggers and scene actions (Gladys >= 5.1.0) -------------
+// Three capability fields the store AND an older core refuse below 5.1.0: an
+// older core rejects any manifest field it does not know, and the store
+// indexer enforces the floor per field.
+
+test('the capability fields require Gladys >= 5.1.0', () => {
+  for (const field of ['widgets', 'scene_triggers', 'scene_actions']) {
+    assert.ok(manifest[field]?.length > 0, `${field} is declared`);
+  }
+  assert.ok(
+    requiresAtLeast(5, 1),
+    `widgets and scenes require gladys_version >= 5.1.0, got "${manifest.gladys_version}"`,
+  );
+});
+
+test('every declared widget has a handler, and every handler is declared', () => {
+  assert.deepEqual(
+    (manifest.widgets ?? []).map((widget) => widget.key).sort(),
+    Object.keys(WIDGET_HANDLERS).sort(),
+  );
+  assert.deepEqual(Object.values(WIDGET).sort(), Object.keys(WIDGET_HANDLERS).sort());
+  for (const handler of Object.values(WIDGET_HANDLERS)) {
+    assert.equal(typeof handler.get, 'function');
+    assert.equal(typeof handler.action, 'function', `the "${WIDGET_ACTION.REFRESH}" button`);
+  }
+});
+
+test('the widgets follow the store bounds', () => {
+  for (const widget of manifest.widgets) {
+    assert.match(widget.key, /^[a-z0-9_]{2,32}$/);
+    assert.match(widget.icon, /^[a-z0-9-]{1,40}$/, 'a Feather icon name');
+    for (const language of ['en', 'fr']) {
+      const label = widget.label[language];
+      assert.ok(label.length >= 3 && label.length <= 30, `${widget.key} label.${language}`);
+      assert.ok(
+        widget.description[language].length <= 100,
+        `${widget.key} description.${language}`,
+      );
+    }
+  }
+});
+
+test('the location widget asks which device, the overview asks nothing', () => {
+  const byKey = Object.fromEntries(manifest.widgets.map((widget) => [widget.key, widget]));
+  assert.deepEqual(
+    byKey[WIDGET.LOCATION].settings.map((field) => [field.key, field.source, field.required]),
+    [['lieu', 'devices', true]],
+  );
+  assert.equal((byKey[WIDGET.OVERVIEW].settings ?? []).length, 0, 'it shows every location');
+});
+
+test('every scene action has a handler, and every handler is declared', () => {
+  assert.deepEqual(
+    (manifest.scene_actions ?? []).map((declared) => declared.key).sort(),
+    Object.keys(SCENE_ACTION_HANDLERS).sort(),
+  );
+  assert.deepEqual(Object.values(SCENE_ACTION).sort(), Object.keys(SCENE_ACTION_HANDLERS).sort());
+});
+
+test('every scene trigger the code fires is declared, and nothing else is', () => {
+  assert.deepEqual(
+    (manifest.scene_triggers ?? []).map((trigger) => trigger.key).sort(),
+    Object.values(SCENE_TRIGGER).sort(),
+  );
+});
+
+test('a scene trigger filter can always say "any"', () => {
+  // A boolean has no empty state, which is why the core refuses it as a
+  // filter; and a REQUIRED filter would force every scene to pick one value.
+  for (const trigger of manifest.scene_triggers) {
+    for (const field of trigger.fields ?? []) {
+      assert.ok(['string', 'number', 'select', 'multi_select'].includes(field.type), field.key);
+      assert.notEqual(field.required, true, `${trigger.key}.${field.key}: empty must match any`);
+    }
+  }
+});
+
+test('the level filter offers exactly the VigiEau codes the events carry', () => {
+  const trigger = manifest.scene_triggers.find((t) => t.key === SCENE_TRIGGER.LEVEL_CHANGED);
+  const level = trigger.fields.find((field) => field.key === 'niveau');
+  assert.equal(level.type, 'multi_select');
+  assert.deepEqual(
+    level.options.map((option) => option.value),
+    SEVERITY_CODES,
+    'crise included: the reason this filter exists next to the device trigger',
+  );
+});
+
+test('the scene declarations are translated and their variables are scalars', () => {
+  const declarations = [...manifest.scene_triggers, ...manifest.scene_actions];
+  for (const declared of declarations) {
+    for (const text of [declared.label, declared.description]) {
+      assert.ok(text.en && text.fr, `${declared.key} needs both languages`);
+    }
+    assert.match(declared.key, /^[a-z0-9_]{1,40}$/);
+    for (const variable of [...(declared.variables ?? []), ...(declared.outputs ?? [])]) {
+      assert.ok(['string', 'number', 'boolean'].includes(variable.type), variable.key);
+      assert.ok(variable.label.en && variable.label.fr, `${declared.key}.${variable.key}`);
+    }
+    for (const field of declared.fields ?? []) {
+      assert.ok(field.label.en && field.label.fr, `${declared.key}.${field.key}`);
+    }
+  }
+  for (const declared of manifest.scene_actions) {
+    assert.ok(declared.timeout_seconds >= 5 && declared.timeout_seconds <= 120);
+  }
 });

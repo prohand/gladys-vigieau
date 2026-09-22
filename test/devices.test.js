@@ -8,6 +8,8 @@ import {
 } from '../src/devices/index.js';
 import { FEATURE, MIN_REFRESH_SECONDS } from '../src/devices/droughtZone.js';
 import { deviceIds, forgetAdoptedDevices } from '../src/devices/identity.js';
+import { READINGS_KEY, SCENE_TRIGGER, forgetReadings, latestReading } from '../src/readings.js';
+import { WIDGET } from '../src/widgets.js';
 import { normalizeConfig } from '../src/config.js';
 import { createFakeGladys, zonesFixture } from './helpers/fakeGladys.js';
 import { plain } from './helpers/text.js';
@@ -26,6 +28,8 @@ const realFetch = globalThis.fetch;
 beforeEach(() => {
   // Adoptions are module state: a leftover would rename the ids under test.
   forgetAdoptedDevices();
+  // So are the readings: a baseline left by another test would fire events.
+  forgetReadings();
 });
 
 afterEach(() => {
@@ -750,4 +754,115 @@ test('a VigiEau outage neither kills the timer nor crashes the container', async
   } finally {
     mock.timers.reset();
   }
+});
+
+// --- Scene triggers, widgets: what a read moves besides the states -----------
+
+/** Zones with every water type at the same VigiEau code. */
+function zonesAt(code, arrete = null) {
+  return ['SUP', 'SOU', 'AEP'].map((type) => ({ type, niveauGravite: code, arrete, usages: [] }));
+}
+
+test('the first cycle sets the baselines and fires no scene event', async () => {
+  const gladys = createFakeGladys();
+  stubVigieau(zonesAt('alerte'));
+  await droughtZone.refresh(gladys, config);
+  assert.deepEqual(gladys.sceneEvents, []);
+  assert.deepEqual(gladys.configWrites, [
+    { [READINGS_KEY]: { 'loc-maison': { level: 2, decrees: [] } } },
+  ]);
+});
+
+test('a level change between two cycles fires niveau_change, AFTER the states', async () => {
+  const gladys = createFakeGladys();
+  stubVigieau(zonesAt('vigilance'));
+  await droughtZone.refresh(gladys, config);
+  stubVigieau(zonesAt('crise'));
+  const statesBefore = gladys.published.length;
+  await droughtZone.refresh(gladys, config);
+
+  assert.deepEqual(
+    gladys.sceneEvents.map((event) => [event.key, event.data.niveau, event.data.sens]),
+    [[SCENE_TRIGGER.LEVEL_CHANGED, 'crise', 'hausse']],
+  );
+  // The filter value is the device external_id the scene editor stores.
+  assert.equal(
+    gladys.sceneEvents[0].data.lieu,
+    deviceIds(gladys, 'drought-zone', 'loc-maison').device,
+  );
+  assert.ok(gladys.published.length > statesBefore, 'a scene reading the device finds the level');
+  assert.equal(gladys.configWrites.length, 2, 'the new baseline is persisted');
+});
+
+test('an unchanged level writes nothing and fires nothing', async () => {
+  const gladys = createFakeGladys();
+  stubVigieau(zonesAt('alerte'));
+  await droughtZone.refresh(gladys, config);
+  await droughtZone.refresh(gladys, config);
+  assert.deepEqual(gladys.sceneEvents, []);
+  assert.equal(gladys.configWrites.length, 1, 'only the first baseline');
+});
+
+test('an event Gladys refuses never fails the read', async () => {
+  const gladys = createFakeGladys();
+  gladys.publishSceneEvent = async () => {
+    throw new Error('HTTP 429');
+  };
+  stubVigieau(zonesAt('vigilance'));
+  await droughtZone.refresh(gladys, config);
+  stubVigieau(zonesAt('alerte'));
+  const result = await droughtZone.refresh(gladys, config);
+  assert.deepEqual(result, { total: 1, failed: 0 });
+  assert.equal(gladys.connectionStatuses.at(-1).connected, true);
+});
+
+test('a failed baseline write never fails the read either', async () => {
+  const gladys = createFakeGladys();
+  gladys.setConfig = async () => {
+    throw new Error('HTTP 500');
+  };
+  stubVigieau(zonesAt('alerte'));
+  const result = await droughtZone.refresh(gladys, config);
+  assert.deepEqual(result, { total: 1, failed: 0 });
+});
+
+test('a cycle nudges each widget ONCE, however many locations it read', async () => {
+  // The core keeps one nudge per 10 s per widget: a nudge per location would
+  // re-pull after the FIRST read and drop the others.
+  const gladys = createFakeGladys();
+  stubVigieau(zonesAt('alerte'));
+  await droughtZone.refresh(gladys, configWith(MAISON, JARDIN));
+  assert.deepEqual(gladys.widgetNudges.sort(), Object.values(WIDGET).sort());
+});
+
+test('a cycle fills the memory the widgets answer from', async () => {
+  const gladys = createFakeGladys();
+  stubVigieau(zonesFixture());
+  await droughtZone.refresh(gladys, config);
+  const reading = latestReading('loc-maison');
+  assert.equal(reading.summary.level, 3);
+  assert.ok(reading.readAt instanceof Date);
+});
+
+test('refreshLocation reads one location, publishes it and throws on an outage', async () => {
+  const gladys = createFakeGladys();
+  const [maison] = config.locations;
+  stubVigieau(zonesAt('alerte'));
+  const summary = await droughtZone.refreshLocation(gladys, config, maison);
+  assert.equal(summary.level, 2);
+  assert.ok(gladys.published.length > 0);
+  stubVigieau({}, 503);
+  await assert.rejects(droughtZone.refreshLocation(gladys, config, maison), /503/);
+});
+
+test('refresh reports how many locations it read, and how many failed', async () => {
+  const gladys = createFakeGladys();
+  stubVigieauByLatitude({
+    48.8566: { payload: zonesAt('alerte') },
+    45.764: { status: 503, payload: {} },
+  });
+  assert.deepEqual(await droughtZone.refresh(gladys, configWith(MAISON, JARDIN)), {
+    total: 2,
+    failed: 1,
+  });
 });

@@ -6,6 +6,9 @@
 //   - getDevices()                   -> the devices the user created
 //   - publishState / publishStates   -> record calls so tests can assert them
 //   - setConnectionStatus            -> record calls so tests can assert them
+//   - setConfig                      -> record the patches written
+//   - publishSceneEvent              -> record the scene events fired
+//   - requestWidgetRefresh           -> record the widget nudges
 // This lets us test the pure "wiring" logic (discovery payloads, dispatch)
 // without a running Gladys server or a real WebSocket.
 // -----------------------------------------------------------------------------
@@ -20,10 +23,16 @@
 export function createFakeGladys({ devices = [], getDevicesError = null } = {}) {
   const published = [];
   const connectionStatuses = [];
+  const configWrites = [];
+  const sceneEvents = [];
+  const widgetNudges = [];
 
   return {
     published,
     connectionStatuses,
+    configWrites,
+    sceneEvents,
+    widgetNudges,
 
     async getDevices() {
       if (getDevicesError) {
@@ -56,6 +65,18 @@ export function createFakeGladys({ devices = [], getDevicesError = null } = {}) 
 
     async setConnectionStatus(connected, message) {
       connectionStatuses.push({ connected, message });
+    },
+
+    async setConfig(patch) {
+      configWrites.push(patch);
+    },
+
+    async publishSceneEvent(key, data) {
+      sceneEvents.push({ key, data });
+    },
+
+    requestWidgetRefresh(key) {
+      widgetNudges.push(key);
     },
   };
 }
