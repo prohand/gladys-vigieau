@@ -82,6 +82,12 @@ jobs:
           # `npm run format:check` gate of ci.yml on the very next push.
           npx prettier --write gladys-assistant-integration.json package.json
 
+          # Move the [Unreleased] section of the changelog under the version this
+          # release ships, so CHANGELOG.md names it in the release commit.
+          node .github/scripts/changelog-release.mjs "$new_version"
+          npx --yes "prettier@$(node -p "require('./package.json').devDependencies.prettier")" \
+            --write CHANGELOG.md
+
           echo "version=${new_version}" >> "$GITHUB_OUTPUT"
 
       # Note: if the branch you release from is protected against direct pushes,
@@ -96,7 +102,7 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add package.json package-lock.json gladys-assistant-integration.json
+          git add package.json package-lock.json gladys-assistant-integration.json CHANGELOG.md
           git commit -m "chore(release): ${VERSION}"
           git tag -a "v${VERSION}" -m "Release ${VERSION}"
 

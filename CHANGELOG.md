@@ -6,6 +6,8 @@ All notable changes to this integration are documented here. The format follows
 
 ## [Unreleased]
 
+## [3.1.0] - 2026-10-06
+
 ### Added
 
 - `SECURITY.md`: how to report a vulnerability.
@@ -128,7 +130,8 @@ First public release.
 
 - Vigieau integration for Gladys (vigilance sécheresse)
 
-[Unreleased]: https://github.com/prohand/gladys-vigieau/compare/v3.0.0...HEAD
+[Unreleased]: https://github.com/prohand/gladys-vigieau/compare/v3.1.0...HEAD
+[3.1.0]: https://github.com/prohand/gladys-vigieau/compare/v3.0.0...v3.1.0
 [3.0.0]: https://github.com/prohand/gladys-vigieau/compare/v2.0.3...v3.0.0
 [2.0.3]: https://github.com/prohand/gladys-vigieau/compare/v2.0.2...v2.0.3
 [2.0.2]: https://github.com/prohand/gladys-vigieau/compare/v2.0.1...v2.0.2
