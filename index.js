@@ -38,6 +38,7 @@ import { droughtZone, locationForDevice, readLocation } from './src/devices/drou
 import { READINGS_KEY, latestReading, seedBaselines } from './src/readings.js';
 import { WIDGET, createWidgets } from './src/widgets.js';
 import { createSceneActions } from './src/sceneActions.js';
+import { withPullDeadline } from './src/widgetDeadline.js';
 
 const gladys = new GladysIntegration();
 
@@ -191,7 +192,10 @@ const widgets = createWidgets({
   refreshAll: (currentConfig) => droughtZone.refresh(gladys, currentConfig),
 });
 for (const [key, widget] of Object.entries(widgets)) {
-  gladys.onWidgetGet(key, (request) => widget.get(request));
+  // Raced against a deadline: the live read of a location the memory does not
+  // know yet must give a loading card, never miss the core's 15 s and leave the
+  // card dead (src/widgetDeadline.js).
+  gladys.onWidgetGet(key, (request) => withPullDeadline(() => widget.get(request)));
   gladys.onWidgetAction(key, (actionKey, params, options) =>
     widget.action(actionKey, params, options),
   );
