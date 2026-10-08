@@ -7,6 +7,9 @@ import {
   formatCoordinate,
   toCoordinate,
   DEFAULT_CONFIG,
+  clampPollFrequency,
+  MAX_POLL_FREQUENCY,
+  MIN_POLL_FREQUENCY,
 } from '../src/config.js';
 import { FIRST_LOCATION_ID } from '../src/locations.js';
 
@@ -46,6 +49,23 @@ test('normalizeConfig falls back to the default for an unknown profile', () => {
 
 test('normalizeConfig falls back to the default for a missing numeric field', () => {
   assert.equal(normalizeConfig({ profil: 'entreprise' }).poll_frequency, 3600);
+});
+
+test('normalizeConfig clamps the refresh interval to the manifest bounds', () => {
+  // The value ends up in a setInterval: NaN, or anything past 2^31-1 ms, would
+  // fire it every millisecond.
+  assert.equal(normalizeConfig({ poll_frequency: 1 }).poll_frequency, MIN_POLL_FREQUENCY);
+  assert.equal(normalizeConfig({ poll_frequency: 300 }).poll_frequency, MIN_POLL_FREQUENCY);
+  assert.equal(normalizeConfig({ poll_frequency: 3e6 }).poll_frequency, MAX_POLL_FREQUENCY);
+  assert.equal(normalizeConfig({ poll_frequency: 'often' }).poll_frequency, 3600);
+  assert.equal(normalizeConfig({ poll_frequency: Infinity }).poll_frequency, 3600);
+  assert.equal(normalizeConfig({ poll_frequency: null }).poll_frequency, 3600);
+});
+
+test('clampPollFrequency keeps an interval inside the bounds as it is', () => {
+  assert.equal(clampPollFrequency(7200), 7200);
+  assert.equal(clampPollFrequency('900'), 900);
+  assert.equal(clampPollFrequency(NaN), DEFAULT_CONFIG.poll_frequency);
 });
 
 test('the location list is parsed out of the off-schema key', () => {

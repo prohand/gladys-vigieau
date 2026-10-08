@@ -1,62 +1,49 @@
 // -----------------------------------------------------------------------------
-// Reading GET /house on the host API.
+// Reading the houses configured in Gladys, through the SDK's getHouses().
 //
-// The network is never touched: `globalThis.fetch` is stubbed per test and
-// restored afterwards.
+// The network is never touched: the SDK instance is a stub, and its failures
+// are the SDK's own GladysApiError, so the 403 detection is tested against the
+// shape the SDK really throws.
 // -----------------------------------------------------------------------------
 
-import { afterEach, test } from 'node:test';
+import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fetchHouses, HOUSE_ACCESS_DENIED, HOUSE_API_PATH, normalizeHouse } from '../src/houses.js';
+import { GladysApiError } from '@gladysassistant/integration-sdk';
+import { fetchHouses, HOUSE_ACCESS_DENIED, normalizeHouse } from '../src/houses.js';
 
-const CREDENTIALS = { hostApiUrl: 'http://172.30.0.1:80', token: 'jwt' };
-
-const realFetch = globalThis.fetch;
-
-afterEach(() => {
-  globalThis.fetch = realFetch;
-});
-
-/** Stub `fetch` with one canned answer, and record what it was called with. */
-function stubFetch({ status = 200, body = [] } = {}) {
+/** An SDK instance whose getHouses answers `body`, or throws `error`. */
+function sdk({ body = [], error = null } = {}) {
   const calls = [];
-  globalThis.fetch = async (url, options) => {
-    calls.push({ url, options });
-    return {
-      ok: status >= 200 && status < 300,
-      status,
-      json: async () => body,
-    };
+  return {
+    calls,
+    async getHouses() {
+      calls.push('getHouses');
+      if (error) {
+        throw error;
+      }
+      return body;
+    },
   };
-  return calls;
 }
 
-test('the houses are read from the documented endpoint, with the integration token', async () => {
-  const calls = stubFetch({
+test('the houses are read through the SDK', async () => {
+  const gladys = sdk({
     body: [{ id: 'h1', name: 'Maison', selector: 'maison', latitude: 43.9, longitude: 1.35 }],
   });
 
-  const houses = await fetchHouses(CREDENTIALS);
+  const houses = await fetchHouses(gladys);
 
-  assert.equal(calls.length, 1);
-  assert.equal(calls[0].url, `http://172.30.0.1:80${HOUSE_API_PATH}`);
-  assert.equal(calls[0].options.headers.Authorization, 'Bearer jwt');
+  assert.deepEqual(gladys.calls, ['getHouses']);
   assert.deepEqual(houses, [
     { id: 'h1', name: 'Maison', selector: 'maison', latitude: 43.9, longitude: 1.35 },
   ]);
 });
 
-test('a trailing slash on the host URL does not double the one in the path', async () => {
-  const calls = stubFetch();
-  await fetchHouses({ ...CREDENTIALS, hostApiUrl: 'http://172.30.0.1:80/' });
-  assert.equal(calls[0].url, `http://172.30.0.1:80${HOUSE_API_PATH}`);
-});
-
 test('a house that was never placed on the map has no coordinates, not a zero', async () => {
   // `Number(null)` is 0, a valid latitude in the Gulf of Guinea.
-  stubFetch({ body: [{ id: 'h1', name: 'Bureau', latitude: null, longitude: null }] });
+  const gladys = sdk({ body: [{ id: 'h1', name: 'Bureau', latitude: null, longitude: null }] });
 
-  const [house] = await fetchHouses(CREDENTIALS);
+  const [house] = await fetchHouses(gladys);
 
   assert.equal(house.latitude, null);
   assert.equal(house.longitude, null);
@@ -64,29 +51,27 @@ test('a house that was never placed on the map has no coordinates, not a zero', 
 
 test('a refused access is told apart from every other failure', async () => {
   // A 403 means the installed manifest never declared `location: true`, which
-  // only a re-install fixes — nothing a retry would help with.
-  stubFetch({ status: 403 });
+  // only a re-install fixes — nothing a retry would help with. The SDK carries
+  // the HTTP status in `status`; its `code` is the core's own error code.
+  const gladys = sdk({ error: new GladysApiError(403, 'FORBIDDEN', 'Forbidden') });
 
-  await assert.rejects(fetchHouses(CREDENTIALS), (err) => {
+  await assert.rejects(fetchHouses(gladys), (err) => {
     assert.equal(err.code, HOUSE_ACCESS_DENIED);
     return true;
   });
 });
 
-test('any other HTTP error carries its status', async () => {
-  stubFetch({ status: 500 });
-  await assert.rejects(fetchHouses(CREDENTIALS), /500/);
+test('any other failure is passed on as the SDK raised it', async () => {
+  const error = new GladysApiError(500, 'SERVER_ERROR', 'Internal Server Error');
+  await assert.rejects(fetchHouses(sdk({ error })), (err) => {
+    assert.equal(err, error);
+    assert.notEqual(err.code, HOUSE_ACCESS_DENIED);
+    return true;
+  });
 });
 
 test('an answer that is not a list is no houses, not a crash', async () => {
-  stubFetch({ body: { message: 'nope' } });
-  assert.deepEqual(await fetchHouses(CREDENTIALS), []);
-});
-
-test('missing credentials fail before any request is made', async () => {
-  const calls = stubFetch();
-  await assert.rejects(fetchHouses({ hostApiUrl: '', token: '' }), /GLADYS_HOST_API_URL/);
-  assert.equal(calls.length, 0);
+  assert.deepEqual(await fetchHouses(sdk({ body: { message: 'nope' } })), []);
 });
 
 test('a house with no name is still listed under one', () => {

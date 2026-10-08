@@ -8,6 +8,7 @@ import {
   reverseAddress,
   searchAddresses,
 } from '../src/address.js';
+import { captureLogs } from './helpers/captureLogs.js';
 
 const realFetch = globalThis.fetch;
 
@@ -218,4 +219,17 @@ test('resolveAddress hands the candidates back when nothing stands out', async (
   const { match, candidates } = await resolveAddress('Sainte-Marie');
   assert.equal(match, null);
   assert.equal(candidates.length, 2);
+});
+
+test('neither the address looked up nor the point reaches the logs', async () => {
+  // Both are, very often, where the user lives.
+  stubGeocoder([]);
+  const lines = await captureLogs(async () => {
+    await searchAddresses('12 rue des Lilas Paris');
+    await reverseAddress(48.8566, 2.3522);
+  });
+  assert.ok(lines.length >= 2, 'the lookups are still logged');
+  for (const line of lines) {
+    assert.doesNotMatch(line, /Lilas|48\.8566|2\.3522/);
+  }
 });

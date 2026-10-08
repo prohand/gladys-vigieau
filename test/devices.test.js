@@ -6,7 +6,12 @@ import {
   buildDiscoveredDevices,
   findBlueprintByDevice,
 } from '../src/devices/index.js';
-import { FEATURE, MIN_REFRESH_SECONDS } from '../src/devices/droughtZone.js';
+import {
+  FEATURE,
+  HISTORY_HEARTBEAT_MS,
+  MIN_REFRESH_SECONDS,
+  forgetPublishedStates,
+} from '../src/devices/droughtZone.js';
 import { deviceIds, forgetAdoptedDevices } from '../src/devices/identity.js';
 import { READINGS_KEY, SCENE_TRIGGER, forgetReadings, latestReading } from '../src/readings.js';
 import { WIDGET } from '../src/widgets.js';
@@ -30,6 +35,9 @@ beforeEach(() => {
   forgetAdoptedDevices();
   // So are the readings: a baseline left by another test would fire events.
   forgetReadings();
+  // And so is the memory of the severities already published: a level left by
+  // another test would be skipped as "unchanged".
+  forgetPublishedStates();
 });
 
 afterEach(() => {
@@ -321,7 +329,7 @@ test('a location with no decree at all says so, instead of keeping the old date'
   // The level is readable and there is nothing in force: showing the date of a
   // decree that has been lifted would read as if it still applied.
   const gladys = createFakeGladys();
-  stubVigieau([], 404);
+  stubVigieau([]);
   await droughtZone.onPoll(gladys, config, deviceIdOf(gladys, MAISON));
 
   const ids = deviceIds(gladys, 'drought-zone', MAISON.id);
@@ -397,7 +405,7 @@ test('a crise is published as 3, never as a value Gladys renders "Inconnu"', asy
 
 test('onPoll publishes a clear "no restriction" when nothing is in force', async () => {
   const gladys = createFakeGladys();
-  stubVigieau([], 404);
+  stubVigieau([]);
   await droughtZone.onPoll(gladys, config, deviceIdOf(gladys, MAISON));
 
   const ids = deviceIds(gladys, 'drought-zone', MAISON.id);
@@ -592,7 +600,7 @@ test('the show_restrictions action lists the restricted usages and the decree', 
 
 test('the show_restrictions action says so when nothing is restricted', async () => {
   const gladys = createFakeGladys();
-  stubVigieau([], 404);
+  stubVigieau([]);
   const message = await droughtZone.actions.show_restrictions(gladys, { fields: {}, config });
   assert.match(message.fr, /aucun usage restreint/i);
   assert.match(message.en, /no restricted usage/i);
@@ -702,6 +710,29 @@ test('startPolling never refreshes faster than the floor, whatever the config sa
   }
 });
 
+test('startPolling never turns a garbled interval into a 1 ms timer', () => {
+  // NaN and anything past 2^31-1 ms both make setInterval fire every
+  // millisecond; the config given here is NOT normalized, as a caller could.
+  for (const poll_frequency of [NaN, 'often', 3e6, Infinity]) {
+    const gladys = createFakeGladys();
+    stubVigieau(zonesFixture());
+    mock.timers.enable({ apis: ['setInterval'] });
+    try {
+      const stop = droughtZone.startPolling(gladys, { ...config, poll_frequency });
+      let calls = 0;
+      globalThis.fetch = async () => {
+        calls += 1;
+        return { ok: true, status: 200, json: async () => zonesFixture() };
+      };
+      mock.timers.tick(MIN_REFRESH_SECONDS * 1000 - 1);
+      assert.equal(calls, 0, `no timed refresh for poll_frequency=${poll_frequency}`);
+      stop();
+    } finally {
+      mock.timers.reset();
+    }
+  }
+});
+
 test('refresh reports success and never throws on an outage', async () => {
   const gladys = createFakeGladys();
   stubVigieau(null, 503);
@@ -792,6 +823,78 @@ test('a level change between two cycles fires niveau_change, AFTER the states', 
   );
   assert.ok(gladys.published.length > statesBefore, 'a scene reading the device finds the level');
   assert.equal(gladys.configWrites.length, 2, 'the new baseline is persisted');
+});
+
+test('an unchanged severity is not re-published every cycle, only on a heartbeat', async () => {
+  // The four risk features keep history: Gladys writes one row per state it
+  // is sent, so an identical level every cycle is a flat line in the database.
+  const gladys = createFakeGladys();
+  const ids = deviceIds(gladys, 'drought-zone', MAISON.id);
+  const severityKeys = [FEATURE.LEVEL, FEATURE.LEVEL_SUP, FEATURE.LEVEL_SOU, FEATURE.LEVEL_AEP];
+  const severityIds = new Set(severityKeys.map((key) => ids.feature(key)));
+  const sentSeverities = () =>
+    gladys.published.filter((p) => severityIds.has(p.featureExternalId)).length;
+
+  mock.timers.enable({ apis: ['Date'], now: 0 });
+  try {
+    stubVigieau(zonesAt('alerte'));
+    await droughtZone.refresh(gladys, config);
+    assert.equal(sentSeverities(), 4, 'the first read sends them all');
+
+    const updatedAt = () =>
+      gladys.published.filter((p) => p.featureExternalId === ids.feature(FEATURE.UPDATED_AT))
+        .length;
+    await droughtZone.refresh(gladys, config);
+    assert.equal(sentSeverities(), 4, 'an unchanged level adds no history row');
+    assert.equal(updatedAt(), 2, 'but the read is still dated');
+
+    stubVigieau(zonesAt('crise'));
+    await droughtZone.refresh(gladys, config);
+    assert.equal(sentSeverities(), 8, 'a change goes out at once');
+
+    mock.timers.tick(HISTORY_HEARTBEAT_MS);
+    await droughtZone.refresh(gladys, config);
+    assert.equal(sentSeverities(), 12, 'and a stable value is re-sent on the heartbeat');
+
+    forgetPublishedStates();
+    await droughtZone.refresh(gladys, config);
+    assert.equal(sentSeverities(), 16, 'a reset (device created, reconnection) sends them again');
+  } finally {
+    mock.timers.reset();
+  }
+});
+
+test('a severity Gladys refused is re-sent on the next cycle', async () => {
+  const gladys = createFakeGladys();
+  const realPublish = gladys.publishStates.bind(gladys);
+  gladys.publishStates = async () => {
+    throw new Error('HTTP 500');
+  };
+  stubVigieau(zonesAt('alerte'));
+  await droughtZone.refresh(gladys, config);
+  gladys.publishStates = realPublish;
+  await droughtZone.refresh(gladys, config);
+  const ids = deviceIds(gladys, 'drought-zone', MAISON.id);
+  assert.ok(gladys.published.some((p) => p.featureExternalId === ids.feature(FEATURE.LEVEL)));
+});
+
+test('a VigiEau 404 keeps the last level and fires no downward change', async () => {
+  // A 404 is an unknown route (a moved endpoint), never "no zone here": read
+  // as an empty list it published "Pas de restriction" during a crisis and
+  // told every watering scene that the drought was over.
+  const gladys = createFakeGladys();
+  stubVigieau(zonesAt('crise'));
+  await droughtZone.refresh(gladys, config);
+  const statesBefore = gladys.published.length;
+
+  stubVigieau({ message: 'Cannot GET /api/zones', error: 'Not Found' }, 404);
+  const result = await droughtZone.refresh(gladys, config);
+
+  assert.deepEqual(result, { total: 1, failed: 1 });
+  assert.equal(gladys.published.length, statesBefore, 'the last level stays as it was');
+  assert.deepEqual(gladys.sceneEvents, []);
+  assert.equal(latestReading('loc-maison').summary.level, 4, 'the memory keeps the crisis');
+  assert.equal(gladys.connectionStatuses.at(-1).connected, false);
 });
 
 test('an unchanged level writes nothing and fires nothing', async () => {

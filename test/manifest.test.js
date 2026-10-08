@@ -8,7 +8,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { DEVICE_BLUEPRINTS } from '../src/devices/index.js';
-import { DEFAULT_CONFIG, PROFILES } from '../src/config.js';
+import { DEFAULT_CONFIG, MAX_POLL_FREQUENCY, MIN_POLL_FREQUENCY, PROFILES } from '../src/config.js';
 import { LOCATIONS_KEY, MAX_LOCATIONS } from '../src/locations.js';
 import { createLocationEditor } from '../src/locationEditor.js';
 import { WIDGET, WIDGET_ACTION, createWidgets } from '../src/widgets.js';
@@ -338,6 +338,12 @@ test('the global settings keep their defaults in DEFAULT_CONFIG', () => {
       `DEFAULT_CONFIG.${field.key} must match the manifest default`,
     );
   }
+});
+
+test('the refresh interval is clamped to the bounds the manifest declares', () => {
+  const field = configField('poll_frequency');
+  assert.equal(MIN_POLL_FREQUENCY, field.min);
+  assert.equal(MAX_POLL_FREQUENCY, field.max);
 });
 
 test('the profile select offers exactly the profiles VigiEau accepts', () => {

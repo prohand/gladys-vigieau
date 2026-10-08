@@ -46,6 +46,29 @@ export const DEFAULT_CONFIG = {
   poll_frequency: 3600, // seconds — drought decrees change once a day at most
 };
 
+// Bounds of the refresh interval, in seconds — the `min`/`max` of the
+// `poll_frequency` field of the manifest (a unit test keeps them equal). The
+// form enforces them, but only on what it renders: a value stored by an older
+// version, typed through the API or simply garbled still reaches this module,
+// and it ends up in a `setInterval`. There, NaN becomes 1 ms and anything above
+// 2^31-1 ms (~24.8 days) overflows to 1 ms too: VigiEau hammered in a loop.
+export const MIN_POLL_FREQUENCY = 900;
+export const MAX_POLL_FREQUENCY = 86400;
+
+/**
+ * The refresh interval to use, in seconds: clamped to the manifest bounds, and
+ * back to the default when it is not a number at all.
+ * @param {unknown} raw
+ * @returns {number}
+ */
+export function clampPollFrequency(raw) {
+  const value = Number(raw ?? DEFAULT_CONFIG.poll_frequency);
+  if (!Number.isFinite(value)) {
+    return DEFAULT_CONFIG.poll_frequency;
+  }
+  return Math.min(MAX_POLL_FREQUENCY, Math.max(MIN_POLL_FREQUENCY, value));
+}
+
 /**
  * Merge the user configuration with the defaults and force the types.
  * @param {Record<string, unknown>} raw configuration returned by the SDK
@@ -66,7 +89,7 @@ export function normalizeConfig(raw = {}) {
     ...raw,
     // Guard against a profile the manifest no longer offers.
     profil: PROFILES.includes(profil) ? profil : DEFAULT_CONFIG.profil,
-    poll_frequency: Number(raw.poll_frequency ?? DEFAULT_CONFIG.poll_frequency),
+    poll_frequency: clampPollFrequency(raw.poll_frequency),
     locations,
   };
 }

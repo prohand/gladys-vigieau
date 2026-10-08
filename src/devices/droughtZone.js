@@ -19,6 +19,7 @@ import {
   DEVICE_FEATURE_CATEGORIES,
   DEVICE_FEATURE_TYPES,
 } from '@gladysassistant/integration-sdk';
+import { clampPollFrequency, MIN_POLL_FREQUENCY } from '../config.js';
 import { deviceIds } from './identity.js';
 import {
   LOCATION_LINE_SEPARATOR,
@@ -47,8 +48,41 @@ const logger = createLogger({ name: DEVICE_TYPE });
 
 // Floor on the refresh interval, whatever the configuration says. VigiEau is a
 // free public service: hammering it for a value that changes once a day would
-// be rude, and buys nothing.
-export const MIN_REFRESH_SECONDS = 300;
+// be rude, and buys nothing. The same bound as the manifest's: one source.
+export const MIN_REFRESH_SECONDS = MIN_POLL_FREQUENCY;
+
+// How long an UNCHANGED severity may go without being published again. The four
+// risk features keep history, and Gladys writes one history row per published
+// state with no deduplication of its own: re-sending an identical level every
+// cycle (24 a day at the default interval) only fills the database with a flat
+// line. A heartbeat still re-publishes a stable value now and then, so the
+// feature never looks like a sensor that stopped answering.
+export const HISTORY_HEARTBEAT_MS = 6 * 60 * 60 * 1000;
+
+// Feature external_id -> { state, at } of the last severity Gladys ACCEPTED.
+// A belief about what the core holds, wrong exactly when the core starts from
+// scratch — a device just created, a reconnection — hence the reset below.
+const publishedSeverities = new Map();
+
+/**
+ * Forget which severities were published, so the next read sends them all.
+ * Called when the core may hold none of them: on `onDeviceCreated` (states
+ * sent before the device existed were dropped) and on every (re)connection.
+ */
+export function forgetPublishedStates() {
+  publishedSeverities.clear();
+}
+
+/**
+ * Whether a severity state is worth a history row: it moved, or it has not
+ * been sent for a heartbeat.
+ * @param {{ device_feature_external_id: string, state: number }} state
+ * @param {number} now
+ */
+function severityIsDue(state, now) {
+  const last = publishedSeverities.get(state.device_feature_external_id);
+  return !last || last.state !== state.state || now - last.at >= HISTORY_HEARTBEAT_MS;
+}
 
 // Feature keys, kept in one place so discovery and polling always agree.
 export const FEATURE = {
@@ -251,13 +285,17 @@ async function pollLocation(gladys, config, location) {
   // telling a watering scene that everything is fine when we simply could
   // not read the severity.
   const states = [];
+  const severities = [];
   if (level !== null) {
+    severities.push({
+      device_feature_external_id: ids.feature(FEATURE.LEVEL),
+      state: toGladysRisk(level),
+    });
     states.push(
-      { device_feature_external_id: ids.feature(FEATURE.LEVEL), state: toGladysRisk(level) },
       // The text keeps the exact official wording, "Crise" included, which
       // the squeezed numeric scale can no longer tell from "Alerte renforcée".
       { device_feature_external_id: ids.feature(FEATURE.LEVEL_TEXT), text: severityLabel(level) },
-      // Since when the level published just above has been in force. Tied to
+      // Since when the level read here has been in force. Tied to
       // the SAME condition as the level: an unreadable severity means we do not
       // know which zone is the worst one, so `arrete` is not that level's
       // decree and dating it would be a guess.
@@ -269,16 +307,24 @@ async function pollLocation(gladys, config, location) {
   }
   for (const type of ZONE_TYPES) {
     if (levelsByType[type] !== null) {
-      states.push({
+      severities.push({
         device_feature_external_id: ids.feature(TYPE_FEATURES[type].key),
         state: toGladysRisk(levelsByType[type]),
       });
     }
   }
 
-  if (states.length === 0) {
+  if (severities.length === 0) {
     throw new Error('VigiEau answered with no severity we could understand');
   }
+
+  // Only the severities that moved, or are due a heartbeat, go out: they keep
+  // history. The text features keep none, so they are always sent — the
+  // wording and the decree date cost no row, and "Dernière mise à jour" has to
+  // move on every successful read.
+  const now = Date.now();
+  const dueSeverities = severities.filter((state) => severityIsDue(state, now));
+  states.unshift(...dueSeverities);
 
   // Stamped LAST, and only on a read that produced something: this feature says
   // "the values next to me were read at", so a failed cycle must leave it on
@@ -291,6 +337,11 @@ async function pollLocation(gladys, config, location) {
 
   // Publish every value in a single request (batch, up to 100).
   await gladys.publishStates(states);
+  // Recorded only once Gladys took them: a refused batch must be re-sent whole
+  // on the next cycle, not wait for the heartbeat.
+  for (const state of dueSeverities) {
+    publishedSeverities.set(state.device_feature_external_id, { state: state.state, at: now });
+  }
 
   // Only now, with the states out: a scene started by the event may well read
   // the device, and must find the new level there.
@@ -525,7 +576,9 @@ export const droughtZone = {
    * @returns {() => void} cleanup, to stop the timer on disconnection
    */
   startPolling(gladys, config) {
-    const intervalMs = Math.max(MIN_REFRESH_SECONDS, config.poll_frequency) * 1000;
+    // Clamped again here, not only in normalizeConfig: this value goes straight
+    // into setInterval, where NaN or an overflow means one refresh per ms.
+    const intervalMs = clampPollFrequency(config.poll_frequency) * 1000;
     const count = usableLocations(config.locations).length;
     logger.info(`Refreshing ${count} location(s) every ${Math.round(intervalMs / 1000)} s`);
 
