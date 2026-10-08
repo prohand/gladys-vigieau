@@ -6,6 +6,8 @@ All notable changes to this integration are documented here. The format follows
 
 ## [Unreleased]
 
+## [3.3.0] - 2026-10-08
+
 ### Fixed
 
 - A VigiEau `404` is no longer read as "no restriction". The API answers an empty list for a point outside every zone and a `404` only for an unknown route: taken as an all-clear, a moved endpoint published "Pas de restriction" and fired a downward level change. It is now an error: the last level is kept and no scene event fires. A `200` that is not a list of zones is refused the same way.
@@ -157,7 +159,8 @@ First public release.
 
 - Vigieau integration for Gladys (vigilance sécheresse)
 
-[Unreleased]: https://github.com/prohand/gladys-vigieau/compare/v3.2.0...HEAD
+[Unreleased]: https://github.com/prohand/gladys-vigieau/compare/v3.3.0...HEAD
+[3.3.0]: https://github.com/prohand/gladys-vigieau/compare/v3.2.0...v3.3.0
 [3.2.0]: https://github.com/prohand/gladys-vigieau/compare/v3.1.0...v3.2.0
 [3.1.0]: https://github.com/prohand/gladys-vigieau/compare/v3.0.0...v3.1.0
 [3.0.0]: https://github.com/prohand/gladys-vigieau/compare/v2.0.3...v3.0.0
