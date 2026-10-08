@@ -20,3 +20,8 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    # Node 26 only becomes LTS on 2026-10-28: stay on the current major until then,
+    # and drop this rule once it is LTS.
+    ignore:
+      - dependency-name: node
+        update-types: ['version-update:semver-major']
