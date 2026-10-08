@@ -64,10 +64,17 @@ no business logic. Everything else lives under `src/`:
   category, so they are TEXT and the wording is ours; Europe/Paris always (the container runs in
   UTC), and the string is assembled from `formatToParts` because a small-ICU Node silently falls
   back to en-US instead of throwing.
-- **`src/houses.js`** — `GET /house` driver: the houses the user configured in Gladys, and the
-  authorization the manifest has to declare to read them.
+- **`src/houses.js`** — the houses the user configured in Gladys, read through the SDK's
+  `gladys.getHouses()` (`GET /house`), and the authorization the manifest has to declare to read
+  them. The SDK throws a `GladysApiError` whose `status` is the HTTP status (its `code` is the
+  core's error code), so the 403 is recognized by `status` and re-thrown as `HOUSE_ACCESS_DENIED`.
+- **`src/lifecycle.js`** — `pollThenPublish()`: the refresh is armed before the catalog is
+  published, never after.
 - **`src/locationEditor.js`** — the location manager: the add, import, list and delete actions. All its
-  dependencies are injected, so it is tested offline.
+  dependencies are injected, so it is tested offline. Every change of the list goes through ONE
+  queue (`exclusive`) and re-reads the list inside it, right before writing; the slow lookups
+  (geocoding, house labels) run before taking the queue. Without it, a location deleted while an
+  address was being geocoded came back when the add wrote the copy it had read 15 s earlier.
 - **`src/vigieau.js`** — VigiEau driver. Deliberately split: `fetchZones()` is the only impure part,
   `summarize()` / `toSeverityLevel()` are pure and carry all the mapping logic, which is why the
   severity rules are cheap to test.
@@ -299,7 +306,15 @@ them moves the location by hundreds of kilometres in silence.
 
 Confirmed against the API sources (`MTES-MCT/vigieau-api`, public), not guessed:
 
-- **`404`** = no zone covers the location → level 0, not an error.
+- **`200 []`** = no zone covers the location → level 0, not an error. It is the ONLY "nothing in
+  force" answer.
+- **`404` is an ERROR, never "no zone".** The Swagger annotation of `GET /api/zones` still promises
+  a 404 "Aucune zone d'alerte sur cette commune", but `ZonesService.find()` never raises one for a
+  point (it returns `[]`), and the live service answers 404 for an unknown ROUTE
+  (`{"message":"Cannot GET /api/zonesx…","error":"Not Found"}`, verified 2026-10). Reading it as an
+  empty list was a fail-open: a moved endpoint published "Pas de restriction" during a crisis and
+  fired a downward `niveau_change`. `fetchZones()` throws on it like on any non-2xx, so the last
+  value stays and no event fires. Same for a `200` whose body is not a list of zones.
 - **`409`** = "la commune comporte plusieurs zones d'alerte de même type": the commune path cannot
   identify the applicable zone, which is why this integration never uses it. The branch is kept
   tagged with `code = AMBIGUOUS_COMMUNE` so that, if it ever fires on a point, the screen asks for a
@@ -332,10 +347,12 @@ fallback. `toSeverityLevel()` normalizes accents, case and separators, so both v
 ### Refresh loop
 
 The devices declare **no `poll_frequency`** and the integration runs its own `setInterval`
-(`startPolling`), refreshing immediately then every `poll_frequency` seconds, floored at
-`MIN_REFRESH_SECONDS` (300). One cycle covers EVERY location, and one failing does not silence the
-others — a 409 on a badly geocoded garden must not hide the drought level of the house; the status
-names the location that failed. `blueprint.refresh()` never throws — a rejection inside a timer
+(`startPolling`), refreshing immediately then every `poll_frequency` seconds, clamped to the
+manifest bounds [900, 86400] by `clampPollFrequency()` (a non-finite value falls back to the
+default) — in `normalizeConfig` AND again in `startPolling`, because a NaN or an interval past
+2^31-1 ms makes `setInterval` fire every millisecond. One cycle covers EVERY location, and one
+failing does not silence the others — a 409 on a badly geocoded garden must not hide the drought
+level of the house; the status names the location that failed. `blueprint.refresh()` never throws — a rejection inside a timer
 callback would take the container down — and reports outages through `setConnectionStatus`.
 
 `test_vigieau` and `show_restrictions` obey the same rule, through `readEachLocation()`: a `Promise.all`
@@ -343,6 +360,17 @@ there used to fail the WHOLE action on one bad point, so an install that mostly 
 single bare error naming no location. Each location now gets its own line — its level, or
 `failureDetail()` saying what went wrong, in the same `• n. nom — …` format either way — and the
 `test_vigieau` header only claims "VigiEau OK" when none failed.
+
+The timer is armed from the configuration alone, BEFORE the catalog is published
+(`pollThenPublish`, `src/lifecycle.js`): a catalog Gladys refuses must not leave the devices the
+user already created without a refresh until the next reconnection.
+
+The four `risk` features keep history and Gladys writes one row per published state, so an
+UNCHANGED severity is not re-sent every cycle: only a change, or a heartbeat every
+`HISTORY_HEARTBEAT_MS` (6 h) so the value never looks stale. The memory of what was sent is
+recorded after `publishStates` resolves, and cleared by `forgetPublishedStates()` on
+`onDeviceCreated` and on every `connected` — the two moments the core may hold none of it. The text
+features keep no history and are always sent (`updated-at` must move on every read).
 
 ### Widgets, scene triggers and scene actions (Gladys >= 5.1.0)
 
@@ -473,3 +501,8 @@ Comments explain **why**, not what — particularly the core constraints above, 
 without their reason. Prefer keeping the pure/impure split in the drivers so logic stays testable
 without the network. User-facing strings (device and feature names, action messages) are French, with
 `en`/`fr` pairs everywhere the manifest or the SDK accepts a multi-language object.
+
+A watched point, a typed address or a house's coordinates is where somebody lives: it never reaches
+the logs, at any level — a log line says that a lookup happened, never what was looked up (the
+VigiEau and Base Adresse Nationale URLs carry the point in their query string). Tests check it
+through `test/helpers/captureLogs.js`.

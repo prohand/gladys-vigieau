@@ -128,8 +128,12 @@ core's `source: "devices"`, which is refused with a 422 by every released Gladys
 
 A few decisions are worth knowing about:
 
-- **A location outside any zone is not an error.** VigiEau answers `404` there;
-  the integration reads that as "nothing in force" and publishes level `0`.
+- **A location outside any zone is not an error.** VigiEau answers an empty
+  list (`200 []`) there; the integration reads that as "nothing in force" and
+  publishes level `0`. A `404` is NOT that answer — the API raises it for an
+  unknown route, never for a point — so it is treated as an outage and the last
+  level is kept: reading it as "no restriction" would announce the end of a
+  crisis because an endpoint moved.
   Neither is a zone published _without_ a severity: VigiEau pads the water types
   a commune has no real zone for with placeholders carrying only the municipal
   decree, and those mean "nothing in force" too — not "unknown".
@@ -169,8 +173,8 @@ A few decisions are worth knowing about:
   in milliseconds, capped at one minute, and querying a public government API
   1440 times a day for a decree that changes once a day would be absurd. The
   blueprint runs its own timer instead (`startPolling`), refreshing immediately
-  on connection and then every `poll_frequency` seconds, never faster than a
-  5-minute floor.
+  on connection and then every `poll_frequency` seconds, clamped between
+  15 minutes and 24 hours (the bounds of the Configuration field).
 
 ## Project structure
 

@@ -75,8 +75,8 @@ sont exposés séparément, en plus du niveau global.
    les lieux**.
 5. Laissez l'**intervalle de rafraîchissement** à 3600 s (1 heure) : les arrêtés
    préfectoraux changent au plus une fois par jour. C'est l'intégration qui
-   tient ce rythme elle-même ; le minimum appliqué est de 5 minutes, quoi que
-   vous saisissiez.
+   tient ce rythme elle-même, entre 15 minutes et 24 heures quoi que vous
+   saisissiez.
 6. Enregistrez.
 
 > Tant qu'aucun lieu n'a de point utilisable, aucun appareil n'est proposé.
