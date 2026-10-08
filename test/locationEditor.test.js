@@ -20,6 +20,7 @@ import { normalizeConfig } from '../src/config.js';
 import { MAX_LOCATIONS } from '../src/locations.js';
 import { boldLabel } from '../src/richText.js';
 import { plain } from './helpers/text.js';
+import { captureLogs } from './helpers/captureLogs.js';
 
 const realFetch = globalThis.fetch;
 
@@ -760,4 +761,117 @@ test('what is written is what normalizeConfig reads back', async () => {
       longitude: '1.35',
     },
   ]);
+});
+
+// --- Concurrent changes ------------------------------------------------------
+
+/** A promise and the function that settles it, to hold an answer back. */
+function deferred() {
+  let resolve;
+  const promise = new Promise((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+
+/** Let the pending microtasks run. */
+async function settle() {
+  for (let i = 0; i < 10; i += 1) {
+    await new Promise((done) => setImmediate(done));
+  }
+}
+
+test('a location deleted while an address is geocoded stays deleted', async () => {
+  // The add used to read the list, wait for the geocoder (up to 15 s), then
+  // write back the copy it had read — resurrecting the deleted location.
+  const h = harness(installed([MAISON, JARDIN]));
+  const geocoderAnswer = deferred();
+  globalThis.fetch = async () => {
+    await geocoderAnswer.promise;
+    return { ok: true, status: 200, json: async () => ({ features: [LYON] }) };
+  };
+
+  const adding = h.editor.actions.rechercher_adresse({ adresse: '3 rue Garibaldi Lyon' });
+  await settle();
+  await h.editor.actions.supprimer_lieu({ lieu: '1', confirmation: true });
+  assert.deepEqual(
+    h.locations().map((location) => location.id),
+    ['loc-jardin'],
+  );
+
+  geocoderAnswer.resolve();
+  await adding;
+
+  const names = h.locations().map((location) => location.name);
+  assert.equal(names.length, 2, 'the new location is added to the list as it is NOW');
+  assert.ok(!names.includes('Maison'), 'and the deleted one stays deleted');
+});
+
+test('a location deleted while the houses are labelled stays deleted', async () => {
+  const labelAnswer = deferred();
+  const h = harness(installed([MAISON, JARDIN]), {
+    houses: [house('Chalet', 44.1, 3.2)],
+    reverse: () => labelAnswer.promise.then(() => ({ label: 'Route du Col 12345 Village' })),
+  });
+
+  const importing = h.editor.actions.importer_maisons();
+  await settle();
+  await h.editor.actions.supprimer_lieu({ lieu: '2', confirmation: true });
+
+  labelAnswer.resolve();
+  const message = await importing;
+
+  assert.deepEqual(
+    h.locations().map((location) => location.name),
+    ['Maison', 'Chalet'],
+  );
+  assert.equal(h.locations()[1].address_label, 'Route du Col 12345 Village');
+  assert.match(plain(message.fr), /• 2\. Chalet/, 'numbered against the list as written');
+});
+
+test('two adds at once both land, under the cap', async () => {
+  const h = harness(installed([MAISON]));
+  forbidGeocoder();
+  await Promise.all([
+    h.editor.actions.rechercher_adresse({ nom: 'A', latitude: '44.1', longitude: '3.2' }),
+    h.editor.actions.rechercher_adresse({ nom: 'B', latitude: '44.2', longitude: '3.3' }),
+  ]);
+  assert.deepEqual(
+    h.locations().map((location) => location.name),
+    ['Maison', 'A', 'B'],
+  );
+});
+
+test('a failed write does not block the changes queued after it', async () => {
+  // The queue is kept resolved: one action failing must not wedge the rest.
+  let failNext = true;
+  const editor = createLocationEditor({
+    getConfig: () => normalizeConfig(installed([MAISON, JARDIN])),
+    setConfig: async () => {
+      if (failNext) {
+        failNext = false;
+        throw new Error('HTTP 500');
+      }
+    },
+    onLocationsChanged: async () => {},
+  });
+  await assert.rejects(editor.actions.supprimer_lieu({ lieu: '1', confirmation: true }), /500/);
+  const message = await editor.actions.supprimer_lieu({ lieu: '1', confirmation: true });
+  assert.match(message.fr, /supprimé/);
+});
+
+test('what the user typed never reaches the logs', async () => {
+  const h = harness({}, { reverse: { label: '1 Rue Cachée 75001 Paris', city: 'Paris' } });
+  forbidGeocoder();
+  const lines = await captureLogs(() =>
+    h.editor.actions.rechercher_adresse({
+      adresse: '1 rue Cachée Paris',
+      latitude: '48.8566',
+      longitude: '2.3522',
+    }),
+  );
+  assert.ok(lines.length > 0);
+  for (const line of lines) {
+    assert.doesNotMatch(line, /48\.8566|2\.3522|Cachée/);
+  }
 });

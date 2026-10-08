@@ -6,9 +6,32 @@ All notable changes to this integration are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- A VigiEau `404` is no longer read as "no restriction". The API answers an empty list for a point outside every zone and a `404` only for an unknown route: taken as an all-clear, a moved endpoint published "Pas de restriction" and fired a downward level change. It is now an error: the last level is kept and no scene event fires. A `200` that is not a list of zones is refused the same way.
+- The refresh starts even when Gladys refuses the device catalog, so the devices already created keep being updated.
+- A refresh interval that is not a number, or a huge one, could make the integration query VigiEau in a loop. The interval is now clamped to 15 minutes – 24 hours (the bounds of the Configuration field), the default being used when it is not a number.
+- A location deleted while another one was being added (address lookup in progress) or while the Gladys houses were being imported came back. Every change of the location list is now applied one at a time, on the list as it is at that moment.
+
+### Changed
+
+- The four severity levels are only re-published when they change, plus once every 6 hours, instead of on every refresh: their history no longer fills with identical rows.
+- The Gladys houses are read through the SDK (`getHouses()`).
+- The Docker image is built with `npm ci` only; CI tests on Node 22 and 24 and builds the image on pull requests. Node 22 is now the minimum.
+
+### Security
+
+- Addresses and coordinates (typed, geocoded or read from the Gladys houses) are no longer written to the logs.
+
 ## [3.2.0] - 2026-10-07
 
-- Maintenance release, no functional change.
+### Fixed
+
+- A dashboard widget pull now answers before the core's 15 s deadline (a "loading" card while the read completes) instead of leaving the widget on "data unavailable" until the dashboard is reloaded.
+
+### Changed
+
+- CI runs the store admission checks on pull requests; Dependabot keeps the npm dependencies and the GitHub Actions up to date.
 
 ## [3.1.0] - 2026-10-06
 

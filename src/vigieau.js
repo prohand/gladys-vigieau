@@ -159,10 +159,15 @@ export function buildZonesUrl(config) {
 /**
  * Fetch the zones covering the configured location.
  *
- * A location outside any restriction zone answers 404: that is not an error,
- * it is the normal "nothing in force here" answer, so we return an empty list.
- * Any other non-2xx is propagated — the caller decides whether to keep the last
- * known values or to report the integration as disconnected.
+ * A location outside any restriction zone answers `200 []`: an empty list is
+ * the ONLY "nothing in force here" answer. A 404 is NOT one, whatever the
+ * Swagger annotation of the endpoint says: the point query of `GET /api/zones`
+ * never raises it in the API sources (MTES-MCT/vigieau-api, zones.service.ts),
+ * and the live service answers a 404 for an unknown ROUTE
+ * (`{"message":"Cannot GET /api/zonesx…","error":"Not Found"}`) — a moved base
+ * URL or a renamed endpoint. Reading that as "no restriction" would publish a
+ * false all-clear and fire a downward `niveau_change`, so it is an error like
+ * any other non-2xx: the caller keeps the last known values.
  *
  * @param {{ latitude: number, longitude: number, profil: string }} config - one
  *   watched location plus the global profile, as `locationQuery()` builds it
@@ -170,17 +175,15 @@ export function buildZonesUrl(config) {
  */
 export async function fetchZones(config) {
   const url = buildZonesUrl(config);
-  logger.debug('VigiEau request ->', url);
+  // The query string carries the watched point, i.e. where somebody lives: the
+  // log names the endpoint, never the coordinates.
+  logger.debug(`VigiEau request -> ${API_BASE_URL}/api/zones (profil=${config.profil})`);
 
   const response = await fetch(url, {
     headers: { Accept: 'application/json' },
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
 
-  if (response.status === 404) {
-    logger.info('VigiEau: no restriction zone covers this location');
-    return [];
-  }
   if (response.status === 409) {
     // "La commune comporte plusieurs zones d'alerte de même type." Querying by
     // point is meant to make this unreachable; keep the branch so that, if it
@@ -195,11 +198,17 @@ export async function fetchZones(config) {
   }
 
   const body = await response.json();
-  // The endpoint answers an array; a single object is tolerated defensively.
+  // The endpoint answers an array; a single ZONE is tolerated defensively.
   if (Array.isArray(body)) {
     return body;
   }
-  return body && typeof body === 'object' ? [body] : [];
+  if (ZONE_TYPES.includes(body?.type)) {
+    return [body];
+  }
+  // Anything else (an error object, `null`, a proxy's HTML turned into a
+  // string) is not "no zone": taken as an empty list it would read as a
+  // false all-clear, exactly like the 404 above.
+  throw new Error('VigiEau answered something that is not a list of zones');
 }
 
 /**

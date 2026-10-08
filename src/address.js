@@ -49,7 +49,9 @@ export async function searchAddresses(query) {
 
   const params = new URLSearchParams({ q, limit: String(SEARCH_LIMIT) });
   const url = `${API_BASE_URL}/search/?${params.toString()}`;
-  logger.debug('Base Adresse Nationale request ->', url);
+  // The query is an address the user is about to watch, often their home: the
+  // log says a lookup happened, never what was looked up.
+  logger.debug(`Base Adresse Nationale request -> ${API_BASE_URL}/search/`);
 
   const response = await fetch(url, {
     headers: { Accept: 'application/json' },
@@ -116,7 +118,8 @@ export async function reverseAddress(latitude, longitude) {
   // Same [longitude, latitude] trap as above, in the query string this time.
   const params = new URLSearchParams({ lon: String(longitude), lat: String(latitude) });
   const url = `${API_BASE_URL}/reverse/?${params.toString()}`;
-  logger.debug('Base Adresse Nationale reverse request ->', url);
+  // Same rule for a point: coordinates are a home address too.
+  logger.debug(`Base Adresse Nationale reverse request -> ${API_BASE_URL}/reverse/`);
 
   const response = await fetch(url, {
     headers: { Accept: 'application/json' },

@@ -13,7 +13,7 @@
     "test": "node --test"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "dependencies": {
     "@gladysassistant/integration-sdk": "^0.14.0"

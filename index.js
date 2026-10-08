@@ -34,13 +34,31 @@ import {
   forgetDeletedDevice,
   locationDeviceIds,
 } from './src/devices/index.js';
-import { droughtZone, locationForDevice, readLocation } from './src/devices/droughtZone.js';
+import {
+  droughtZone,
+  forgetPublishedStates,
+  locationForDevice,
+  readLocation,
+} from './src/devices/droughtZone.js';
+import { fetchHouses } from './src/houses.js';
+import { pollThenPublish } from './src/lifecycle.js';
 import { READINGS_KEY, latestReading, seedBaselines } from './src/readings.js';
 import { WIDGET, createWidgets } from './src/widgets.js';
 import { createSceneActions } from './src/sceneActions.js';
 import { withPullDeadline } from './src/widgetDeadline.js';
 
 const gladys = new GladysIntegration();
+
+// Safety net for a promise rejection nobody awaited. Every timer and handler
+// here already catches its own failures (see droughtZone.refresh), but Node
+// TERMINATES the process on an unhandled rejection by default: one forgotten
+// `.catch` in a fire-and-forget path would take the container down and leave
+// every device frozen until the supervisor restarts it. Logged, not swallowed
+// in silence — and no `uncaughtException` twin, which would keep a process
+// running in an unknown state.
+process.on('unhandledRejection', (reason) => {
+  logger.error('Unhandled promise rejection', reason);
+});
 
 // Current configuration (hot-reloaded via onConfigUpdated).
 let config = normalizeConfig();
@@ -129,12 +147,26 @@ async function refreshNow() {
 }
 
 /**
+ * Arm the refresh on the current list, then publish the catalog — in that order
+ * (see src/lifecycle.js): a catalog Gladys refuses must not stop the devices
+ * the user already created from being refreshed.
+ * @returns {Promise<boolean>} whether the refresh is running
+ */
+function pollAndPublish() {
+  return pollThenPublish({
+    configured: isConfigured(config),
+    publish: publishDevices,
+    startPolling,
+    stopPolling,
+  });
+}
+
+/**
  * Re-publish the catalog and restart the refresh on the current list. Called by
  * the location manager after every change it makes.
  */
 async function republish() {
-  if (await publishDevices()) {
-    startPolling();
+  if (await pollAndPublish()) {
     await gladys.setConnectionStatus(true).catch(() => {});
   } else {
     stopPolling();
@@ -162,6 +194,8 @@ const locationEditor = createLocationEditor({
     config = normalizeConfig({ ...config, ...patch });
   },
   onLocationsChanged: republish,
+  // GET /house through the SDK: the authorization `"location": true` grants.
+  listHouses: () => fetchHouses(gladys),
   // "Has the user already created this location's device?" — the one case the
   // delete action cannot clean up on its own, and must therefore name.
   async findCreatedDevice(location) {
@@ -225,6 +259,9 @@ gladys.onScanRequest(async () => {
 // next hourly tick — which is exactly what it looks like when it is broken.
 gladys.onDeviceCreated(async (device) => {
   logger.info(`onDeviceCreated -> ${device.external_id}, refreshing right away`);
+  // The severities are only re-sent when they change; the new device holds
+  // none of them yet, so it must get all of them now.
+  forgetPublishedStates();
   await refreshNow();
 });
 
@@ -318,17 +355,20 @@ gladys.on('connected', async () => {
     // while the container was down would never fire (see src/readings.js).
     seedBaselines(rawConfig?.[READINGS_KEY]);
 
-    // 2) (Re)publish the devices as soon as we are connected. They report
+    // 1 quinquies) Whatever the core held before this (re)connection — it may
+    // have restarted, devices may have been re-created — send every severity
+    // again on the first read instead of trusting what we sent last time.
+    forgetPublishedStates();
+
+    // 2) Start our own refresh loop (the devices declare no poll_frequency),
+    // THEN (re)publish the devices: a catalog Gladys refuses must not leave
+    // the existing devices without a refresh (src/lifecycle.js). They report
     // their own status when no location is configured yet.
-    if (!(await publishDevices())) {
-      stopPolling();
+    if (!(await pollAndPublish())) {
       return;
     }
 
-    // 3) Start our own refresh loop (the devices declare no poll_frequency).
-    startPolling();
-
-    // 4) Report the application-level status, shown in the Supervision screen.
+    // 3) Report the application-level status, shown in the Supervision screen.
     // Distinct from the container state machine: an integration can be RUNNING
     // and still unable to reach its third-party service.
     await gladys.setConnectionStatus(true);

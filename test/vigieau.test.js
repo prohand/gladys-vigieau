@@ -17,6 +17,7 @@ import {
 } from '../src/vigieau.js';
 import { locationQuery } from '../src/locations.js';
 import { zonesFixture } from './helpers/fakeGladys.js';
+import { captureLogs } from './helpers/captureLogs.js';
 
 // What the driver is handed: ONE watched location plus the global profile,
 // exactly as `locationQuery()` assembles it — never a whole configuration.
@@ -144,9 +145,42 @@ test('fetchZones returns the zones of a 200 response', async () => {
   assert.equal(zones[1].type, 'SOU');
 });
 
-test('fetchZones treats a 404 as "no zone covers this location"', async () => {
-  globalThis.fetch = async () => ({ ok: false, status: 404 });
+test('fetchZones reads an empty list as "no zone covers this location"', async () => {
+  // What the live service answers for a point outside every zone: `200 []`.
+  globalThis.fetch = async () => ({ ok: true, status: 200, json: async () => [] });
   assert.deepEqual(await fetchZones(PARIS), []);
+});
+
+test('fetchZones never reads a 404 as "no restriction"', async () => {
+  // The point query never raises a 404 in the API sources; the live service
+  // answers one for an unknown ROUTE. Taken as an empty list, a moved endpoint
+  // would publish a false all-clear and fire a downward level change.
+  globalThis.fetch = async () => ({
+    ok: false,
+    status: 404,
+    json: async () => ({
+      message: 'Cannot GET /api/zonesx?lon=2.35&lat=48.85',
+      error: 'Not Found',
+      statusCode: 404,
+    }),
+  });
+  await assert.rejects(() => fetchZones(PARIS), /VigiEau HTTP 404/);
+});
+
+test('fetchZones refuses a 200 that is not a list of zones', async () => {
+  for (const body of [null, { message: 'maintenance' }, 'oops']) {
+    globalThis.fetch = async () => ({ ok: true, status: 200, json: async () => body });
+    await assert.rejects(() => fetchZones(PARIS), /not a list of zones/);
+  }
+});
+
+test('the request is never logged with the watched point', async () => {
+  globalThis.fetch = async () => ({ ok: true, status: 200, json: async () => [] });
+  const lines = await captureLogs(() => fetchZones(PARIS));
+  assert.ok(lines.length > 0, 'the request is still logged');
+  for (const line of lines) {
+    assert.doesNotMatch(line, /48\.8566|2\.3522/);
+  }
 });
 
 test('fetchZones tags the 409 that means "this commune is ambiguous"', async () => {

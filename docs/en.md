@@ -72,8 +72,8 @@ separately, in addition to the overall level.
    Restrictions differ per profile, and VigiEau returns the ones that apply to
    yours. This setting applies to **every location**.
 5. Leave the **refresh interval** at 3600 s (1 hour): prefectoral decrees change
-   once a day at most. The integration keeps that pace itself; a 5-minute floor
-   applies whatever you type.
+   once a day at most. The integration keeps that pace itself, between 15 minutes
+   and 24 hours whatever you type.
 6. Save.
 
 > Until one location has a usable point, no device is offered. That is
