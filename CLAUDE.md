@@ -158,12 +158,15 @@ go through `plain()` (`test/helpers/text.js`).
 
 Three constraints forced this shape, and none is negotiable:
 
-- **A `select` offers static `options` or the CREATED devices, so a dropdown can NEVER show the
-  location list.** Up to `v4.84.4`, `source: "devices"` did not even validate server-side
+- **A `select` offers static `options`, the CREATED devices or the Gladys houses, so a dropdown
+  can NEVER show the location list.** Up to `v4.84.4`, `source: "devices"` did not even validate server-side
   (`getDynamicOptions` did not exist, every value 422'd — a previous attempt shipped it and every
   action carrying it failed with "L'action a échoué"). From `v5.1.0` it does, but it lists the
   devices the user CREATED from the Discovery tab, which is not the location list: a location added
-  a minute ago has none. A test forbids a `source` in the `config_schema` and the `actions`. Hence
+  a minute ago has none. A test forbids `source: "devices"` in the `config_schema` and the
+  `actions`. (`source: "houses"`, Gladys 5.2, lists the houses of Gladys, which are not the
+  location list either: it is allowed there for the one field that picks a HOUSE, the optional
+  `maison` of the import button, and the test pins that it is the only one.) Hence
   the delete action naming a location by its POSITION: `locationAtPosition` maps "Lieu 3" to an
   entry, and the listing is what tells the user which one that is. (The widgets and the scenes DO
   use the source — there a device is exactly what the user picks, see below.)
@@ -217,6 +220,12 @@ told apart from every other failure so the message can name the one thing that w
 houses are read once, at the click, and what comes out is ordinary locations — a house moved in
 Gladys afterwards leaves its location where it was, which is the same rule as everywhere else here
 (a point that moved is another point, and the device keeps its own history).
+
+Its optional `maison` field (a select with `source: "houses"`, hence `gladys_version >= 5.2.0`)
+narrows the import to ONE house: the core lists the houses by name and hands over the `selector`,
+matched against the houses read at the click. Empty, every house is imported, as before the field
+existed. A selector that matches nothing (the house was deleted since) is refused with a message,
+never widened to every house — that would do the opposite of what was asked.
 
 The import is computed against ONE list and committed ONCE — a `setConfig` per house would republish
 the Discovery tab as many times, and a failure halfway would leave half an import behind — and every
@@ -367,10 +376,13 @@ user already created without a refresh until the next reconnection.
 
 The four `risk` features keep history and Gladys writes one row per published state, so an
 UNCHANGED severity is not re-sent every cycle: only a change, or a heartbeat every
-`HISTORY_HEARTBEAT_MS` (6 h) so the value never looks stale. The memory of what was sent is
-recorded after `publishStates` resolves, and cleared by `forgetPublishedStates()` on
-`onDeviceCreated` and on every `connected` — the two moments the core may hold none of it. The text
-features keep no history and are always sent (`updated-at` must move on every read).
+`HISTORY_HEARTBEAT_MS` (6 h) so the value never looks stale. That dedupe is the SDK's
+`publishChangedStates`: the memory of what was sent is recorded only once Gladys accepted it, the
+SDK forgets a device's values by itself when Gladys announces it created / updated / deleted, and
+`index.js` calls `gladys.forgetPublishedStates()` on every `connected` — the moments the core may
+hold none of it. The text features keep no history and are always sent, through a plain
+`publishStates` after the severities (`updated-at` must move on every read, and never over a level
+Gladys refused).
 
 ### Widgets, scene triggers and scene actions (Gladys >= 5.1.0)
 
@@ -455,6 +467,8 @@ The traps, each pinned by a test in `test/manifest.test.js`:
 - a `select` takes static `options` or the core's `source: "devices"` — validated server-side only
   from 5.1.0, and listing CREATED devices, never locations: the widgets and scenes use it, the
   delete dropdown keeps its position numbers;
+- **`source: "houses"` costs a `gladys_version` floor of `>=5.2.0`** (ours, for the `maison` field
+  of the import button) and, like every dynamic select, takes no `default`;
 - **`widgets`, `scene_triggers`, `scene_actions` cost a `gladys_version` floor of `>=5.1.0`**. A
   widget label is 3-30 characters, its description ≤ 100; a scene trigger field cannot be `boolean`;
   scene action `timeout_seconds` is 5-120;

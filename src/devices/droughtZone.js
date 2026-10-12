@@ -57,32 +57,12 @@ export const MIN_REFRESH_SECONDS = MIN_POLL_FREQUENCY;
 // cycle (24 a day at the default interval) only fills the database with a flat
 // line. A heartbeat still re-publishes a stable value now and then, so the
 // feature never looks like a sensor that stopped answering.
+//
+// The memory of what Gladys ACCEPTED is the SDK's (`publishChangedStates`): it
+// forgets a device's values by itself when the user creates, updates or deletes
+// it, and index.js forgets everything on every (re)connection — the two moments
+// the core may hold none of them.
 export const HISTORY_HEARTBEAT_MS = 6 * 60 * 60 * 1000;
-
-// Feature external_id -> { state, at } of the last severity Gladys ACCEPTED.
-// A belief about what the core holds, wrong exactly when the core starts from
-// scratch — a device just created, a reconnection — hence the reset below.
-const publishedSeverities = new Map();
-
-/**
- * Forget which severities were published, so the next read sends them all.
- * Called when the core may hold none of them: on `onDeviceCreated` (states
- * sent before the device existed were dropped) and on every (re)connection.
- */
-export function forgetPublishedStates() {
-  publishedSeverities.clear();
-}
-
-/**
- * Whether a severity state is worth a history row: it moved, or it has not
- * been sent for a heartbeat.
- * @param {{ device_feature_external_id: string, state: number }} state
- * @param {number} now
- */
-function severityIsDue(state, now) {
-  const last = publishedSeverities.get(state.device_feature_external_id);
-  return !last || last.state !== state.state || now - last.at >= HISTORY_HEARTBEAT_MS;
-}
 
 // Feature keys, kept in one place so discovery and polling always agree.
 export const FEATURE = {
@@ -318,14 +298,6 @@ async function pollLocation(gladys, config, location) {
     throw new Error('VigiEau answered with no severity we could understand');
   }
 
-  // Only the severities that moved, or are due a heartbeat, go out: they keep
-  // history. The text features keep none, so they are always sent — the
-  // wording and the decree date cost no row, and "Dernière mise à jour" has to
-  // move on every successful read.
-  const now = Date.now();
-  const dueSeverities = severities.filter((state) => severityIsDue(state, now));
-  states.unshift(...dueSeverities);
-
   // Stamped LAST, and only on a read that produced something: this feature says
   // "the values next to me were read at", so a failed cycle must leave it on
   // its previous value — a timestamp that moves while the level is stale is
@@ -335,13 +307,16 @@ async function pollLocation(gladys, config, location) {
     text: formatDateTime(),
   });
 
-  // Publish every value in a single request (batch, up to 100).
+  // Only the severities that moved, or are due a heartbeat, go out: they keep
+  // history. The SDK remembers them only once Gladys took them, so a refused
+  // batch is re-sent whole on the next cycle instead of waiting for the
+  // heartbeat. They go first: a refusal there leaves the dates below unsent,
+  // and "Dernière mise à jour" must not move over a level Gladys did not take.
+  await gladys.publishChangedStates(severities, { heartbeat: HISTORY_HEARTBEAT_MS });
+  // The text features keep no history, so they are always sent — the wording
+  // and the decree date cost no row, and "Dernière mise à jour" has to move on
+  // every successful read.
   await gladys.publishStates(states);
-  // Recorded only once Gladys took them: a refused batch must be re-sent whole
-  // on the next cycle, not wait for the heartbeat.
-  for (const state of dueSeverities) {
-    publishedSeverities.set(state.device_feature_external_id, { state: state.state, at: now });
-  }
 
   // Only now, with the states out: a scene started by the event may well read
   // the device, and must find the new level there.

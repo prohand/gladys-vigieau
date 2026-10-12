@@ -437,6 +437,53 @@ test('a house already watched is named rather than added twice', async () => {
   assert.equal(h.locations().length, 2);
 });
 
+test('a house picked in the form is the only one added', async () => {
+  const h = harness(
+    {},
+    { houses: [house('Maison', 48.8566, 2.3522), house('Chalet', 45.764, 4.8357)] },
+  );
+
+  const message = await h.editor.actions.importer_maisons({ maison: 'chalet' });
+
+  assert.match(message.fr, /1 maison\(s\) Gladys ajoutée\(s\)/);
+  assert.deepEqual(
+    h.locations().map((location) => location.name),
+    ['Chalet'],
+  );
+});
+
+test('an empty house field still adds every house', async () => {
+  const h = harness(
+    {},
+    { houses: [house('Maison', 48.8566, 2.3522), house('Chalet', 45.764, 4.8357)] },
+  );
+
+  await h.editor.actions.importer_maisons({ maison: '' });
+
+  assert.equal(h.locations().length, 2);
+});
+
+test('a picked house deleted since is refused, never swapped for all of them', async () => {
+  const h = harness({}, { houses: [house('Maison', 48.8566, 2.3522)] });
+
+  const message = await h.editor.actions.importer_maisons({ maison: 'chalet' });
+
+  assert.match(message.en, /no longer exists in Gladys/);
+  assert.match(message.fr, /n’existe plus dans Gladys/);
+  assert.equal(h.locations().length, 0);
+  assert.equal(h.writes.length, 0, 'nothing is written');
+});
+
+test('a picked house with no position is named, not watched at (0, 0)', async () => {
+  const h = harness({}, { houses: [house('Bureau'), house('Maison', 48.8566, 2.3522)] });
+
+  const message = await h.editor.actions.importer_maisons({ maison: 'bureau' });
+
+  assert.match(message.fr, /Sans position sur la carte/);
+  assert.match(message.fr, /« Bureau »/);
+  assert.equal(h.locations().length, 0);
+});
+
 test('a house with no position on the map is not watched at (0, 0)', async () => {
   const h = harness({}, { houses: [house('Bureau'), house('Maison', 48.8566, 2.3522)] });
 

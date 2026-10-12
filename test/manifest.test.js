@@ -225,8 +225,16 @@ test('a dynamic source only ever picks a CREATED device, never a location', () =
   // dropdown designates a LOCATION — one that may never have been added from
   // the Discovery tab, and would then simply be missing from the list. That
   // one keeps its positions (see locationAtPosition).
+  //
+  // `source: "houses"` (Gladys 5.2) is another matter: it lists the houses of
+  // Gladys, which is exactly what the import button picks from — see the test
+  // of that field below. It is the only source the Configuration screen takes.
   for (const field of allFields()) {
-    assert.equal(field.source, undefined, `"${field.key}": a location is not a created device`);
+    assert.notEqual(field.source, 'devices', `"${field.key}": a location is not a created device`);
+    if (field.source !== undefined) {
+      assert.equal(field.source, 'houses', `"${field.key}": unknown source`);
+      assert.equal(field.key, 'maison', 'only the import button picks a house');
+    }
   }
   assert.ok(requiresAtLeast(5, 1), 'the source is only validated from Gladys 5.1.0 on');
   for (const field of capabilityFields().filter((f) => f.source !== undefined)) {
@@ -504,10 +512,35 @@ test('the import button sits right under the button that adds one location', () 
   assert.equal(keys[keys.indexOf('rechercher_adresse') + 1], 'importer_maisons');
 });
 
-test('the import button asks for nothing before it runs', () => {
+test('the import button asks for nothing it requires before it runs', () => {
   // Everything it needs is in Gladys already — that is the whole point of a
-  // one-click import.
-  assert.deepEqual(action('importer_maisons').fields ?? [], []);
+  // one-click import. Its one field narrows the import to one house, and is
+  // optional: left empty, every house is added, as before.
+  const fields = action('importer_maisons').fields ?? [];
+  assert.deepEqual(
+    fields.map((field) => field.key),
+    ['maison'],
+  );
+  const [maison] = fields;
+  assert.equal(maison.type, 'select');
+  assert.equal(maison.source, 'houses', 'the core lists the houses of Gladys by name');
+  assert.equal(maison.required, false);
+  assert.equal(maison.default, undefined, 'a dynamic select takes no default');
+  assert.equal(maison.options, undefined, 'options and source are mutually exclusive');
+  assert.ok(maison.label.en && maison.label.fr);
+});
+
+test('a "houses" select requires Gladys >= 5.2.0', () => {
+  // An older core rejects a dynamic source it does not know (the whole
+  // manifest with it), and the store indexer refuses the pair.
+  const declared = [...allFields(), ...capabilityFields()].some(
+    (field) => field.source === 'houses',
+  );
+  assert.ok(declared, 'the import button picks a house');
+  assert.ok(
+    requiresAtLeast(5, 2),
+    `source "houses" requires gladys_version >= 5.2.0, got "${manifest.gladys_version}"`,
+  );
 });
 
 test('the manifest declares the cloud transport only', () => {

@@ -54,7 +54,9 @@ live entirely under the buttons.
 Six buttons, in that order: **Ajouter un lieu** (geocodes an address, or takes
 a latitude and a longitude typed by hand, and adds a location watching that
 point), **Ajouter mes maisons Gladys** (reads the houses the user placed on the
-map in Gladys and adds the ones not watched yet, in one click),
+map in Gladys and adds the ones not watched yet, in one click — or only the one
+picked in its optional `maison` field, a `source: "houses"` select that needs
+Gladys 5.2.0),
 **Afficher les lieux** (the numbered list: name, address, coordinates),
 **Tester la connexion VigiEau** (live check, shows the current level of every
 location), **Afficher les restrictions en vigueur** (lists the restricted usages

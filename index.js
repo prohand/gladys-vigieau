@@ -34,12 +34,7 @@ import {
   forgetDeletedDevice,
   locationDeviceIds,
 } from './src/devices/index.js';
-import {
-  droughtZone,
-  forgetPublishedStates,
-  locationForDevice,
-  readLocation,
-} from './src/devices/droughtZone.js';
+import { droughtZone, locationForDevice, readLocation } from './src/devices/droughtZone.js';
 import { fetchHouses } from './src/houses.js';
 import { pollThenPublish } from './src/lifecycle.js';
 import { READINGS_KEY, latestReading, seedBaselines } from './src/readings.js';
@@ -260,8 +255,8 @@ gladys.onScanRequest(async () => {
 gladys.onDeviceCreated(async (device) => {
   logger.info(`onDeviceCreated -> ${device.external_id}, refreshing right away`);
   // The severities are only re-sent when they change; the new device holds
-  // none of them yet, so it must get all of them now.
-  forgetPublishedStates();
+  // none of them yet, so it must get all of them now — the SDK forgot what it
+  // had sent to this device before calling this handler.
   await refreshNow();
 });
 
@@ -358,7 +353,7 @@ gladys.on('connected', async () => {
     // 1 quinquies) Whatever the core held before this (re)connection — it may
     // have restarted, devices may have been re-created — send every severity
     // again on the first read instead of trusting what we sent last time.
-    forgetPublishedStates();
+    gladys.forgetPublishedStates();
 
     // 2) Start our own refresh loop (the devices declare no poll_frequency),
     // THEN (re)publish the devices: a catalog Gladys refuses must not leave

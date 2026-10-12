@@ -6,12 +6,7 @@ import {
   buildDiscoveredDevices,
   findBlueprintByDevice,
 } from '../src/devices/index.js';
-import {
-  FEATURE,
-  HISTORY_HEARTBEAT_MS,
-  MIN_REFRESH_SECONDS,
-  forgetPublishedStates,
-} from '../src/devices/droughtZone.js';
+import { FEATURE, HISTORY_HEARTBEAT_MS, MIN_REFRESH_SECONDS } from '../src/devices/droughtZone.js';
 import { deviceIds, forgetAdoptedDevices } from '../src/devices/identity.js';
 import { READINGS_KEY, SCENE_TRIGGER, forgetReadings, latestReading } from '../src/readings.js';
 import { WIDGET } from '../src/widgets.js';
@@ -35,9 +30,6 @@ beforeEach(() => {
   forgetAdoptedDevices();
   // So are the readings: a baseline left by another test would fire events.
   forgetReadings();
-  // And so is the memory of the severities already published: a level left by
-  // another test would be skipped as "unchanged".
-  forgetPublishedStates();
 });
 
 afterEach(() => {
@@ -856,7 +848,7 @@ test('an unchanged severity is not re-published every cycle, only on a heartbeat
     await droughtZone.refresh(gladys, config);
     assert.equal(sentSeverities(), 12, 'and a stable value is re-sent on the heartbeat');
 
-    forgetPublishedStates();
+    gladys.forgetPublishedStates();
     await droughtZone.refresh(gladys, config);
     assert.equal(sentSeverities(), 16, 'a reset (device created, reconnection) sends them again');
   } finally {
