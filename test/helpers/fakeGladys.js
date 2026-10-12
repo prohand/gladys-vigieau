@@ -5,6 +5,10 @@
 //   - externalIds(type, platformId) -> { device, feature(key) }
 //   - getDevices()                   -> the devices the user created
 //   - publishState / publishStates   -> record calls so tests can assert them
+//   - publishChangedStates / forgetPublishedStates -> the SDK's dedup, same
+//     rules (exact match, heartbeat, remembered only once accepted, 100 per
+//     request), on top of publishStates so a test replacing it still sees
+//     what goes out
 //   - setConnectionStatus            -> record calls so tests can assert them
 //   - setConfig                      -> record the patches written
 //   - publishSceneEvent              -> record the scene events fired
@@ -26,6 +30,8 @@ export function createFakeGladys({ devices = [], getDevicesError = null } = {}) 
   const configWrites = [];
   const sceneEvents = [];
   const widgetNudges = [];
+  // Last value Gladys accepted per feature, as the SDK remembers it.
+  const publishedStates = new Map();
 
   return {
     published,
@@ -60,6 +66,47 @@ export function createFakeGladys({ devices = [], getDevicesError = null } = {}) 
           state: s.state,
           text: s.text,
         });
+      }
+    },
+
+    async publishChangedStates(states, { heartbeat } = {}) {
+      const now = Date.now();
+      const previous = new Map();
+      const changed = states.filter((state) => {
+        const id = state.device_feature_external_id;
+        const last = previous.has(id) ? previous.get(id) : publishedStates.get(id);
+        previous.set(id, { state: state.state, text: state.text, at: now });
+        return (
+          last === undefined ||
+          last.state !== state.state ||
+          last.text !== state.text ||
+          (heartbeat !== undefined && now - last.at >= heartbeat)
+        );
+      });
+      for (let start = 0; start < changed.length; start += 100) {
+        const batch = changed.slice(start, start + 100);
+        batch.forEach(({ device_feature_external_id: id, state, text }) => {
+          publishedStates.set(id, { state, text, at: now });
+        });
+        try {
+          await this.publishStates(batch);
+        } catch (err) {
+          batch.forEach(({ device_feature_external_id: id }) => publishedStates.delete(id));
+          throw err;
+        }
+      }
+      return { success: true, count: changed.length };
+    },
+
+    forgetPublishedStates(externalId) {
+      if (externalId === undefined) {
+        publishedStates.clear();
+        return;
+      }
+      for (const id of [...publishedStates.keys()]) {
+        if (id === externalId || id.startsWith(`${externalId}:`)) {
+          publishedStates.delete(id);
+        }
       }
     },
 

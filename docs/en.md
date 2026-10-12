@@ -222,8 +222,10 @@ point read off a map.
   the location, or creates it straight on the latitude and longitude you type
   (both optional). See "Why an address and not a postal code" above.
 - **Add my Gladys houses** — reads the houses configured in Gladys and adds a
-  location for each one that is not watched yet, with nothing to type. Requires
-  the authorization accepted at install time.
+  location for each one that is not watched yet, with nothing to type. Pick a
+  house in its **House** field to add that one only (a holiday home you do not
+  want watched stays out); leave the field empty to add them all. Requires the
+  authorization accepted at install time, and Gladys 5.2 or later.
 - **Show the locations** — lists every configured location, numbered, with its
   name, address and coordinates. Those numbers are the ones the deletion offers.
 - **Test the VigiEau connection (all locations)** — runs a live request and

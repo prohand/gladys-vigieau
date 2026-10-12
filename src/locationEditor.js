@@ -460,9 +460,16 @@ export function createLocationEditor({
        * Nothing is written unless something is actually added, and everything
        * skipped is named: a button that answers "0 added" without saying why is
        * a button the user clicks again.
+       *
+       * ONE HOUSE OR ALL. The optional `maison` field (a select with
+       * `source: "houses"`, Gladys 5.2+) names one house by its selector: an
+       * instance holding a holiday home the user does not want watched no longer
+       * has to import it and delete it. Empty, every house is imported, as
+       * before the field existed.
        */
-      async importer_maisons() {
-        logger.info('Action importer_maisons');
+      async importer_maisons(fields = {}) {
+        const selector = String(fields.maison ?? '').trim();
+        logger.info(`Action importer_maisons <- house=${selector === '' ? 'all' : 'one'}`);
 
         let houses;
         try {
@@ -490,6 +497,21 @@ export function createLocationEditor({
             en: 'Gladys has no house configured. Create one in Settings > Houses, place it on the map, then click this button again.',
             fr: 'Gladys ne contient aucune maison. Créez-en une dans Réglages > Maisons, placez-la sur la carte, puis relancez cette action.',
           };
+        }
+
+        if (selector !== '') {
+          // The selector is matched against the houses as they are NOW: one
+          // deleted (or renamed, which moves its selector) since the form was
+          // opened matches nothing, and importing every house instead would do
+          // the opposite of what was asked.
+          const picked = houses.filter((house) => house.selector === selector);
+          if (picked.length === 0) {
+            return {
+              en: 'The house you picked no longer exists in Gladys. Pick another one, or leave the field empty to add every house.',
+              fr: 'La maison choisie n’existe plus dans Gladys. Choisissez-en une autre, ou laissez le champ vide pour ajouter toutes les maisons.',
+            };
+          }
+          houses = picked;
         }
 
         // The address each house sits on, looked up BEFORE taking the queue
