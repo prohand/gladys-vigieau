@@ -6,6 +6,10 @@ All notable changes to this integration are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- `@gladysassistant/integration-sdk` updated to 0.15.0.
+
 ## [3.3.0] - 2026-10-08
 
 ### Fixed
