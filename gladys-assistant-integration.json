@@ -8,8 +8,8 @@
     "de": "Dürrewarnstufen und Wasserbeschränkungen in Frankreich, vom offiziellen Dienst VigiEau.",
     "es": "Niveles de alerta por sequía y restricciones de agua en Francia, del servicio oficial VigiEau."
   },
-  "version": "3.4.0",
-  "docker_image": "ghcr.io/prohand/gladys-vigieau:3.4.0",
+  "version": "3.5.0",
+  "docker_image": "ghcr.io/prohand/gladys-vigieau:3.5.0",
   "gladys_version": ">=5.2.0",
   "cover_image": "https://raw.githubusercontent.com/prohand/gladys-vigieau/main/cover.png",
   "categories": ["environment"],
