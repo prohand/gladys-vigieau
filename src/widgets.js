@@ -119,7 +119,7 @@ export function notWatchedContent() {
         text: {
           en: 'This location is no longer watched. Pick another one in the settings of this widget.',
           fr: "Ce lieu n'est plus surveillé. Choisissez-en un autre dans les réglages de ce widget.",
-          de: 'Dieser Ort wird nicht mehr überwacht. Wählen Sie in den Einstellungen dieses Widgets einen anderen.',
+          de: 'Dieser Ort wird nicht mehr überwacht. Wähle in den Einstellungen dieses Widgets einen anderen.',
           es: 'Esta ubicación ya no se vigila. Elija otra en los ajustes de este widget.',
         },
       },
@@ -318,7 +318,7 @@ export function overviewContent(locations, readingOf) {
           text: {
             en: 'No location watched yet: add one from the VigiEau integration page.',
             fr: "Aucun lieu surveillé pour l'instant : ajoutez-en un depuis la page de l'intégration VigiEau.",
-            de: 'Noch kein Ort überwacht: Fügen Sie einen auf der Seite der Integration VigiEau hinzu.',
+            de: 'Noch kein Ort überwacht: Füge einen auf der Seite der Integration VigiEau hinzu.',
             es: 'Todavía no se vigila ninguna ubicación: añada una desde la página de la integración VigiEau.',
           },
         },

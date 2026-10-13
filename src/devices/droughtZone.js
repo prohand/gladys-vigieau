@@ -141,7 +141,7 @@ function failureDetail(err) {
     return {
       en: 'VigiEau cannot tell which zone applies here. Search again with a more precise address (street and number).',
       fr: "VigiEau n'arrive pas à déterminer la zone applicable ici. Relancez la recherche avec une adresse plus précise (rue et numéro).",
-      de: 'VigiEau kann nicht bestimmen, welche Zone hier gilt. Suchen Sie erneut mit einer genaueren Adresse (Straße und Hausnummer).',
+      de: 'VigiEau kann nicht bestimmen, welche Zone hier gilt. Suche erneut mit einer genaueren Adresse (Straße und Hausnummer).',
       es: 'VigiEau no consigue determinar qué zona se aplica aquí. Vuelva a buscar con una dirección más precisa (calle y número).',
     };
   }
@@ -344,7 +344,7 @@ function reportedLocations(config) {
 const NO_LOCATION_MESSAGE = {
   en: 'No location with usable coordinates yet. Add one with "Add a location".',
   fr: 'Aucun lieu avec des coordonnées utilisables. Ajoutez-en un avec « Ajouter un lieu ».',
-  de: 'Noch kein Ort mit verwendbaren Koordinaten. Fügen Sie einen mit „Ort hinzufügen“ hinzu.',
+  de: 'Noch kein Ort mit verwendbaren Koordinaten. Füge einen mit „Ort hinzufügen“ hinzu.',
   es: 'Todavía no hay ninguna ubicación con coordenadas utilizables. Añada una con «Añadir una ubicación».',
 };
 

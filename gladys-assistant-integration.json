@@ -28,7 +28,7 @@
       "description": {
         "en": "VigiEau is the French government service publishing the drought alert level and the water restrictions in force at a given address. The API is free and needs no account: just tell the integration which location to watch.",
         "fr": "VigiEau est le service de l'État qui publie le niveau de vigilance sécheresse et les restrictions d'eau en vigueur à une adresse donnée. L'API est gratuite et ne demande aucun compte : indiquez simplement le lieu à surveiller.",
-        "de": "VigiEau ist der Dienst des französischen Staates, der die Dürrewarnstufe und die an einer Adresse geltenden Wasserbeschränkungen veröffentlicht. Die API ist kostenlos und erfordert kein Konto: Geben Sie der Integration einfach an, welchen Ort sie überwachen soll.",
+        "de": "VigiEau ist der Dienst des französischen Staates, der die Dürrewarnstufe und die an einer Adresse geltenden Wasserbeschränkungen veröffentlicht. Die API ist kostenlos und erfordert kein Konto: Gib der Integration einfach an, welchen Ort sie überwachen soll.",
         "es": "VigiEau es el servicio del Estado francés que publica el nivel de alerta por sequía y las restricciones de agua vigentes en una dirección. La API es gratuita y no requiere cuenta: basta con indicar a la integración qué ubicación vigilar."
       },
       "links": [
@@ -80,7 +80,7 @@
       "description": {
         "en": "Restrictions differ per profile: VigiEau returns the ones that apply to yours.",
         "fr": "Les restrictions diffèrent selon le profil : VigiEau renvoie celles qui s'appliquent au vôtre.",
-        "de": "Die Beschränkungen hängen vom Profil ab: VigiEau liefert die, die für Ihres gelten.",
+        "de": "Die Beschränkungen hängen vom Profil ab: VigiEau liefert die, die für deines gelten.",
         "es": "Las restricciones varían según el perfil: VigiEau devuelve las que se aplican al suyo."
       },
       "required": true,
@@ -155,9 +155,9 @@
         "es": "Añadir una ubicación (buscar una dirección)"
       },
       "description": {
-        "en": "Geocodes the address on the official Base Adresse Nationale and adds a location watching that point. Fill the latitude and the longitude in instead to add a point directly: the address it falls on is then looked up for you, as the location's label. Its device shows up in the Discovery tab, and \"Show the locations\" lists it.",
+        "en": "Geocodes the address on the official Base Adresse Nationale and adds a location watching that point. Fill the latitude and the longitude in instead to add a point directly: the address it falls on is then looked up for you, as the location's label. Its device shows up in the Discover tab, and \"Show the locations\" lists it.",
         "fr": "Géocode l’adresse sur la Base Adresse Nationale officielle et ajoute un lieu surveillant ce point. Renseignez plutôt la latitude et la longitude pour ajouter un point directement : l’adresse correspondante est alors recherchée pour vous, comme libellé du lieu. Son appareil apparaît dans l’onglet Découverte, et « Afficher les lieux » le liste.",
-        "de": "Geokodiert die Adresse über die offizielle Base Adresse Nationale und fügt einen Ort hinzu, der diesen Punkt überwacht. Geben Sie stattdessen Breiten- und Längengrad ein, um einen Punkt direkt hinzuzufügen: Die Adresse an diesem Punkt wird dann für Sie als Bezeichnung des Ortes gesucht. Sein Gerät erscheint im Tab „Entdecken“, und „Orte anzeigen“ listet ihn auf.",
+        "de": "Geokodiert die Adresse über die offizielle Base Adresse Nationale und fügt einen Ort hinzu, der diesen Punkt überwacht. Gib stattdessen Breiten- und Längengrad ein, um einen Punkt direkt hinzuzufügen: Die Adresse an diesem Punkt wird dann für dich als Bezeichnung des Ortes gesucht. Sein Gerät erscheint im Tab „Entdecken“, und „Orte anzeigen“ listet ihn auf.",
         "es": "Geocodifica la dirección en la Base Adresse Nationale oficial y añade una ubicación que vigila ese punto. Indique en su lugar la latitud y la longitud para añadir un punto directamente: la dirección correspondiente se busca entonces por usted, como nombre de la ubicación. Su dispositivo aparece en la pestaña «Descubrir», y «Mostrar las ubicaciones» la incluye en la lista."
       },
       "timeout_seconds": 30,
@@ -197,7 +197,7 @@
           "description": {
             "en": "Street, postal code and town: the location is a precise point, not a postal code. A postal code covers several communes, and one commune can span several restriction zones — which is exactly when VigiEau refuses to answer and asks for a street. Optional if you fill the two coordinates in below.",
             "fr": "Rue, code postal et commune : le lieu est un point précis, pas un code postal. Un code postal couvre plusieurs communes, et une commune peut relever de plusieurs zones de restriction — c’est justement le cas où VigiEau refuse de répondre et réclame une rue. Facultatif si vous renseignez les deux coordonnées ci-dessous.",
-            "de": "Straße, Postleitzahl und Gemeinde: Der Ort ist ein genauer Punkt, keine Postleitzahl. Eine Postleitzahl umfasst mehrere Gemeinden, und eine Gemeinde kann in mehreren Beschränkungszonen liegen — genau dann verweigert VigiEau die Antwort und verlangt eine Straße. Optional, wenn Sie unten die beiden Koordinaten angeben.",
+            "de": "Straße, Postleitzahl und Gemeinde: Der Ort ist ein genauer Punkt, keine Postleitzahl. Eine Postleitzahl umfasst mehrere Gemeinden, und eine Gemeinde kann in mehreren Beschränkungszonen liegen — genau dann verweigert VigiEau die Antwort und verlangt eine Straße. Optional, wenn du unten die beiden Koordinaten angibst.",
             "es": "Calle, código postal y municipio: la ubicación es un punto preciso, no un código postal. Un código postal abarca varios municipios, y un municipio puede pertenecer a varias zonas de restricción — justo el caso en que VigiEau se niega a responder y pide una calle. Opcional si indica las dos coordenadas más abajo."
           },
           "required": false,
@@ -220,7 +220,7 @@
           "description": {
             "en": "WGS-84 decimal degrees, -90 to 90. Filled in together with the longitude, this point is used as it is; the address above is then only a label, and is looked up automatically when you leave it empty.",
             "fr": "Degrés décimaux WGS-84, de -90 à 90. Renseignée avec la longitude, ce point est utilisé tel quel ; l’adresse ci-dessus ne sert plus que de libellé, et elle est recherchée automatiquement si vous la laissez vide.",
-            "de": "Dezimalgrad WGS-84, von -90 bis 90. Zusammen mit dem Längengrad angegeben, wird dieser Punkt unverändert verwendet; die Adresse oben dient dann nur noch als Bezeichnung und wird automatisch gesucht, wenn Sie sie leer lassen.",
+            "de": "Dezimalgrad WGS-84, von -90 bis 90. Zusammen mit dem Längengrad angegeben, wird dieser Punkt unverändert verwendet; die Adresse oben dient dann nur noch als Bezeichnung und wird automatisch gesucht, wenn du sie leer lässt.",
             "es": "Grados decimales WGS-84, de -90 a 90. Indicada junto con la longitud, este punto se usa tal cual; la dirección de arriba ya solo sirve de nombre, y se busca automáticamente si la deja vacía."
           },
           "required": false,
@@ -267,7 +267,7 @@
       "description": {
         "en": "Reads the houses you configured in Gladys and adds a location for each one that is not watched yet — no address to type. Pick a house to add that one only, or leave the field empty to add them all. A house you never placed on the map has no coordinates: locate it in Settings > Houses first. The houses are read once, when you click: a location added this way is an ordinary one, which you delete like the others.",
         "fr": "Lit les maisons que vous avez configurées dans Gladys et ajoute un lieu pour chacune qui n’est pas déjà surveillée — aucune adresse à saisir. Choisissez une maison pour n’ajouter qu’elle, ou laissez le champ vide pour les ajouter toutes. Une maison jamais placée sur la carte n’a pas de coordonnées : localisez-la d’abord dans Réglages > Maisons. Les maisons sont lues une fois, au clic : un lieu ajouté ainsi est un lieu ordinaire, que vous supprimez comme les autres.",
-        "de": "Liest die in Gladys konfigurierten Zuhause und fügt für jedes, das noch nicht überwacht wird, einen Ort hinzu — ohne eine Adresse einzugeben. Wählen Sie ein Zuhause, um nur dieses hinzuzufügen, oder lassen Sie das Feld leer, um alle hinzuzufügen. Ein Zuhause, das nie auf der Karte platziert wurde, hat keine Koordinaten: Verorten Sie es zuerst unter Einstellungen > Zuhause. Die Zuhause werden einmal beim Klick gelesen: Ein so hinzugefügter Ort ist ein gewöhnlicher Ort, den Sie wie die anderen löschen.",
+        "de": "Liest die in Gladys konfigurierten Zuhause und fügt für jedes, das noch nicht überwacht wird, einen Ort hinzu — ohne eine Adresse einzugeben. Wähle ein Zuhause, um nur dieses hinzuzufügen, oder lass das Feld leer, um alle hinzuzufügen. Ein Zuhause, das nie auf der Karte platziert wurde, hat keine Koordinaten: Verorte es zuerst unter Einstellungen > Zuhause. Die Zuhause werden einmal beim Klick gelesen: Ein so hinzugefügter Ort ist ein gewöhnlicher Ort, den du wie die anderen löschst.",
         "es": "Lee las viviendas que configuró en Gladys y añade una ubicación por cada una que aún no esté vigilada — sin escribir ninguna dirección. Elija una vivienda para añadir solo esa, o deje el campo vacío para añadirlas todas. Una vivienda que nunca se colocó en el mapa no tiene coordenadas: ubíquela primero en Configuración > Viviendas. Las viviendas se leen una sola vez, al hacer clic: una ubicación añadida así es una ubicación normal, que se elimina como las demás."
       },
       "timeout_seconds": 30,
@@ -351,7 +351,7 @@
       "description": {
         "en": "Stops watching the location whose number you pick here — the numbers are the ones \"Show the locations\" lists. Its Gladys device is not deleted (an integration cannot do that): delete it yourself if you no longer want it.",
         "fr": "Arrête de surveiller le lieu dont vous choisissez le numéro ici — ce sont les numéros qu’affiche « Afficher les lieux ». Son appareil Gladys n’est pas supprimé (une intégration ne peut pas le faire) : supprimez-le vous-même si vous n’en voulez plus.",
-        "de": "Beendet die Überwachung des Ortes, dessen Nummer Sie hier wählen — es sind die Nummern, die „Orte anzeigen“ auflistet. Sein Gladys-Gerät wird nicht gelöscht (das kann eine Integration nicht): Löschen Sie es selbst, wenn Sie es nicht mehr brauchen.",
+        "de": "Beendet die Überwachung des Ortes, dessen Nummer du hier wählst — es sind die Nummern, die „Orte anzeigen“ auflistet. Sein Gladys-Gerät wird nicht gelöscht (das kann eine Integration nicht): Lösche es selbst, wenn du es nicht mehr brauchst.",
         "es": "Deja de vigilar la ubicación cuyo número elija aquí — son los números que muestra «Mostrar las ubicaciones». Su dispositivo de Gladys no se elimina (una integración no puede hacerlo): elimínelo usted mismo si ya no lo necesita."
       },
       "timeout_seconds": 15,
@@ -478,7 +478,7 @@
           "description": {
             "en": "Run the action once unchecked to see which location would be deleted.",
             "fr": "Lancez l'action une fois sans cocher pour voir quel lieu serait supprimé.",
-            "de": "Führen Sie die Aktion einmal ohne Häkchen aus, um zu sehen, welcher Ort gelöscht würde.",
+            "de": "Führe die Aktion einmal ohne Häkchen aus, um zu sehen, welcher Ort gelöscht würde.",
             "es": "Ejecute la acción una vez sin marcar la casilla para ver qué ubicación se eliminaría."
           },
           "required": false,

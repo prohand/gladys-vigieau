@@ -8,10 +8,10 @@ Gladys-Sensoren bereit.
 Die VigiEau-API ist kostenlos und öffentlich: **kein Konto, kein API-Schlüssel**.
 Sie deckt **nur Frankreich** ab.
 
-## Was Sie erhalten
+## Was du erhältst
 
-**Ein Gerät pro überwachtem Ort**, benannt „Vigilance sécheresse — _Ihr Ort_“,
-mit jeweils sieben Sensoren. Sie können bis zu **zehn Orte** überwachen: Ein
+**Ein Gerät pro überwachtem Ort**, benannt „Vigilance sécheresse — _dein Ort_“,
+mit jeweils sieben Sensoren. Du kannst bis zu **zehn Orte** überwachen: Ein
 Haus, ein Zweitwohnsitz und ein Schrebergarten fallen selten unter denselben
 Präfekturerlass.
 
@@ -51,7 +51,7 @@ Werte, die Gladys benennen kann:
 > Gladys kann eine Risikostufe nur von 0 bis 3 benennen; alles darüber wird als
 > „Unbekannt“ angezeigt. „Alerte renforcée“ und „Crise“ teilen sich daher den
 > Wert 3. Der Sensor **Stufe (Text)** behält den genauen amtlichen Wortlaut,
-> „Crise“ eingeschlossen — nutzen Sie ihn, um die beiden zu unterscheiden.
+> „Crise“ eingeschlossen — nutze ihn, um die beiden zu unterscheiden.
 
 Ein Ort kann zu mehreren Zonen gehören: Ein Erlass kann das Grundwasser
 einschränken, ohne das Leitungswasser zu betreffen. Deshalb werden die drei
@@ -59,65 +59,65 @@ Wasserarten zusätzlich zur Gesamtstufe getrennt bereitgestellt.
 
 ## Konfiguration
 
-1. Öffnen Sie den Tab **Konfiguration** der Integration.
-2. Klicken Sie auf **„Ort hinzufügen (Adresse suchen)“**, geben Sie Ihre Adresse
-   ein (Straße, Postleitzahl, Gemeinde) und, wenn Sie möchten, einen **Namen**
+1. Öffne den Tab **Konfiguration** der Integration.
+2. Klicke auf **„Ort hinzufügen (Adresse suchen)“**, gib deine Adresse ein
+   (Straße, Postleitzahl, Gemeinde) und, wenn du möchtest, einen **Namen**
    („Maison“, „Jardin“… — bleibt er leer, wird die Gemeinde verwendet). Der Ort
-   wird angelegt, seine Koordinaten werden für Sie geokodiert, und sein Gerät
-   erscheint im Tab **Entdecken**, bereit zum Hinzufügen. Kennen Sie den Punkt
-   bereits, füllen Sie stattdessen die optionalen Felder **Breitengrad** und
+   wird angelegt, seine Koordinaten werden für dich geokodiert, und sein Gerät
+   erscheint im Tab **Entdecken**, bereit zum Hinzufügen. Kennst du den Punkt
+   bereits, füll stattdessen die optionalen Felder **Breitengrad** und
    **Längengrad** aus: Sie werden unverändert verwendet, ohne Geokodierung.
-3. Wiederholen Sie das für jeden Ort, den Sie überwachen möchten, bis zu zehn.
-   Sind die gewünschten Orte Ihre **Gladys-Zuhause**, erspart Ihnen die
+3. Wiederhole das für jeden Ort, den du überwachen möchtest, bis zu zehn.
+   Sind die gewünschten Orte deine **Gladys-Zuhause**, erspart dir die
    Schaltfläche **„Meine Gladys-Zuhause hinzufügen“** jede Eingabe: siehe
-   „Ihre Gladys-Zuhause mit einem Klick hinzufügen“ weiter unten.
-4. Wählen Sie unter **„Allgemeine Einstellungen“** Ihr **Nutzerprofil**:
+   „Deine Gladys-Zuhause mit einem Klick hinzufügen“ weiter unten.
+4. Wähle unter **„Allgemeine Einstellungen“** dein **Nutzerprofil**:
    Privathaushalt, Unternehmen, Gebietskörperschaft oder landwirtschaftlicher
    Betrieb. Die Beschränkungen hängen vom Profil ab, und VigiEau liefert die,
-   die für Ihres gelten. Diese Einstellung gilt für **alle Orte**.
-5. Belassen Sie das **Aktualisierungsintervall** bei 3600 s (1 Stunde):
+   die für deines gelten. Diese Einstellung gilt für **alle Orte**.
+5. Belasse das **Aktualisierungsintervall** bei 3600 s (1 Stunde):
    Präfekturerlasse ändern sich höchstens einmal am Tag. Die Integration hält
-   diesen Takt selbst ein, zwischen 15 Minuten und 24 Stunden, was immer Sie
-   eingeben.
-6. Speichern Sie.
+   diesen Takt selbst ein, zwischen 15 Minuten und 24 Stunden, was immer du
+   eingibst.
+6. Speichere.
 
 > Solange kein Ort einen verwendbaren Punkt hat, wird kein Gerät angeboten. Das
 > ist gewollt: Kein Gerät ist besser als ein Gerät, das an einen leeren Ort
 > gebunden ist.
 
-### Ihre Gladys-Zuhause mit einem Klick hinzufügen
+### Deine Gladys-Zuhause mit einem Klick hinzufügen
 
-Sie haben Gladys bereits mitgeteilt, wo Sie wohnen: Das ist die Karte unter
+Du hast Gladys bereits mitgeteilt, wo du wohnst: Das ist die Karte unter
 **Einstellungen > Zuhause**. Die Schaltfläche **„Meine Gladys-Zuhause
 hinzufügen“** liest diese Zuhause und legt für jedes, das noch nicht überwacht
 wird, einen Ort an — keine Adresse einzugeben, kein Risiko, die falsche Gemeinde
 zu geokodieren. Der Ort übernimmt den Namen, den das Zuhause in Gladys trägt,
-und die in der Liste angezeigte Adresse wird für Sie anhand des Punktes gesucht.
+und die in der Liste angezeigte Adresse wird für dich anhand des Punktes
+gesucht.
 
 Einige Regeln, die die Meldung unter der Schaltfläche jedes Mal wiederholt:
 
-- **Das Lesen der Koordinaten Ihrer Zuhause ist eine Berechtigung.** Wo Sie
-  wohnen, sind personenbezogene Daten: Die Integration fordert sie in ihrem
-  Manifest an, und Gladys zeigt Ihnen diese Anfrage bei der Installation. Meldet
+- **Das Lesen der Koordinaten deiner Zuhause ist eine Berechtigung.** Wo du
+  wohnst, sind personenbezogene Daten: Die Integration fordert sie in ihrem
+  Manifest an, und Gladys zeigt dir diese Anfrage bei der Installation. Meldet
   die Schaltfläche, dass Gladys die Weitergabe dieser Koordinaten verweigert,
-  hat die installierte Version sie nie angefordert: Aktualisieren Sie die
-  Integration, oder entfernen Sie sie, installieren Sie sie neu und akzeptieren
-  Sie die Anfrage.
+  hat die installierte Version sie nie angefordert: Aktualisiere die
+  Integration, oder entferne sie, installiere sie neu und akzeptiere die
+  Anfrage.
 - **Ein Zuhause, das nie auf der Karte platziert wurde, hat keine
   Koordinaten.** Es wird in der Antwort genannt, und an seiner Stelle wird
-  nichts überwacht: Verorten Sie es unter **Einstellungen > Zuhause** und
-  klicken Sie dann erneut.
-- **Ein bereits überwachtes Zuhause wird nicht doppelt hinzugefügt.** Klicken
-  Sie so oft Sie möchten: Die Meldung sagt Ihnen, welcher Ort es bereits
-  überwacht.
+  nichts überwacht: Verorte es unter **Einstellungen > Zuhause** und
+  klicke dann erneut.
+- **Ein bereits überwachtes Zuhause wird nicht doppelt hinzugefügt.** Klicke so
+  oft du möchtest: Die Meldung sagt dir, welcher Ort es bereits überwacht.
 - **Es ist keine Synchronisierung.** Die Zuhause werden einmal beim Klick
-  gelesen. Ein so angelegter Ort ist ein gewöhnlicher Ort: Verschieben Sie das
-  Zuhause danach in Gladys, bleibt der Ort, wo er war — löschen Sie ihn und
-  klicken Sie erneut.
+  gelesen. Ein so angelegter Ort ist ein gewöhnlicher Ort: Verschiebe das
+  Zuhause danach in Gladys, bleibt der Ort, wo er war — lösche ihn und
+  klicke erneut.
 
-### Ihre Orte anzeigen
+### Deine Orte anzeigen
 
-Führen Sie die Aktion **„Orte anzeigen“** aus: Die Meldung unter der
+Führe die Aktion **„Orte anzeigen“** aus: Die Meldung unter der
 Schaltfläche listet **alle konfigurierten Orte** nummeriert auf, in der Form
 
 ```
@@ -127,7 +127,7 @@ Schaltfläche listet **alle konfigurierten Orte** nummeriert auf, in der Form
 (in der deutschen Oberfläche: `• Nummer. Name — Adresse (Breitengrad, Längengrad)`).
 
 Die Nummern sind diejenigen, die die Auswahlliste von **„Ort löschen“**
-anbietet — hier lesen Sie ab, welcher Ort „Ort 2“ ist. Ein Ort mit unbrauchbaren
+anbietet — hier liest du ab, welcher Ort „Ort 2“ ist. Ein Ort mit unbrauchbaren
 Koordinaten wird ebenfalls aufgeführt, mit einem Gedankenstrich an der Stelle
 seines Punktes: Er wird weder veröffentlicht noch abgefragt, und diese Zeile ist
 das Einzige, was darauf hinweist.
@@ -145,44 +145,42 @@ das Einzige, was darauf hinweist.
 > Konfigurationsbildschirm zeigt nichts von dem, was eine Integration zu sagen
 > hat, außer der Meldung einer **Aktion** unter ihrer Schaltfläche — und er
 > stellt nur Eingabefelder dar, nie einen schreibgeschützten Text. Eine Liste,
-> die Sie nach und nach aufbauen, hat dort keinen Platz. Genau das macht
+> die du nach und nach aufbaust, hat dort keinen Platz. Genau das macht
 > „Orte anzeigen“ auch immer aktuell: Es gibt nichts neu zu laden.
 
-> **Ein Ort kann nicht bearbeitet werden.** Um eine Adresse zu ändern, fügen
-> Sie den neuen Ort mit „Ort hinzufügen“ hinzu und löschen dann den alten. Sie
-> erhalten ein **neues Gerät** im Tab „Entdecken“: Das alte behält seinen
-> eigenen Verlauf, und der Name eines Ortes ist der, den Sie ihm beim Anlegen
-> geben.
->
-> Warum diese Einschränkung? Einen Ort zu bearbeiten hieße, ihn im
-> Konfigurationsbildschirm auszuwählen, und die Auswahlliste einer Integration
-> kann nur Optionen anbieten, die vorab in ihrem Manifest stehen — nie Ihre
-> Ortsnamen. Die Felder, die einer solchen Auswahlliste folgten, zeigten zudem
-> den vorherigen Ort an, bis die Seite neu geladen wurde, mit dem Risiko, die
+> **Ein Ort kann nicht bearbeitet werden.** Um eine Adresse zu ändern, füge >
+> den neuen Ort mit „Ort hinzufügen“ hinzu und lösche dann den alten. Du >
+> erhältst ein **neues Gerät** im Tab „Entdecken“: Das alte behält seinen >
+> eigenen Verlauf, und der Name eines Ortes ist der, den du ihm beim Anlegen >
+> gibst. > > Warum diese Einschränkung? Einen Ort zu bearbeiten hieße, ihn im >
+> Konfigurationsbildschirm auszuwählen, und die Auswahlliste einer Integration >
+> kann nur Optionen anbieten, die vorab in ihrem Manifest stehen — nie deine >
+> Ortsnamen. Die Felder, die einer solchen Auswahlliste folgten, zeigten zudem >
+> den vorherigen Ort an, bis die Seite neu geladen wurde, mit dem Risiko, die >
 > Adresse eines Ortes auf einen anderen zu schreiben.
 
 ### Einen Ort löschen
 
-Wählen Sie in der Aktion **„Ort löschen“** die **Nummer**, die „Orte anzeigen“
-zeigt, setzen Sie das Häkchen bei **„Ich bestätige das Löschen“** und führen Sie
-sie aus. Ohne Häkchen ausgeführt, sagt sie Ihnen nur, welcher Ort entfernt würde.
+Wähle in der Aktion **„Ort löschen“** die **Nummer**, die „Orte anzeigen“
+zeigt, setze das Häkchen bei **„Ich bestätige das Löschen“** und führe
+sie aus. Ohne Häkchen ausgeführt, sagt sie dir nur, welcher Ort entfernt würde.
 
 > Die Orte nach dem gelöschten **rücken eine Stelle nach oben**: Die Meldung
-> weist darauf hin. Führen Sie „Orte anzeigen“ erneut aus, um vor dem nächsten
+> weist darauf hin. Führe „Orte anzeigen“ erneut aus, um vor dem nächsten
 > Löschen die neue Nummerierung zu sehen.
 
-Was mit dem Gerät geschieht, hängt davon ab, was Sie damit gemacht hatten:
+Was mit dem Gerät geschieht, hängt davon ab, was du damit gemacht hattest:
 
-- **Sie hatten es nie hinzugefügt** (es wurde nur im Tab „Entdecken“
+- **Du hattest es nie hinzugefügt** (es wurde nur im Tab „Entdecken“
   angeboten): Es verschwindet sofort aus der Erkennung, da die Integration es
   nicht mehr anbietet. Die Meldung bestätigt das.
-- **Sie hatten es zu Gladys hinzugefügt**: Es **bleibt** und wird nicht mehr
+- **Du hattest es zu Gladys hinzugefügt**: Es **bleibt** und wird nicht mehr
   aktualisiert. Eine Integration darf kein Gerät löschen — Gladys bietet ihr
-  keine Möglichkeit dazu. Die Meldung nennt Ihnen seinen genauen Namen: Löschen
-  Sie es selbst im Tab **Geräte** der Integration.
+  keine Möglichkeit dazu. Die Meldung nennt dir seinen genauen Namen: Lösche es
+  selbst im Tab **Geräte** der Integration.
 
 > Das Löschen eines Ortes löscht nicht sein Gladys-Gerät — eine Integration
-> darf das nicht. Löschen Sie es selbst, wenn Sie es nicht mehr brauchen.
+> darf das nicht. Lösche es selbst, wenn du es nicht mehr brauchst.
 
 ## Warum eine Adresse und keine Postleitzahl
 
@@ -190,7 +188,7 @@ Der überwachte Ort ist ein **genauer Punkt**, keine Gemeinde.
 
 > Eine **Postleitzahl** umfasst oft mehrere Gemeinden, und eine Gemeinde kann
 > für dieselbe Wasserart in **mehreren Beschränkungszonen** liegen. Genau dann
-> verweigert VigiEau die Antwort und verlangt Ihre Straße: Der Gemeindecode kann
+> verweigert VigiEau die Antwort und verlangt deine Straße: Der Gemeindecode kann
 > die geltende Zone nicht benennen.
 
 Ein geokodierter Punkt hat dieses Problem nie — er liegt in genau einer Zone pro
@@ -198,8 +196,8 @@ Wasserart. Die Integration fragt VigiEau daher immer über Koordinaten ab.
 
 ### Die Suchschaltfläche
 
-1. Klicken Sie auf **„Ort hinzufügen (Adresse suchen)“**.
-2. Geben Sie Ihre Adresse ein. Je genauer, desto besser: „12 rue des Lilas,
+1. Klicke auf **„Ort hinzufügen (Adresse suchen)“**.
+2. Gib deine Adresse ein. Je genauer, desto besser: „12 rue des Lilas,
    82000 Montauban“ ist besser als „Montauban“.
 3. Die Integration geokodiert sie über die offizielle
    [Base Adresse Nationale](https://adresse.data.gouv.fr) — denselben Dienst,
@@ -207,16 +205,16 @@ Wasserart. Die Integration fragt VigiEau daher immer über Koordinaten ab.
    im Tab **Entdecken**.
 
 Passen mehrere Adressen **ohne eindeutigen Treffer**, **rät die Integration
-nicht**: Sie listet die Kandidaten auf und bittet Sie um eine genauere Angabe.
-Ergänzen Sie die Hausnummer, die Straße oder die Gemeinde und suchen Sie erneut.
+nicht**: Sie listet die Kandidaten auf und bittet dich um eine genauere Angabe.
+Ergänze die Hausnummer, die Straße oder die Gemeinde und suche erneut.
 
-Die Bestätigungsmeldung zeigt die gewählte Adresse und ihre Koordinaten: Prüfen
-Sie sie kurz, bevor Sie weitermachen.
+Die Bestätigungsmeldung zeigt die gewählte Adresse und ihre Koordinaten: Prüfe
+sie kurz, bevor du weitermachst.
 
 ### Breiten- und Längengrad selbst eingeben
 
 Die Felder **„Breitengrad“** und **„Längengrad“** derselben Aktion sind
-**optional**. Füllen Sie beide aus, wird der Ort **unverändert** auf diesem
+**optional**. Füllst du beide aus, wird der Ort **unverändert** auf diesem
 Punkt angelegt, ohne Geokodierung: der Ausweg für die Fälle, die eine Adresse
 nicht abdecken kann — ein Grundstück ohne Straße, ein Weiler, den die Base
 Adresse Nationale nicht kennt, oder ein auf einer Karte abgelesener Punkt.
@@ -225,13 +223,13 @@ Adresse Nationale nicht kennt, oder ein auf einer Karte abgelesener Punkt.
   ein Wert außerhalb des Bereichs wird mit einer Meldung abgelehnt, die zeigt,
   was empfangen wurde.
 - **Beide gehören zusammen**: Ein Breitengrad allein ist kein Punkt, und die
-  Aktion lehnt ihn ab, statt ihn mit einer Null zu ergänzen — damit würden Sie
+  Aktion lehnt ihn ab, statt ihn mit einer Null zu ergänzen — damit würdest du
   den Golf von Guinea überwachen.
-- Geben Sie **zusätzlich eine Adresse** ein, **haben die Koordinaten Vorrang**:
+- Gibst du **zusätzlich eine Adresse** ein, **haben die Koordinaten Vorrang**:
   Die Adresse ist dann nur die Bezeichnung, die „Orte anzeigen“ anzeigt (und der
-  Name, wenn Sie keinen angeben). Ohne Adresse und ohne Namen wird der Ort nach
+  Name, wenn du keinen angibst). Ohne Adresse und ohne Namen wird der Ort nach
   seinen eigenen Koordinaten benannt.
-- Ein auf einer Karte gewählter Punkt bleibt nur ein Punkt: Prüfen Sie ihn
+- Ein auf einer Karte gewählter Punkt bleibt nur ein Punkt: Prüfe ihn
   direkt nach dem Hinzufügen mit **„VigiEau-Verbindung testen“**.
 
 ## Aktionen
@@ -241,35 +239,35 @@ Adresse Nationale nicht kennt, oder ein auf einer Karte abgelesener Punkt.
   (beide optional). Siehe „Warum eine Adresse und keine Postleitzahl“ oben.
 - **Meine Gladys-Zuhause hinzufügen** — liest die in Gladys konfigurierten
   Zuhause und fügt für jedes, das noch nicht überwacht wird, einen Ort hinzu,
-  ohne etwas einzugeben. Wählen Sie im Feld **Zuhause** ein Zuhause, um nur
+  ohne etwas einzugeben. Wähle im Feld **Zuhause** ein Zuhause, um nur
   dieses hinzuzufügen (ein Ferienhaus, das nicht überwacht werden soll, bleibt
-  außen vor); lassen Sie das Feld leer, um alle hinzuzufügen. Erfordert die bei
+  außen vor); lass das Feld leer, um alle hinzuzufügen. Erfordert die bei
   der Installation akzeptierte Berechtigung und Gladys 5.2 oder neuer.
 - **Orte anzeigen** — listet alle konfigurierten Orte nummeriert auf, mit Name,
   Adresse und Koordinaten. Diese Nummern sind die, die das Löschen anbietet.
 - **VigiEau-Verbindung testen (alle Orte)** — führt eine Live-Abfrage aus und
-  zeigt die aktuelle Stufe jedes Ortes für die drei Wasserarten. Nutzen Sie sie
-  direkt nach der Konfiguration, um zu prüfen, ob Ihre Orte abgedeckt sind.
+  zeigt die aktuelle Stufe jedes Ortes für die drei Wasserarten. Nutze sie
+  direkt nach der Konfiguration, um zu prüfen, ob deine Orte abgedeckt sind.
 - **Geltende Beschränkungen anzeigen (alle Orte)** — listet die an jeder
-  Adresse für Ihr Profil derzeit eingeschränkten Wassernutzungen auf, mit einem
+  Adresse für dein Profil derzeit eingeschränkten Wassernutzungen auf, mit einem
   Link zum Erlass.
 - **Ort löschen** — beendet nach Bestätigung die Überwachung des Ortes, dessen
-  Nummer Sie wählen. Sein Gladys-Gerät bleibt: Löschen Sie es selbst. Es ist die
+  Nummer du wählst. Sein Gladys-Gerät bleibt: Lösche es selbst. Es ist die
   letzte Schaltfläche des Bildschirms, die einzige, die etwas zerstört.
 
 ## Widgets, Szenenauslöser und Szenenaktionen (Gladys 5.1)
 
 Seit Gladys 5.1 fügt die Integration dem Dashboard eigene Karten und dem
 Szeneneditor eigene Bausteine hinzu. Sie alle bezeichnen einen Ort über **sein
-Gerät**: Ein Ort, dessen Gerät Sie noch nicht aus dem Tab „Entdecken“
-hinzugefügt haben, erscheint nicht in diesen Listen.
+Gerät**: Ein Ort, dessen Gerät du noch nicht aus dem Tab „Entdecken“
+hinzugefügt hast, erscheint nicht in diesen Listen.
 
 ### Dashboard-Widgets
 
 - **Dürrewarnung** — ein Ort, in den Einstellungen des Widgets gewählt: die
   Gesamtstufe und die Stufe jeder Wasserart (farbiger Punkt), das Datum des
   Erlasses, die Uhrzeit der letzten Abfrage, die Anzahl der eingeschränkten
-  Nutzungen und ihre Liste (tippen Sie auf eine Nutzung, um die Details zu
+  Nutzungen und ihre Liste (tippe auf eine Nutzung, um die Details zu
   lesen). Zwei Schaltflächen: **Erlass ansehen** und **Aktualisieren**.
 - **Dürre: alle Orte** — alle Orte auf einer Karte, eine farbige Zeile pro Ort,
   mit der Anzahl der Orte mit Einschränkung (Stufe Alerte oder höher) und einer
@@ -290,7 +288,7 @@ eines Dashboards abzufragen.
   unveränderter Stufe. Optionaler Filter: der Ort.
 
 Beide geben den folgenden Aktionen den Namen des Ortes, die Stufe in Worten,
-den Link zum Erlass usw. weiter: Fügen Sie sie mit der Variablenauswahl des
+den Link zum Erlass usw. weiter: Füge sie mit der Variablenauswahl des
 Editors in eine Nachricht ein („Name des Ortes“, „Stufe (Text)“…).
 
 Die **erste** Abfrage eines Ortes löst nichts aus: Sie legt den Bezugswert fest.
@@ -306,7 +304,7 @@ einmal pro „Aktualisierungsintervall“.
   4 = Crise), die Stufe jeder Wasserart, die eingeschränkten Nutzungen und den
   Erlass weiter.
 - **Prüfen, ob eine Wassernutzung eingeschränkt ist** — fragt VigiEau für einen
-  Ort ab und meldet, ob eine Nutzung eingeschränkt ist: Geben Sie ein Wort ihres
+  Ort ab und meldet, ob eine Nutzung eingeschränkt ist: Gib ein Wort ihres
   französischen Namens oder Themas ein („arrosage“, „piscine“, „lavage“…). Die
   Ausgabe „Eingeschränkt“ (wahr / falsch) lässt sich in einer Bedingung der
   Szene prüfen.
@@ -317,8 +315,8 @@ Auslöser, sodass sich eine Szene nie selbst neu starten kann.
 ## Ideen für Szenen
 
 - **Die automatische Bewässerung stoppen**, sobald die „Dürrewarnstufe“ 1
-  (Vigilance) oder 2 (Alerte) erreicht, je nachdem, wie vorsichtig Sie sein
-  möchten.
+  (Vigilance) oder 2 (Alerte) erreicht, je nachdem, wie vorsichtig du sein
+  möchtest.
 - **Sich benachrichtigen lassen**, wenn sich die Stufe ändert: Auslöser „Die
   Dürrestufe hat sich geändert“, dann eine Nachricht mit den Variablen „Stufe
   (Text)“ und „Link zum Erlass“.
@@ -331,24 +329,24 @@ Auslöser, sodass sich eine Szene nie selbst neu starten kann.
 ## Fehlerbehebung
 
 - **Kein Gerät im Tab „Entdecken“** — der Reihe nach:
-  1. **Haben Sie einen Ort hinzugefügt?** Ohne einen verorteten Ort
-     veröffentlicht die Integration bewusst kein Gerät. Nutzen Sie die
+  1. **Hast du einen Ort hinzugefügt?** Ohne einen verorteten Ort
+     veröffentlicht die Integration bewusst kein Gerät. Nutze die
      Schaltfläche **„Ort hinzufügen (Adresse suchen)“**; die Aktion
      **„Orte anzeigen“** listet auf, was tatsächlich gespeichert ist.
-  2. Klicken Sie im Tab „Entdecken“ auf **Scannen**, um eine neue
+  2. Klicke im Tab „Entdecken“ auf **Scannen**, um eine neue
      Veröffentlichung zu erzwingen.
-  3. Lesen Sie die **Protokolle der Integration**. Eine Zeile, die mit
-     `Published` beginnt, bestätigt, dass Gladys das Gerät angenommen hat. Sehen
-     Sie stattdessen `Post-connection initialization failed`, nennt die folgende
+  3. Lies die **Protokolle der Integration**. Eine Zeile, die mit `Published`
+     beginnt, bestätigt, dass Gladys das Gerät angenommen hat. Siehst du
+     stattdessen `Post-connection initialization failed`, nennt die folgende
      Meldung den genauen Grund — er wird auch im Konfigurationsbildschirm
      angezeigt.
-  4. Prüfen Sie, ob der Container tatsächlich läuft: Ein Docker-Image, das nicht
+  4. Prüfe, ob der Container tatsächlich läuft: Ein Docker-Image, das nicht
      heruntergeladen werden kann (`manifest unknown`), verhindert den Start der
      Integration, und es wird nie etwas veröffentlicht.
 - **Ich möchte Breiten- oder Längengrad eines Ortes korrigieren** — ein Ort wird
-  nie bearbeitet: Fügen Sie einen neuen hinzu, entweder mit einer genaueren
-  Adresse oder indem Sie die gewünschten Koordinaten direkt in „Ort hinzufügen“
-  eingeben, und löschen Sie dann den alten.
+  nie bearbeitet: Füge einen neuen hinzu, entweder mit einer genaueren
+  Adresse oder indem du die gewünschten Koordinaten direkt in „Ort hinzufügen“
+  eingeben, und lösche dann den alten.
 - **Zwei „Vigilance sécheresse“-Geräte nach einer Adressänderung** — das war bis
   Version 1.1.1 der Fall: Die Gerätekennung wurde aus den Koordinaten gebildet,
   sodass jede Adresse ihr eigenes Gerät erzeugte und das vorherige nicht mehr
@@ -359,20 +357,20 @@ Auslöser, sodass sich eine Szene nie selbst neu starten kann.
   werden.
 - **Ich finde meine Orte nirgends auf der Seite** — das ist gewollt: Ein
   Konfigurationsbildschirm stellt nur Eingabefelder dar und zeigt nichts von
-  dem, was eine Integration zu sagen hat, außer der Meldung einer Aktion. Führen
-  Sie **„Orte anzeigen“** aus: Die Liste erscheint unter der Schaltfläche, immer
+  dem, was eine Integration zu sagen hat, außer der Meldung einer Aktion. Führe
+  **„Orte anzeigen“** aus: Die Liste erscheint unter der Schaltfläche, immer
   aktuell, ohne etwas neu zu laden.
 - **Die Auswahlliste zum Löschen zeigt „Ort 1“, „Ort 2“… statt meiner Namen** —
   die Optionen einer Auswahlliste stehen vorab im Manifest der Integration: Es
   können nur Nummern sein. „Orte anzeigen“ ordnet einer Nummer einen Namen zu.
 - **Ein Gerät, das nach dem Löschen eines Ortes nicht mehr aktualisiert wird** —
   das ist zu erwarten: Eine Integration kann kein Gladys-Gerät löschen, sie kann
-  es nur nicht mehr anbieten. Löschen Sie es in Gladys.
+  es nur nicht mehr anbieten. Lösche es in Gladys.
 - **„Kein aktueller Wert“ bei allen Funktionen** — direkt nach dem Hinzufügen
   des Geräts ist das für einige Sekunden normal: Gladys verwirft die Zustände,
   die veröffentlicht wurden, bevor das Gerät existierte. Die Integration bemerkt
   das Anlegen und aktualisiert sofort. Ist es nach einer Minute noch leer,
-  nutzen Sie die Aktion **VigiEau-Verbindung testen**: Sie fragt die API live ab
+  nutze die Aktion **VigiEau-Verbindung testen**: Sie fragt die API live ab
   und zeigt jeden Fehler an.
 - **Alle Funktionen heißen „Risikostufe“** — so zeigt Gladys sie an: Die Liste
   „Funktionen“ auf der Geräteseite zeigt die allgemeine Bezeichnung der
@@ -383,10 +381,10 @@ Auslöser, sodass sich eine Szene nie selbst neu starten kann.
   letzte Aktualisierung, Erlass in Kraft seit. In einem Dashboard oder einer
   Szene zeigen sie alle ihren echten Namen.
 - **„VigiEau kann nicht bestimmen, welche Zone hier gilt“** — der konfigurierte
-  Punkt liegt nicht in einer einzigen Zone. Die Meldung nennt den Ort: Fügen Sie
+  Punkt liegt nicht in einer einzigen Zone. Die Meldung nennt den Ort: Füge
   ihn mit einer genaueren Adresse erneut hinzu (Hausnummer und Straße statt nur
-  des Gemeindenamens) und löschen Sie dann den alten.
-- **Keine Daten / Fehler in den Protokollen** — beginnen Sie mit der Aktion
+  des Gemeindenamens) und lösche dann den alten.
+- **Keine Daten / Fehler in den Protokollen** — beginne mit der Aktion
   **VigiEau-Verbindung testen**. Ein Fehler `VigiEau HTTP 5xx` bedeutet, dass
   der Dienst vorübergehend nicht verfügbar ist: Er wird im
   Konfigurationsbildschirm angezeigt, und die Integration versucht es bei der
@@ -402,7 +400,7 @@ Auslöser, sodass sich eine Szene nie selbst neu starten kann.
   kann daher nicht fälschlich „keine Einschränkung“ melden. Die Protokolle
   enthalten dann eine Warnung `VigiEau returned an unknown severity`.
 
-Die Integration protokolliert alles, was sie tut: Lesen Sie ihre Protokolle in
+Die Integration protokolliert alles, was sie tut: Lies ihre Protokolle in
 der Gladys-Oberfläche (oder mit `docker logs` auf dem Host) mit
 `LOG_LEVEL=debug` für alle Details, einschließlich der aufgerufenen URL.
 
@@ -410,4 +408,4 @@ der Gladys-Oberfläche (oder mit `docker logs` auf dem Host) mit
 
 Die Daten stammen von VigiEau, betrieben vom französischen Ministerium für den
 ökologischen Wandel. Sie dienen nur zur Information: Im Zweifelsfall ist der von
-Ihrer Präfektur veröffentlichte Präfekturerlass maßgeblich.
+deiner Präfektur veröffentlichte Präfekturerlass maßgeblich.

@@ -67,7 +67,7 @@ let pollingCleanups = [];
 const NOT_CONFIGURED_MESSAGE = {
   en: 'Add a location to start watching the drought level.',
   fr: 'Ajoutez un lieu pour suivre le niveau de sécheresse.',
-  de: 'Fügen Sie einen Ort hinzu, um die Dürrestufe zu verfolgen.',
+  de: 'Füge einen Ort hinzu, um die Dürrestufe zu verfolgen.',
   es: 'Añada una ubicación para seguir el nivel de sequía.',
 };
 
