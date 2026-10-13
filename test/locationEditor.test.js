@@ -19,6 +19,7 @@ import { createLocationEditor } from '../src/locationEditor.js';
 import { normalizeConfig } from '../src/config.js';
 import { MAX_LOCATIONS } from '../src/locations.js';
 import { boldLabel } from '../src/richText.js';
+import { LANGUAGES } from '../src/i18n.js';
 import { plain } from './helpers/text.js';
 import { captureLogs } from './helpers/captureLogs.js';
 
@@ -492,6 +493,11 @@ test('a house with no position on the map is not watched at (0, 0)', async () =>
   assert.match(message.fr, /Sans position sur la carte/);
   assert.match(message.fr, /« Bureau »/);
   assert.match(message.fr, /Réglages > Maisons/, 'and where to give it one');
+  // Each language quotes the house its own way and names the screen with the
+  // words the Gladys interface itself uses in that language.
+  assert.match(message.en, /"Bureau".*Settings > Houses/);
+  assert.match(message.de, /„Bureau“.*Einstellungen > Zuhause/);
+  assert.match(message.es, /«Bureau».*Configuración > Viviendas/);
   assert.equal(h.locations().length, 1);
   assert.equal(h.locations()[0].name, 'Maison');
 });
@@ -611,8 +617,13 @@ test('every answer of the location manager is a multi-language object', async ()
     await h.editor.actions.supprimer_lieu({ lieu: '1' }),
   ];
   for (const answer of answers) {
-    assert.equal(typeof answer.en, 'string', JSON.stringify(answer));
-    assert.equal(typeof answer.fr, 'string', JSON.stringify(answer));
+    // Every language the Gladys interface speaks: the core shows `en` to a
+    // German or Spanish reader whose language is missing.
+    assert.deepEqual(Object.keys(answer).sort(), [...LANGUAGES].sort(), JSON.stringify(answer));
+    for (const language of LANGUAGES) {
+      assert.equal(typeof answer[language], 'string', JSON.stringify(answer));
+      assert.ok(answer[language].length > 0, `${language} is empty in ${JSON.stringify(answer)}`);
+    }
   }
 });
 
@@ -639,7 +650,7 @@ test('afficher_lieux puts one location per line, the header on its own', async (
   const h = harness(installed([MAISON, JARDIN]));
   const message = await h.editor.actions.afficher_lieux();
 
-  for (const language of ['fr', 'en']) {
+  for (const language of LANGUAGES) {
     const lines = message[language].split('\n');
     assert.equal(lines.length, 3, `${language}: a header line, then one line per location`);
     // "• number. name — detail", the number and the name emphasized: the exact
@@ -658,13 +669,13 @@ test('afficher_lieux stays a list once the Configuration screen collapses the ne
   const h = harness(installed([MAISON, JARDIN]));
   const message = await h.editor.actions.afficher_lieux();
 
-  for (const language of ['fr', 'en']) {
+  for (const language of LANGUAGES) {
     const collapsed = plain(message[language]).replace(/\n/g, ' ');
     assert.equal(collapsed.split('• 1. ').length - 1, 1, `${language}: one entry per location`);
     assert.equal(collapsed.split('• 2. ').length - 1, 1);
     assert.doesNotMatch(
       collapsed,
-      /(un par ligne|one per line)/i,
+      /(un par ligne|one per line|pro Zeile|por línea)/i,
       'promising lines the screen does not render is how the bug was reported',
     );
   }

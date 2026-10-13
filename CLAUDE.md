@@ -513,8 +513,10 @@ feature lingers as an orphan.
 
 Comments explain **why**, not what — particularly the core constraints above, which look arbitrary
 without their reason. Prefer keeping the pure/impure split in the drivers so logic stays testable
-without the network. User-facing strings (device and feature names, action messages) are French, with
-`en`/`fr` pairs everywhere the manifest or the SDK accepts a multi-language object.
+without the network. Device and feature names (and the text states) are French; user-facing text
+is `{ en, fr, de, es }` everywhere the manifest or the SDK accepts a multi-language object
+(`LANGUAGES` / `inEveryLanguage()` in `src/i18n.js`), and `docs/en.md`, `docs/fr.md`, `docs/de.md`,
+`docs/es.md` stay in sync.
 
 A watched point, a typed address or a house's coordinates is where somebody lives: it never reaches
 the logs, at any level — a log line says that a lookup happened, never what was looked up (the

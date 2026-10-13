@@ -5,6 +5,7 @@ import {
   collectDecrees,
   decreeKey,
   AMBIGUOUS_COMMUNE,
+  SEVERITY_LABELS,
   SEVERITY_LEVELS,
   buildZonesUrl,
   collectUsages,
@@ -57,6 +58,19 @@ test('severityLabel gives the official French wording', () => {
   assert.equal(severityLabel(null), 'Inconnu');
   assert.equal(severityLabel(null, 'en'), 'Unknown');
   assert.equal(severityLabel(4, 'en'), 'Crisis');
+});
+
+test('severityLabel speaks German and Spanish, and English for any other language', () => {
+  assert.equal(severityLabel(3, 'de'), 'Verschärfte Warnung');
+  assert.equal(severityLabel(null, 'de'), 'Unbekannt');
+  assert.equal(severityLabel(4, 'es'), 'Crisis');
+  assert.equal(severityLabel(1, 'es'), 'Vigilancia');
+  assert.equal(severityLabel(null, 'es'), 'Desconocido');
+  assert.equal(severityLabel(2, 'it'), 'Alert', 'the core falls back on English, so do we');
+  assert.equal(severityLabel(null, 'it'), 'Unknown');
+  for (const [language, labels] of Object.entries(SEVERITY_LABELS)) {
+    assert.equal(labels.length, 5, `${language}: one wording per VigiEau level`);
+  }
 });
 
 // --- The Gladys 0-3 risk scale -----------------------------------------------

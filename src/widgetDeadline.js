@@ -29,6 +29,8 @@ export function loadingContent() {
         text: {
           en: 'Reading the data, this takes longer than usual…',
           fr: 'Lecture des données, plus longue que d’habitude…',
+          de: 'Die Daten werden gelesen, das dauert länger als üblich…',
+          es: 'Leyendo los datos, tarda más de lo habitual…',
         },
       },
     ],

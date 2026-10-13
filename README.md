@@ -88,7 +88,8 @@ read VigiEau live and publish nothing — an action that fired an event could
 loop through a scene.
 
 User documentation, re-hosted by Gladys and linked from the Configuration
-screen: [`docs/fr.md`](./docs/fr.md) — [`docs/en.md`](./docs/en.md).
+screen: [`docs/fr.md`](./docs/fr.md) — [`docs/en.md`](./docs/en.md) —
+[`docs/de.md`](./docs/de.md) — [`docs/es.md`](./docs/es.md).
 
 ## How it works
 
@@ -200,7 +201,9 @@ A few decisions are worth knowing about:
 │  └─ config.js                      # config defaults, normalization, legacy location id
 ├─ docs/
 │  ├─ en.md                          # user documentation, re-hosted by Gladys and
-│  └─ fr.md                          #   linked from the Configuration screen
+│  ├─ fr.md                          #   linked from the Configuration screen
+│  ├─ de.md                          #   (German and Spanish are optional
+│  └─ es.md                          #   languages the store re-hosts too)
 ├─ test/                             # node --test, no test framework to install
 ├─ gladys-assistant-integration.json # manifest (name, config schema, image…)
 ├─ Dockerfile                        # Node 24 Alpine, read-only rootfs ready

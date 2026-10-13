@@ -15,6 +15,7 @@ import { WIDGET, WIDGET_ACTION, createWidgets } from '../src/widgets.js';
 import { SCENE_ACTION, createSceneActions } from '../src/sceneActions.js';
 import { SCENE_TRIGGER } from '../src/readings.js';
 import { SEVERITY_CODES } from '../src/vigieau.js';
+import { LANGUAGES } from '../src/i18n.js';
 
 const manifest = JSON.parse(
   await readFile(new URL('../gladys-assistant-integration.json', import.meta.url), 'utf8'),
@@ -315,9 +316,42 @@ test('every field uses a widget type the store accepts', () => {
   }
 });
 
-test('every field carries both labels', () => {
+/** Every multi-language object of the manifest, wherever it sits, with its path. */
+function multiLanguageTexts(value, path = '', found = []) {
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => multiLanguageTexts(item, `${path}[${index}]`, found));
+  } else if (value && typeof value === 'object') {
+    if (typeof value.en === 'string') {
+      found.push({ path, text: value });
+    } else {
+      for (const [key, item] of Object.entries(value)) {
+        multiLanguageTexts(item, path ? `${path}.${key}` : key, found);
+      }
+    }
+  }
+  return found;
+}
+
+test('every text of the manifest speaks English, French, German and Spanish', () => {
+  // The Gladys interface speaks these four languages, and the core shows `en`
+  // to a reader whose language is missing: a German or Spanish user would get
+  // a screen half in English.
+  const texts = multiLanguageTexts(manifest);
+  assert.ok(texts.length > 100, 'the walk finds the texts');
+  for (const { path, text } of texts) {
+    assert.deepEqual(Object.keys(text), LANGUAGES, `${path}: en, fr, de, es, in that order`);
+    for (const language of LANGUAGES) {
+      assert.equal(typeof text[language], 'string', `${path}.${language}`);
+      assert.ok(text[language].trim().length > 0, `${path}.${language} is empty`);
+    }
+  }
+});
+
+test('every field carries a label in every language', () => {
   for (const field of allFields()) {
-    assert.ok(field.label?.en && field.label?.fr, `"${field.key}" needs both labels`);
+    for (const language of LANGUAGES) {
+      assert.ok(field.label?.[language], `"${field.key}" needs a ${language} label`);
+    }
   }
 });
 
@@ -385,6 +419,12 @@ test('section fields are purely presentational', () => {
     for (const link of section.links ?? []) {
       assert.match(link.url, /^https:\/\//, 'section links must be https');
     }
+    for (const language of LANGUAGES) {
+      assert.ok(
+        (section.description?.[language] ?? '').length <= 1000,
+        `section "${section.key}" description.${language} holds 1000 characters at most`,
+      );
+    }
   }
 });
 
@@ -401,8 +441,9 @@ test('every label and description is translated in French and English', () => {
   ].filter(Boolean);
 
   for (const text of texts) {
-    assert.ok(text.en, `missing English text in ${JSON.stringify(text)}`);
-    assert.ok(text.fr, `missing French text in ${JSON.stringify(text)}`);
+    for (const language of LANGUAGES) {
+      assert.ok(text[language], `missing ${language} text in ${JSON.stringify(text)}`);
+    }
   }
 });
 
@@ -415,6 +456,7 @@ test('the manifest version matches package.json and the Docker image tag', () =>
 });
 
 test('the catalog description stays within the 100-character store limit', () => {
+  assert.deepEqual(Object.keys(manifest.description).sort(), [...LANGUAGES].sort());
   for (const [language, text] of Object.entries(manifest.description)) {
     assert.ok(text.length >= 10, `description.${language} is too short`);
     assert.ok(text.length <= 100, `description.${language} is ${text.length} characters, max 100`);
@@ -580,7 +622,7 @@ test('the widgets follow the store bounds', () => {
   for (const widget of manifest.widgets) {
     assert.match(widget.key, /^[a-z0-9_]{2,32}$/);
     assert.match(widget.icon, /^[a-z0-9-]{1,40}$/, 'a Feather icon name');
-    for (const language of ['en', 'fr']) {
+    for (const language of LANGUAGES) {
       const label = widget.label[language];
       assert.ok(label.length >= 3 && label.length <= 30, `${widget.key} label.${language}`);
       assert.ok(
@@ -641,15 +683,21 @@ test('the scene declarations are translated and their variables are scalars', ()
   const declarations = [...manifest.scene_triggers, ...manifest.scene_actions];
   for (const declared of declarations) {
     for (const text of [declared.label, declared.description]) {
-      assert.ok(text.en && text.fr, `${declared.key} needs both languages`);
+      for (const language of LANGUAGES) {
+        assert.ok(text[language], `${declared.key} needs a ${language} text`);
+      }
     }
     assert.match(declared.key, /^[a-z0-9_]{1,40}$/);
     for (const variable of [...(declared.variables ?? []), ...(declared.outputs ?? [])]) {
       assert.ok(['string', 'number', 'boolean'].includes(variable.type), variable.key);
-      assert.ok(variable.label.en && variable.label.fr, `${declared.key}.${variable.key}`);
+      for (const language of LANGUAGES) {
+        assert.ok(variable.label[language], `${declared.key}.${variable.key}.${language}`);
+      }
     }
     for (const field of declared.fields ?? []) {
-      assert.ok(field.label.en && field.label.fr, `${declared.key}.${field.key}`);
+      for (const language of LANGUAGES) {
+        assert.ok(field.label[language], `${declared.key}.${field.key}.${language}`);
+      }
     }
   }
   for (const declared of manifest.scene_actions) {

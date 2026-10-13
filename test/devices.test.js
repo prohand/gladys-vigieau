@@ -13,6 +13,7 @@ import { WIDGET } from '../src/widgets.js';
 import { normalizeConfig } from '../src/config.js';
 import { createFakeGladys, zonesFixture } from './helpers/fakeGladys.js';
 import { plain } from './helpers/text.js';
+import { LANGUAGES } from '../src/i18n.js';
 
 /** A configuration watching the given locations. */
 function configWith(...locations) {
@@ -459,6 +460,8 @@ test('the test_vigieau action returns a multi-language message with the level', 
   const message = await droughtZone.actions.test_vigieau(gladys, { fields: {}, config });
   assert.match(message.fr, /Alerte renforcée/);
   assert.match(message.en, /Reinforced alert/);
+  assert.match(message.de, /Verschärfte Warnung/);
+  assert.match(message.es, /Alerta reforzada/);
   assert.match(message.fr, /SOU: 3/);
   assert.match(plain(message.fr), /Maison/);
 });
@@ -499,7 +502,7 @@ test('test_vigieau puts one location per line, under a header of its own', async
     config: configWith(MAISON, JARDIN),
   });
 
-  for (const language of ['fr', 'en']) {
+  for (const language of LANGUAGES) {
     const lines = plain(message[language]).split('\n');
     assert.equal(lines.length, 3, `${language}: a header, then one line per location`);
     assert.match(lines[0], /VigiEau OK/);
@@ -587,7 +590,9 @@ test('the show_restrictions action lists the restricted usages and the decree', 
   const message = await droughtZone.actions.show_restrictions(gladys, { fields: {}, config });
   assert.match(message.fr, /Remplissage des piscines/);
   assert.match(message.fr, /arrete\/4502\.pdf/);
-  assert.ok(message.en, 'the message is multi-language');
+  for (const language of LANGUAGES) {
+    assert.match(message[language], /Remplissage des piscines/, `the message speaks ${language}`);
+  }
 });
 
 test('the show_restrictions action says so when nothing is restricted', async () => {
@@ -657,6 +662,8 @@ test('the status names how many other locations are failing', async () => {
   const { message } = gladys.connectionStatuses.at(-1);
   assert.match(message.fr, /\+1 autre/);
   assert.match(message.en, /\+1 other/);
+  assert.match(message.de, /\+1 weitere/);
+  assert.match(message.es, /\+1 ubicación\(es\) más/);
 });
 
 test('startPolling stops refreshing once its cleanup is called', async () => {

@@ -62,7 +62,7 @@ separately, in addition to the overall level.
    (street, postal code, town) and, if you like, a **name** ("Maison",
    "Jardin"… — the town is used when you leave it empty). The location is
    created, its coordinates are geocoded for you, and its device shows up in the
-   **Discovery** tab, ready to be added. If you already know the point, fill the
+   **Discover** tab, ready to be added. If you already know the point, fill the
    optional **Latitude** and **Longitude** fields in instead: they are used as
    they are, with no geocoding.
 3. Repeat for every location you want to watch, up to ten. If the locations you
@@ -134,7 +134,7 @@ published nor queried, and that line is the only thing that says so.
 
 > **A location cannot be edited.** To change an address, add the new location
 > with "Add a location", then delete the old one. What you get is a **new
-> device** in the Discovery tab: the old one keeps its own history, and a
+> device** in the Discover tab: the old one keeps its own history, and a
 > location's name is the one you give it when you create it.
 >
 > Why the limitation? Editing a location meant designating one on the
@@ -156,7 +156,7 @@ tells you which location would go.
 
 What happens to the device depends on what you had done with it:
 
-- **You never added it** (it was only offered in the Discovery tab): it leaves
+- **You never added it** (it was only offered in the Discover tab): it leaves
   the discovery straight away, the integration having stopped offering it. The
   message confirms it.
 - **You had added it to Gladys**: it **stays**, and stops updating. An
@@ -187,7 +187,7 @@ water type. The integration therefore always queries VigiEau by coordinates.
 3. The integration geocodes it on the official
    [Base Adresse Nationale](https://adresse.data.gouv.fr) — the same service
    the VigiEau website uses — creates the location and publishes its device in
-   the **Discovery** tab.
+   the **Discover** tab.
 
 When several addresses match with **no clear winner**, the integration **does
 not guess**: it lists the candidates and asks you to be more precise. Add the
@@ -242,7 +242,7 @@ point read off a map.
 
 Since Gladys 5.1, the integration adds its own cards to the dashboard and its
 own blocks to the scene editor. They all designate a location by **its
-device**: a location whose device you have not added from the Discovery tab
+device**: a location whose device you have not added from the Discover tab
 yet does not show in those lists.
 
 ### Dashboard widgets
@@ -306,12 +306,12 @@ so a scene can never restart itself.
 
 ## Troubleshooting
 
-- **No device in the Discovery tab** — in order:
+- **No device in the Discover tab** — in order:
   1. **Have you added a location?** Without a located location the integration
      deliberately publishes no device. Use the
      **"Add a location (search for an address)"** button; the
      **"Show the locations"** action lists what is actually stored.
-  2. Click **Scan** in the Discovery tab to force a new publication.
+  2. Click **Scan** in the Discover tab to force a new publication.
   3. Read the **integration logs**. A line starting with `Published` confirms
      Gladys accepted the device. If you see
      `Post-connection initialization failed` instead, the message that follows

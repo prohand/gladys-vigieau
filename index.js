@@ -67,6 +67,8 @@ let pollingCleanups = [];
 const NOT_CONFIGURED_MESSAGE = {
   en: 'Add a location to start watching the drought level.',
   fr: 'Ajoutez un lieu pour suivre le niveau de sécheresse.',
+  de: 'Füge einen Ort hinzu, um die Dürrestufe zu verfolgen.',
+  es: 'Añada una ubicación para seguir el nivel de sequía.',
 };
 
 /**
@@ -107,6 +109,8 @@ async function publishDevices() {
       .setConnectionStatus(false, {
         en: `Gladys refused the device: ${reason}`,
         fr: `Gladys a refusé l'appareil : ${reason}`,
+        de: `Gladys hat das Gerät abgelehnt: ${reason}`,
+        es: `Gladys ha rechazado el dispositivo: ${reason}`,
       })
       .catch(() => {});
     throw err;
@@ -377,6 +381,8 @@ gladys.on('connected', async () => {
       .setConnectionStatus(false, {
         en: `Initialization failed: ${reason}`,
         fr: `L'initialisation a échoué : ${reason}`,
+        de: `Die Initialisierung ist fehlgeschlagen: ${reason}`,
+        es: `La inicialización ha fallado: ${reason}`,
       })
       .catch(() => {});
   }

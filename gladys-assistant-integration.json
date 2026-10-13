@@ -4,7 +4,9 @@
   "name": "VigiEau",
   "description": {
     "en": "French drought alert levels and water restrictions, from the official VigiEau service.",
-    "fr": "Vigilance sécheresse et restrictions d'eau en France, depuis le service officiel VigiEau."
+    "fr": "Vigilance sécheresse et restrictions d'eau en France, depuis le service officiel VigiEau.",
+    "de": "Dürrewarnstufen und Wasserbeschränkungen in Frankreich, vom offiziellen Dienst VigiEau.",
+    "es": "Niveles de alerta por sequía y restricciones de agua en Francia, del servicio oficial VigiEau."
   },
   "version": "3.4.0",
   "docker_image": "ghcr.io/prohand/gladys-vigieau:3.4.0",
@@ -19,25 +21,33 @@
       "type": "section",
       "label": {
         "en": "Getting started",
-        "fr": "Pour commencer"
+        "fr": "Pour commencer",
+        "de": "Erste Schritte",
+        "es": "Primeros pasos"
       },
       "description": {
         "en": "VigiEau is the French government service publishing the drought alert level and the water restrictions in force at a given address. The API is free and needs no account: just tell the integration which location to watch.",
-        "fr": "VigiEau est le service de l'État qui publie le niveau de vigilance sécheresse et les restrictions d'eau en vigueur à une adresse donnée. L'API est gratuite et ne demande aucun compte : indiquez simplement le lieu à surveiller."
+        "fr": "VigiEau est le service de l'État qui publie le niveau de vigilance sécheresse et les restrictions d'eau en vigueur à une adresse donnée. L'API est gratuite et ne demande aucun compte : indiquez simplement le lieu à surveiller.",
+        "de": "VigiEau ist der Dienst des französischen Staates, der die Dürrewarnstufe und die an einer Adresse geltenden Wasserbeschränkungen veröffentlicht. Die API ist kostenlos und erfordert kein Konto: Gib der Integration einfach an, welchen Ort sie überwachen soll.",
+        "es": "VigiEau es el servicio del Estado francés que publica el nivel de alerta por sequía y las restricciones de agua vigentes en una dirección. La API es gratuita y no requiere cuenta: basta con indicar a la integración qué ubicación vigilar."
       },
       "links": [
         {
           "url": "https://vigieau.gouv.fr",
           "label": {
             "en": "The VigiEau website",
-            "fr": "Le site VigiEau"
+            "fr": "Le site VigiEau",
+            "de": "Die Website von VigiEau",
+            "es": "El sitio web de VigiEau"
           }
         },
         {
           "url": "https://api.vigieau.beta.gouv.fr/swagger",
           "label": {
             "en": "VigiEau API documentation",
-            "fr": "Documentation de l'API VigiEau"
+            "fr": "Documentation de l'API VigiEau",
+            "de": "Dokumentation der VigiEau-API",
+            "es": "Documentación de la API de VigiEau"
           }
         }
       ]
@@ -47,11 +57,15 @@
       "type": "section",
       "label": {
         "en": "General settings",
-        "fr": "Réglages généraux"
+        "fr": "Réglages généraux",
+        "de": "Allgemeine Einstellungen",
+        "es": "Ajustes generales"
       },
       "description": {
         "en": "These two settings apply to every watched location.",
-        "fr": "Ces deux réglages s’appliquent à tous les lieux surveillés."
+        "fr": "Ces deux réglages s’appliquent à tous les lieux surveillés.",
+        "de": "Diese beiden Einstellungen gelten für alle überwachten Orte.",
+        "es": "Estos dos ajustes se aplican a todas las ubicaciones vigiladas."
       }
     },
     {
@@ -59,11 +73,15 @@
       "type": "select",
       "label": {
         "en": "User profile (all locations)",
-        "fr": "Profil d'usager (tous les lieux)"
+        "fr": "Profil d'usager (tous les lieux)",
+        "de": "Nutzerprofil (alle Orte)",
+        "es": "Perfil de usuario (todas las ubicaciones)"
       },
       "description": {
         "en": "Restrictions differ per profile: VigiEau returns the ones that apply to yours.",
-        "fr": "Les restrictions diffèrent selon le profil : VigiEau renvoie celles qui s'appliquent au vôtre."
+        "fr": "Les restrictions diffèrent selon le profil : VigiEau renvoie celles qui s'appliquent au vôtre.",
+        "de": "Die Beschränkungen hängen vom Profil ab: VigiEau liefert die, die für deines gelten.",
+        "es": "Las restricciones varían según el perfil: VigiEau devuelve las que se aplican al suyo."
       },
       "required": true,
       "default": "particulier",
@@ -72,28 +90,36 @@
           "value": "particulier",
           "label": {
             "en": "Household",
-            "fr": "Particulier"
+            "fr": "Particulier",
+            "de": "Privathaushalt",
+            "es": "Particular"
           }
         },
         {
           "value": "entreprise",
           "label": {
             "en": "Company",
-            "fr": "Entreprise"
+            "fr": "Entreprise",
+            "de": "Unternehmen",
+            "es": "Empresa"
           }
         },
         {
           "value": "collectivite",
           "label": {
             "en": "Local authority",
-            "fr": "Collectivité"
+            "fr": "Collectivité",
+            "de": "Gebietskörperschaft",
+            "es": "Entidad local"
           }
         },
         {
           "value": "exploitation",
           "label": {
             "en": "Farm",
-            "fr": "Exploitation agricole"
+            "fr": "Exploitation agricole",
+            "de": "Landwirtschaftlicher Betrieb",
+            "es": "Explotación agrícola"
           }
         }
       ]
@@ -103,11 +129,15 @@
       "type": "number",
       "label": {
         "en": "Refresh interval (s)",
-        "fr": "Intervalle de rafraîchissement (s)"
+        "fr": "Intervalle de rafraîchissement (s)",
+        "de": "Aktualisierungsintervall (s)",
+        "es": "Intervalo de actualización (s)"
       },
       "description": {
         "en": "How often the integration queries VigiEau, in seconds. Prefectoral decrees change once a day at most: one hour is plenty.",
-        "fr": "Fréquence à laquelle l'intégration interroge VigiEau, en secondes. Les arrêtés préfectoraux changent au plus une fois par jour : une heure suffit largement."
+        "fr": "Fréquence à laquelle l'intégration interroge VigiEau, en secondes. Les arrêtés préfectoraux changent au plus une fois par jour : une heure suffit largement.",
+        "de": "Wie oft die Integration VigiEau abfragt, in Sekunden. Präfekturerlasse ändern sich höchstens einmal am Tag: Eine Stunde ist mehr als genug.",
+        "es": "Frecuencia con la que la integración consulta VigiEau, en segundos. Los decretos de la prefectura cambian como mucho una vez al día: una hora es más que suficiente."
       },
       "required": false,
       "default": 3600,
@@ -120,11 +150,15 @@
       "key": "rechercher_adresse",
       "label": {
         "en": "Add a location (search for an address)",
-        "fr": "Ajouter un lieu (rechercher une adresse)"
+        "fr": "Ajouter un lieu (rechercher une adresse)",
+        "de": "Ort hinzufügen (Adresse suchen)",
+        "es": "Añadir una ubicación (buscar una dirección)"
       },
       "description": {
-        "en": "Geocodes the address on the official Base Adresse Nationale and adds a location watching that point. Fill the latitude and the longitude in instead to add a point directly: the address it falls on is then looked up for you, as the location's label. Its device shows up in the Discovery tab, and \"Show the locations\" lists it.",
-        "fr": "Géocode l’adresse sur la Base Adresse Nationale officielle et ajoute un lieu surveillant ce point. Renseignez plutôt la latitude et la longitude pour ajouter un point directement : l’adresse correspondante est alors recherchée pour vous, comme libellé du lieu. Son appareil apparaît dans l’onglet Découverte, et « Afficher les lieux » le liste."
+        "en": "Geocodes the address on the official Base Adresse Nationale and adds a location watching that point. Fill the latitude and the longitude in instead to add a point directly: the address it falls on is then looked up for you, as the location's label. Its device shows up in the Discover tab, and \"Show the locations\" lists it.",
+        "fr": "Géocode l’adresse sur la Base Adresse Nationale officielle et ajoute un lieu surveillant ce point. Renseignez plutôt la latitude et la longitude pour ajouter un point directement : l’adresse correspondante est alors recherchée pour vous, comme libellé du lieu. Son appareil apparaît dans l’onglet Découverte, et « Afficher les lieux » le liste.",
+        "de": "Geokodiert die Adresse über die offizielle Base Adresse Nationale und fügt einen Ort hinzu, der diesen Punkt überwacht. Gib stattdessen Breiten- und Längengrad ein, um einen Punkt direkt hinzuzufügen: Die Adresse an diesem Punkt wird dann für dich als Bezeichnung des Ortes gesucht. Sein Gerät erscheint im Tab „Entdecken“, und „Orte anzeigen“ listet ihn auf.",
+        "es": "Geocodifica la dirección en la Base Adresse Nationale oficial y añade una ubicación que vigila ese punto. Indique en su lugar la latitud y la longitud para añadir un punto directamente: la dirección correspondiente se busca entonces por usted, como nombre de la ubicación. Su dispositivo aparece en la pestaña «Descubrir», y «Mostrar las ubicaciones» la incluye en la lista."
       },
       "timeout_seconds": 30,
       "fields": [
@@ -133,16 +167,22 @@
           "type": "string",
           "label": {
             "en": "Location name",
-            "fr": "Nom du lieu"
+            "fr": "Nom du lieu",
+            "de": "Name des Ortes",
+            "es": "Nombre de la ubicación"
           },
           "description": {
             "en": "Optional: the town of the address is used when left empty.",
-            "fr": "Facultatif : la commune de l'adresse est utilisée si vous le laissez vide."
+            "fr": "Facultatif : la commune de l'adresse est utilisée si vous le laissez vide.",
+            "de": "Optional: Bleibt das Feld leer, wird die Gemeinde der Adresse verwendet.",
+            "es": "Opcional: si lo deja vacío, se usa el municipio de la dirección."
           },
           "required": false,
           "placeholder": {
             "en": "Jardin",
-            "fr": "Jardin"
+            "fr": "Jardin",
+            "de": "Garten",
+            "es": "Jardín"
           }
         },
         {
@@ -150,16 +190,22 @@
           "type": "string",
           "label": {
             "en": "Address",
-            "fr": "Adresse"
+            "fr": "Adresse",
+            "de": "Adresse",
+            "es": "Dirección"
           },
           "description": {
             "en": "Street, postal code and town: the location is a precise point, not a postal code. A postal code covers several communes, and one commune can span several restriction zones — which is exactly when VigiEau refuses to answer and asks for a street. Optional if you fill the two coordinates in below.",
-            "fr": "Rue, code postal et commune : le lieu est un point précis, pas un code postal. Un code postal couvre plusieurs communes, et une commune peut relever de plusieurs zones de restriction — c’est justement le cas où VigiEau refuse de répondre et réclame une rue. Facultatif si vous renseignez les deux coordonnées ci-dessous."
+            "fr": "Rue, code postal et commune : le lieu est un point précis, pas un code postal. Un code postal couvre plusieurs communes, et une commune peut relever de plusieurs zones de restriction — c’est justement le cas où VigiEau refuse de répondre et réclame une rue. Facultatif si vous renseignez les deux coordonnées ci-dessous.",
+            "de": "Straße, Postleitzahl und Gemeinde: Der Ort ist ein genauer Punkt, keine Postleitzahl. Eine Postleitzahl umfasst mehrere Gemeinden, und eine Gemeinde kann in mehreren Beschränkungszonen liegen — genau dann verweigert VigiEau die Antwort und verlangt eine Straße. Optional, wenn du unten die beiden Koordinaten angibst.",
+            "es": "Calle, código postal y municipio: la ubicación es un punto preciso, no un código postal. Un código postal abarca varios municipios, y un municipio puede pertenecer a varias zonas de restricción — justo el caso en que VigiEau se niega a responder y pide una calle. Opcional si indica las dos coordenadas más abajo."
           },
           "required": false,
           "placeholder": {
             "en": "12 rue des Lilas, 82000 Montauban",
-            "fr": "12 rue des Lilas, 82000 Montauban"
+            "fr": "12 rue des Lilas, 82000 Montauban",
+            "de": "12 rue des Lilas, 82000 Montauban",
+            "es": "12 rue des Lilas, 82000 Montauban"
           }
         },
         {
@@ -167,16 +213,22 @@
           "type": "string",
           "label": {
             "en": "Latitude (optional)",
-            "fr": "Latitude (facultatif)"
+            "fr": "Latitude (facultatif)",
+            "de": "Breitengrad (optional)",
+            "es": "Latitud (opcional)"
           },
           "description": {
             "en": "WGS-84 decimal degrees, -90 to 90. Filled in together with the longitude, this point is used as it is; the address above is then only a label, and is looked up automatically when you leave it empty.",
-            "fr": "Degrés décimaux WGS-84, de -90 à 90. Renseignée avec la longitude, ce point est utilisé tel quel ; l’adresse ci-dessus ne sert plus que de libellé, et elle est recherchée automatiquement si vous la laissez vide."
+            "fr": "Degrés décimaux WGS-84, de -90 à 90. Renseignée avec la longitude, ce point est utilisé tel quel ; l’adresse ci-dessus ne sert plus que de libellé, et elle est recherchée automatiquement si vous la laissez vide.",
+            "de": "Dezimalgrad WGS-84, von -90 bis 90. Zusammen mit dem Längengrad angegeben, wird dieser Punkt unverändert verwendet; die Adresse oben dient dann nur noch als Bezeichnung und wird automatisch gesucht, wenn du sie leer lässt.",
+            "es": "Grados decimales WGS-84, de -90 a 90. Indicada junto con la longitud, este punto se usa tal cual; la dirección de arriba ya solo sirve de nombre, y se busca automáticamente si la deja vacía."
           },
           "required": false,
           "placeholder": {
             "en": "48.8566",
-            "fr": "48,8566"
+            "fr": "48,8566",
+            "de": "48,8566",
+            "es": "48,8566"
           }
         },
         {
@@ -184,16 +236,22 @@
           "type": "string",
           "label": {
             "en": "Longitude (optional)",
-            "fr": "Longitude (facultatif)"
+            "fr": "Longitude (facultatif)",
+            "de": "Längengrad (optional)",
+            "es": "Longitud (opcional)"
           },
           "description": {
             "en": "WGS-84 decimal degrees, -180 to 180. Both coordinates go together: one alone is not a point.",
-            "fr": "Degrés décimaux WGS-84, de -180 à 180. Les deux coordonnées vont ensemble : une seule ne fait pas un point."
+            "fr": "Degrés décimaux WGS-84, de -180 à 180. Les deux coordonnées vont ensemble : une seule ne fait pas un point.",
+            "de": "Dezimalgrad WGS-84, von -180 bis 180. Beide Koordinaten gehören zusammen: Eine allein ergibt keinen Punkt.",
+            "es": "Grados decimales WGS-84, de -180 a 180. Las dos coordenadas van juntas: una sola no forma un punto."
           },
           "required": false,
           "placeholder": {
             "en": "2.3522",
-            "fr": "2,3522"
+            "fr": "2,3522",
+            "de": "2,3522",
+            "es": "2,3522"
           }
         }
       ]
@@ -202,11 +260,15 @@
       "key": "importer_maisons",
       "label": {
         "en": "Add my Gladys houses",
-        "fr": "Ajouter mes maisons Gladys"
+        "fr": "Ajouter mes maisons Gladys",
+        "de": "Meine Gladys-Zuhause hinzufügen",
+        "es": "Añadir mis viviendas de Gladys"
       },
       "description": {
         "en": "Reads the houses you configured in Gladys and adds a location for each one that is not watched yet — no address to type. Pick a house to add that one only, or leave the field empty to add them all. A house you never placed on the map has no coordinates: locate it in Settings > Houses first. The houses are read once, when you click: a location added this way is an ordinary one, which you delete like the others.",
-        "fr": "Lit les maisons que vous avez configurées dans Gladys et ajoute un lieu pour chacune qui n’est pas déjà surveillée — aucune adresse à saisir. Choisissez une maison pour n’ajouter qu’elle, ou laissez le champ vide pour les ajouter toutes. Une maison jamais placée sur la carte n’a pas de coordonnées : localisez-la d’abord dans Réglages > Maisons. Les maisons sont lues une fois, au clic : un lieu ajouté ainsi est un lieu ordinaire, que vous supprimez comme les autres."
+        "fr": "Lit les maisons que vous avez configurées dans Gladys et ajoute un lieu pour chacune qui n’est pas déjà surveillée — aucune adresse à saisir. Choisissez une maison pour n’ajouter qu’elle, ou laissez le champ vide pour les ajouter toutes. Une maison jamais placée sur la carte n’a pas de coordonnées : localisez-la d’abord dans Réglages > Maisons. Les maisons sont lues une fois, au clic : un lieu ajouté ainsi est un lieu ordinaire, que vous supprimez comme les autres.",
+        "de": "Liest die in Gladys konfigurierten Zuhause und fügt für jedes, das noch nicht überwacht wird, einen Ort hinzu — ohne eine Adresse einzugeben. Wähle ein Zuhause, um nur dieses hinzuzufügen, oder lass das Feld leer, um alle hinzuzufügen. Ein Zuhause, das nie auf der Karte platziert wurde, hat keine Koordinaten: Verorte es zuerst unter Einstellungen > Zuhause. Die Zuhause werden einmal beim Klick gelesen: Ein so hinzugefügter Ort ist ein gewöhnlicher Ort, den du wie die anderen löschst.",
+        "es": "Lee las viviendas que configuró en Gladys y añade una ubicación por cada una que aún no esté vigilada — sin escribir ninguna dirección. Elija una vivienda para añadir solo esa, o deje el campo vacío para añadirlas todas. Una vivienda que nunca se colocó en el mapa no tiene coordenadas: ubíquela primero en Configuración > Viviendas. Las viviendas se leen una sola vez, al hacer clic: una ubicación añadida así es una ubicación normal, que se elimina como las demás."
       },
       "timeout_seconds": 30,
       "fields": [
@@ -216,11 +278,15 @@
           "source": "houses",
           "label": {
             "en": "House (optional)",
-            "fr": "Maison (facultatif)"
+            "fr": "Maison (facultatif)",
+            "de": "Zuhause (optional)",
+            "es": "Vivienda (opcional)"
           },
           "description": {
             "en": "Leave empty to add every Gladys house.",
-            "fr": "Laissez vide pour ajouter toutes les maisons Gladys."
+            "fr": "Laissez vide pour ajouter toutes les maisons Gladys.",
+            "de": "Leer lassen, um alle Gladys-Zuhause hinzuzufügen.",
+            "es": "Déjelo vacío para añadir todas las viviendas de Gladys."
           },
           "required": false
         }
@@ -230,11 +296,15 @@
       "key": "afficher_lieux",
       "label": {
         "en": "Show the locations",
-        "fr": "Afficher les lieux"
+        "fr": "Afficher les lieux",
+        "de": "Orte anzeigen",
+        "es": "Mostrar las ubicaciones"
       },
       "description": {
         "en": "Lists every configured location: name, address and coordinates. Each entry opens with a \"•\" and its number — the numbers the deletion dropdown offers.",
-        "fr": "Liste tous les lieux configurés : nom, adresse et coordonnées. Chaque entrée commence par « • » et son numéro — les numéros que propose la liste déroulante de la suppression."
+        "fr": "Liste tous les lieux configurés : nom, adresse et coordonnées. Chaque entrée commence par « • » et son numéro — les numéros que propose la liste déroulante de la suppression.",
+        "de": "Listet alle konfigurierten Orte auf: Name, Adresse und Koordinaten. Jeder Eintrag beginnt mit einem „•“ und seiner Nummer — den Nummern, die die Auswahlliste zum Löschen anbietet.",
+        "es": "Muestra todas las ubicaciones configuradas: nombre, dirección y coordenadas. Cada entrada empieza por un «•» y su número — los números que ofrece la lista desplegable de eliminación."
       },
       "timeout_seconds": 15
     },
@@ -242,11 +312,15 @@
       "key": "test_vigieau",
       "label": {
         "en": "Test the VigiEau connection (all locations)",
-        "fr": "Tester la connexion VigiEau (tous les lieux)"
+        "fr": "Tester la connexion VigiEau (tous les lieux)",
+        "de": "VigiEau-Verbindung testen (alle Orte)",
+        "es": "Probar la conexión con VigiEau (todas las ubicaciones)"
       },
       "description": {
         "en": "Queries VigiEau for every location and shows its level, in the format of \"Show the locations\": each entry opens with a \"•\" and its number.",
-        "fr": "Interroge VigiEau pour chaque lieu et affiche son niveau, au format d’« Afficher les lieux » : chaque entrée commence par « • » et son numéro."
+        "fr": "Interroge VigiEau pour chaque lieu et affiche son niveau, au format d’« Afficher les lieux » : chaque entrée commence par « • » et son numéro.",
+        "de": "Fragt VigiEau für jeden Ort ab und zeigt seine Stufe im Format von „Orte anzeigen“: Jeder Eintrag beginnt mit einem „•“ und seiner Nummer.",
+        "es": "Consulta VigiEau para cada ubicación y muestra su nivel, con el formato de «Mostrar las ubicaciones»: cada entrada empieza por un «•» y su número."
       },
       "timeout_seconds": 60
     },
@@ -254,11 +328,15 @@
       "key": "show_restrictions",
       "label": {
         "en": "Show the restrictions in force (all locations)",
-        "fr": "Afficher les restrictions en vigueur (tous les lieux)"
+        "fr": "Afficher les restrictions en vigueur (tous les lieux)",
+        "de": "Geltende Beschränkungen anzeigen (alle Orte)",
+        "es": "Mostrar las restricciones vigentes (todas las ubicaciones)"
       },
       "description": {
         "en": "Lists the restricted usages of every location, in the format of \"Show the locations\": each entry opens with a \"•\" and its number.",
-        "fr": "Liste les usages restreints de chaque lieu, au format d’« Afficher les lieux » : chaque entrée commence par « • » et son numéro."
+        "fr": "Liste les usages restreints de chaque lieu, au format d’« Afficher les lieux » : chaque entrée commence par « • » et son numéro.",
+        "de": "Listet die eingeschränkten Nutzungen jedes Ortes im Format von „Orte anzeigen“ auf: Jeder Eintrag beginnt mit einem „•“ und seiner Nummer.",
+        "es": "Muestra los usos restringidos de cada ubicación, con el formato de «Mostrar las ubicaciones»: cada entrada empieza por un «•» y su número."
       },
       "timeout_seconds": 60
     },
@@ -266,11 +344,15 @@
       "key": "supprimer_lieu",
       "label": {
         "en": "Delete a location",
-        "fr": "Supprimer un lieu"
+        "fr": "Supprimer un lieu",
+        "de": "Ort löschen",
+        "es": "Eliminar una ubicación"
       },
       "description": {
         "en": "Stops watching the location whose number you pick here — the numbers are the ones \"Show the locations\" lists. Its Gladys device is not deleted (an integration cannot do that): delete it yourself if you no longer want it.",
-        "fr": "Arrête de surveiller le lieu dont vous choisissez le numéro ici — ce sont les numéros qu’affiche « Afficher les lieux ». Son appareil Gladys n’est pas supprimé (une intégration ne peut pas le faire) : supprimez-le vous-même si vous n’en voulez plus."
+        "fr": "Arrête de surveiller le lieu dont vous choisissez le numéro ici — ce sont les numéros qu’affiche « Afficher les lieux ». Son appareil Gladys n’est pas supprimé (une intégration ne peut pas le faire) : supprimez-le vous-même si vous n’en voulez plus.",
+        "de": "Beendet die Überwachung des Ortes, dessen Nummer du hier wählst — es sind die Nummern, die „Orte anzeigen“ auflistet. Sein Gladys-Gerät wird nicht gelöscht (das kann eine Integration nicht): Lösche es selbst, wenn du es nicht mehr brauchst.",
+        "es": "Deja de vigilar la ubicación cuyo número elija aquí — son los números que muestra «Mostrar las ubicaciones». Su dispositivo de Gladys no se elimina (una integración no puede hacerlo): elimínelo usted mismo si ya no lo necesita."
       },
       "timeout_seconds": 15,
       "fields": [
@@ -279,11 +361,15 @@
           "type": "select",
           "label": {
             "en": "Location to delete",
-            "fr": "Lieu à supprimer"
+            "fr": "Lieu à supprimer",
+            "de": "Zu löschender Ort",
+            "es": "Ubicación que eliminar"
           },
           "description": {
             "en": "The number of the location to delete, as \"Show the locations\" numbers them.",
-            "fr": "Le numéro du lieu à supprimer, tel que « Afficher les lieux » les numérote."
+            "fr": "Le numéro du lieu à supprimer, tel que « Afficher les lieux » les numérote.",
+            "de": "Die Nummer des zu löschenden Ortes, so wie „Orte anzeigen“ sie nummeriert.",
+            "es": "El número de la ubicación que eliminar, tal como los numera «Mostrar las ubicaciones»."
           },
           "required": true,
           "default": "1",
@@ -292,70 +378,90 @@
               "value": "1",
               "label": {
                 "en": "Location 1",
-                "fr": "Lieu 1"
+                "fr": "Lieu 1",
+                "de": "Ort 1",
+                "es": "Ubicación 1"
               }
             },
             {
               "value": "2",
               "label": {
                 "en": "Location 2",
-                "fr": "Lieu 2"
+                "fr": "Lieu 2",
+                "de": "Ort 2",
+                "es": "Ubicación 2"
               }
             },
             {
               "value": "3",
               "label": {
                 "en": "Location 3",
-                "fr": "Lieu 3"
+                "fr": "Lieu 3",
+                "de": "Ort 3",
+                "es": "Ubicación 3"
               }
             },
             {
               "value": "4",
               "label": {
                 "en": "Location 4",
-                "fr": "Lieu 4"
+                "fr": "Lieu 4",
+                "de": "Ort 4",
+                "es": "Ubicación 4"
               }
             },
             {
               "value": "5",
               "label": {
                 "en": "Location 5",
-                "fr": "Lieu 5"
+                "fr": "Lieu 5",
+                "de": "Ort 5",
+                "es": "Ubicación 5"
               }
             },
             {
               "value": "6",
               "label": {
                 "en": "Location 6",
-                "fr": "Lieu 6"
+                "fr": "Lieu 6",
+                "de": "Ort 6",
+                "es": "Ubicación 6"
               }
             },
             {
               "value": "7",
               "label": {
                 "en": "Location 7",
-                "fr": "Lieu 7"
+                "fr": "Lieu 7",
+                "de": "Ort 7",
+                "es": "Ubicación 7"
               }
             },
             {
               "value": "8",
               "label": {
                 "en": "Location 8",
-                "fr": "Lieu 8"
+                "fr": "Lieu 8",
+                "de": "Ort 8",
+                "es": "Ubicación 8"
               }
             },
             {
               "value": "9",
               "label": {
                 "en": "Location 9",
-                "fr": "Lieu 9"
+                "fr": "Lieu 9",
+                "de": "Ort 9",
+                "es": "Ubicación 9"
               }
             },
             {
               "value": "10",
               "label": {
                 "en": "Location 10",
-                "fr": "Lieu 10"
+                "fr": "Lieu 10",
+                "de": "Ort 10",
+                "es": "Ubicación 10"
               }
             }
           ]
@@ -365,11 +471,15 @@
           "type": "boolean",
           "label": {
             "en": "I confirm the deletion",
-            "fr": "Je confirme la suppression"
+            "fr": "Je confirme la suppression",
+            "de": "Ich bestätige das Löschen",
+            "es": "Confirmo la eliminación"
           },
           "description": {
             "en": "Run the action once unchecked to see which location would be deleted.",
-            "fr": "Lancez l'action une fois sans cocher pour voir quel lieu serait supprimé."
+            "fr": "Lancez l'action une fois sans cocher pour voir quel lieu serait supprimé.",
+            "de": "Führe die Aktion einmal ohne Häkchen aus, um zu sehen, welcher Ort gelöscht würde.",
+            "es": "Ejecute la acción una vez sin marcar la casilla para ver qué ubicación se eliminaría."
           },
           "required": false,
           "default": false
@@ -382,11 +492,15 @@
       "key": "vigilance_lieu",
       "label": {
         "en": "Drought watch",
-        "fr": "Vigilance sécheresse"
+        "fr": "Vigilance sécheresse",
+        "de": "Dürrewarnung",
+        "es": "Vigilancia de sequía"
       },
       "description": {
         "en": "One location: its level per water type, the decree and the restricted uses.",
-        "fr": "Un lieu : son niveau par type d’eau, l’arrêté et les usages restreints."
+        "fr": "Un lieu : son niveau par type d’eau, l’arrêté et les usages restreints.",
+        "de": "Ein Ort: seine Stufe je Wasserart, der Erlass und die eingeschränkten Nutzungen.",
+        "es": "Una ubicación: su nivel por tipo de agua, el decreto y los usos restringidos."
       },
       "icon": "droplet",
       "settings": [
@@ -396,11 +510,15 @@
           "source": "devices",
           "label": {
             "en": "Location",
-            "fr": "Lieu"
+            "fr": "Lieu",
+            "de": "Ort",
+            "es": "Ubicación"
           },
           "description": {
             "en": "The device of the watched location to show.",
-            "fr": "L’appareil du lieu surveillé à afficher."
+            "fr": "L’appareil du lieu surveillé à afficher.",
+            "de": "Das Gerät des überwachten Ortes, das angezeigt werden soll.",
+            "es": "El dispositivo de la ubicación vigilada que mostrar."
           },
           "required": true
         }
@@ -411,11 +529,15 @@
       "key": "vigilance_lieux",
       "label": {
         "en": "Drought: all locations",
-        "fr": "Sécheresse : tous les lieux"
+        "fr": "Sécheresse : tous les lieux",
+        "de": "Dürre: alle Orte",
+        "es": "Sequía: todas las ubicaciones"
       },
       "description": {
         "en": "Every watched location on one card, with its drought level.",
-        "fr": "Tous les lieux surveillés sur une carte, avec leur niveau de sécheresse."
+        "fr": "Tous les lieux surveillés sur une carte, avec leur niveau de sécheresse.",
+        "de": "Alle überwachten Orte auf einer Karte, mit ihrer Dürrestufe.",
+        "es": "Todas las ubicaciones vigiladas en una tarjeta, con su nivel de sequía."
       },
       "icon": "map-pin",
       "action_timeout_seconds": 30
@@ -426,11 +548,15 @@
       "key": "niveau_change",
       "label": {
         "en": "The drought level changed",
-        "fr": "Le niveau de sécheresse a changé"
+        "fr": "Le niveau de sécheresse a changé",
+        "de": "Die Dürrestufe hat sich geändert",
+        "es": "El nivel de sequía ha cambiado"
       },
       "description": {
         "en": "Fires when a new VigiEau read gives a location another level than the previous one. The first read of a location only sets its reference.",
-        "fr": "Se déclenche quand un nouveau relevé VigiEau donne à un lieu un autre niveau que le précédent. Le premier relevé d’un lieu ne fait que fixer sa référence."
+        "fr": "Se déclenche quand un nouveau relevé VigiEau donne à un lieu un autre niveau que le précédent. Le premier relevé d’un lieu ne fait que fixer sa référence.",
+        "de": "Wird ausgelöst, wenn eine neue VigiEau-Abfrage für einen Ort eine andere Stufe als die vorherige ergibt. Die erste Abfrage eines Ortes legt nur seinen Bezugswert fest.",
+        "es": "Se activa cuando una nueva lectura de VigiEau da a una ubicación un nivel distinto del anterior. La primera lectura de una ubicación solo fija su referencia."
       },
       "fields": [
         {
@@ -439,11 +565,15 @@
           "source": "devices",
           "label": {
             "en": "Location",
-            "fr": "Lieu"
+            "fr": "Lieu",
+            "de": "Ort",
+            "es": "Ubicación"
           },
           "description": {
             "en": "Leave empty for every location.",
-            "fr": "Laissez vide pour tous les lieux."
+            "fr": "Laissez vide pour tous les lieux.",
+            "de": "Leer lassen für alle Orte.",
+            "es": "Déjelo vacío para todas las ubicaciones."
           },
           "required": false
         },
@@ -452,46 +582,60 @@
           "type": "multi_select",
           "label": {
             "en": "New level",
-            "fr": "Nouveau niveau"
+            "fr": "Nouveau niveau",
+            "de": "Neue Stufe",
+            "es": "Nuevo nivel"
           },
           "description": {
             "en": "Leave empty for any level.",
-            "fr": "Laissez vide pour tous les niveaux."
+            "fr": "Laissez vide pour tous les niveaux.",
+            "de": "Leer lassen für jede Stufe.",
+            "es": "Déjelo vacío para cualquier nivel."
           },
           "options": [
             {
               "value": "pas_restriction",
               "label": {
                 "en": "No restriction",
-                "fr": "Pas de restriction"
+                "fr": "Pas de restriction",
+                "de": "Keine Einschränkung",
+                "es": "Sin restricción"
               }
             },
             {
               "value": "vigilance",
               "label": {
                 "en": "Watch",
-                "fr": "Vigilance"
+                "fr": "Vigilance",
+                "de": "Wachsamkeit",
+                "es": "Vigilancia"
               }
             },
             {
               "value": "alerte",
               "label": {
                 "en": "Alert",
-                "fr": "Alerte"
+                "fr": "Alerte",
+                "de": "Warnung",
+                "es": "Alerta"
               }
             },
             {
               "value": "alerte_renforcee",
               "label": {
                 "en": "Reinforced alert",
-                "fr": "Alerte renforcée"
+                "fr": "Alerte renforcée",
+                "de": "Verschärfte Warnung",
+                "es": "Alerta reforzada"
               }
             },
             {
               "value": "crise",
               "label": {
                 "en": "Crisis",
-                "fr": "Crise"
+                "fr": "Crise",
+                "de": "Krise",
+                "es": "Crisis"
               }
             }
           ]
@@ -501,25 +645,33 @@
           "type": "select",
           "label": {
             "en": "Direction",
-            "fr": "Sens"
+            "fr": "Sens",
+            "de": "Richtung",
+            "es": "Sentido"
           },
           "description": {
             "en": "Leave empty for both.",
-            "fr": "Laissez vide pour les deux."
+            "fr": "Laissez vide pour les deux.",
+            "de": "Leer lassen für beide.",
+            "es": "Déjelo vacío para ambos."
           },
           "options": [
             {
               "value": "hausse",
               "label": {
                 "en": "Worsening",
-                "fr": "Aggravation"
+                "fr": "Aggravation",
+                "de": "Verschlechterung",
+                "es": "Empeoramiento"
               }
             },
             {
               "value": "baisse",
               "label": {
                 "en": "Easing",
-                "fr": "Amélioration"
+                "fr": "Amélioration",
+                "de": "Verbesserung",
+                "es": "Mejora"
               }
             }
           ]
@@ -531,7 +683,9 @@
           "type": "string",
           "label": {
             "en": "Location name",
-            "fr": "Nom du lieu"
+            "fr": "Nom du lieu",
+            "de": "Name des Ortes",
+            "es": "Nombre de la ubicación"
           }
         },
         {
@@ -539,7 +693,9 @@
           "type": "string",
           "label": {
             "en": "Level (wording)",
-            "fr": "Niveau (texte)"
+            "fr": "Niveau (texte)",
+            "de": "Stufe (Text)",
+            "es": "Nivel (texto)"
           }
         },
         {
@@ -547,7 +703,9 @@
           "type": "string",
           "label": {
             "en": "Previous level (wording)",
-            "fr": "Niveau précédent (texte)"
+            "fr": "Niveau précédent (texte)",
+            "de": "Vorherige Stufe (Text)",
+            "es": "Nivel anterior (texto)"
           }
         },
         {
@@ -555,7 +713,9 @@
           "type": "number",
           "label": {
             "en": "Level (0 to 4)",
-            "fr": "Niveau (0 à 4)"
+            "fr": "Niveau (0 à 4)",
+            "de": "Stufe (0 bis 4)",
+            "es": "Nivel (0 a 4)"
           }
         },
         {
@@ -563,7 +723,9 @@
           "type": "string",
           "label": {
             "en": "Direction (hausse / baisse)",
-            "fr": "Sens (hausse / baisse)"
+            "fr": "Sens (hausse / baisse)",
+            "de": "Richtung (hausse / baisse)",
+            "es": "Sentido (hausse / baisse)"
           }
         },
         {
@@ -571,7 +733,9 @@
           "type": "number",
           "label": {
             "en": "Number of restricted uses",
-            "fr": "Nombre d’usages restreints"
+            "fr": "Nombre d’usages restreints",
+            "de": "Anzahl eingeschränkter Nutzungen",
+            "es": "Número de usos restringidos"
           }
         },
         {
@@ -579,7 +743,9 @@
           "type": "string",
           "label": {
             "en": "Decree URL",
-            "fr": "Lien de l’arrêté"
+            "fr": "Lien de l’arrêté",
+            "de": "Link zum Erlass",
+            "es": "Enlace del decreto"
           }
         }
       ]
@@ -588,11 +754,15 @@
       "key": "nouvel_arrete",
       "label": {
         "en": "A new decree is in force",
-        "fr": "Un nouvel arrêté est en vigueur"
+        "fr": "Un nouvel arrêté est en vigueur",
+        "de": "Ein neuer Erlass ist in Kraft",
+        "es": "Un nuevo decreto está vigente"
       },
       "description": {
         "en": "Fires when a VigiEau read finds a prefectoral decree that was not in force at the previous read of the location.",
-        "fr": "Se déclenche quand un relevé VigiEau trouve un arrêté préfectoral qui n’était pas en vigueur au relevé précédent du lieu."
+        "fr": "Se déclenche quand un relevé VigiEau trouve un arrêté préfectoral qui n’était pas en vigueur au relevé précédent du lieu.",
+        "de": "Wird ausgelöst, wenn eine VigiEau-Abfrage einen Präfekturerlass findet, der bei der vorherigen Abfrage des Ortes nicht in Kraft war.",
+        "es": "Se activa cuando una lectura de VigiEau encuentra un decreto de la prefectura que no estaba vigente en la lectura anterior de la ubicación."
       },
       "fields": [
         {
@@ -601,11 +771,15 @@
           "source": "devices",
           "label": {
             "en": "Location",
-            "fr": "Lieu"
+            "fr": "Lieu",
+            "de": "Ort",
+            "es": "Ubicación"
           },
           "description": {
             "en": "Leave empty for every location.",
-            "fr": "Laissez vide pour tous les lieux."
+            "fr": "Laissez vide pour tous les lieux.",
+            "de": "Leer lassen für alle Orte.",
+            "es": "Déjelo vacío para todas las ubicaciones."
           },
           "required": false
         }
@@ -616,7 +790,9 @@
           "type": "string",
           "label": {
             "en": "Location name",
-            "fr": "Nom du lieu"
+            "fr": "Nom du lieu",
+            "de": "Name des Ortes",
+            "es": "Nombre de la ubicación"
           }
         },
         {
@@ -624,7 +800,9 @@
           "type": "string",
           "label": {
             "en": "Level (wording)",
-            "fr": "Niveau (texte)"
+            "fr": "Niveau (texte)",
+            "de": "Stufe (Text)",
+            "es": "Nivel (texto)"
           }
         },
         {
@@ -632,7 +810,9 @@
           "type": "number",
           "label": {
             "en": "Level (0 to 4)",
-            "fr": "Niveau (0 à 4)"
+            "fr": "Niveau (0 à 4)",
+            "de": "Stufe (0 bis 4)",
+            "es": "Nivel (0 a 4)"
           }
         },
         {
@@ -640,7 +820,9 @@
           "type": "string",
           "label": {
             "en": "In force from",
-            "fr": "En vigueur depuis le"
+            "fr": "En vigueur depuis le",
+            "de": "In Kraft seit",
+            "es": "Vigente desde"
           }
         },
         {
@@ -648,7 +830,9 @@
           "type": "string",
           "label": {
             "en": "In force until",
-            "fr": "En vigueur jusqu’au"
+            "fr": "En vigueur jusqu’au",
+            "de": "In Kraft bis",
+            "es": "Vigente hasta"
           }
         },
         {
@@ -656,7 +840,9 @@
           "type": "number",
           "label": {
             "en": "Number of restricted uses",
-            "fr": "Nombre d’usages restreints"
+            "fr": "Nombre d’usages restreints",
+            "de": "Anzahl eingeschränkter Nutzungen",
+            "es": "Número de usos restringidos"
           }
         },
         {
@@ -664,7 +850,9 @@
           "type": "string",
           "label": {
             "en": "Decree URL",
-            "fr": "Lien de l’arrêté"
+            "fr": "Lien de l’arrêté",
+            "de": "Link zum Erlass",
+            "es": "Enlace del decreto"
           }
         }
       ]
@@ -675,11 +863,15 @@
       "key": "lire_niveau",
       "label": {
         "en": "Read the drought level",
-        "fr": "Lire le niveau de sécheresse"
+        "fr": "Lire le niveau de sécheresse",
+        "de": "Dürrestufe abfragen",
+        "es": "Leer el nivel de sequía"
       },
       "description": {
         "en": "Queries VigiEau now for a location and hands its level, per water type, to the next actions.",
-        "fr": "Interroge VigiEau maintenant pour un lieu et transmet son niveau, par type d’eau, aux actions suivantes."
+        "fr": "Interroge VigiEau maintenant pour un lieu et transmet son niveau, par type d’eau, aux actions suivantes.",
+        "de": "Fragt VigiEau jetzt für einen Ort ab und gibt seine Stufe je Wasserart an die nächsten Aktionen weiter.",
+        "es": "Consulta VigiEau ahora para una ubicación y pasa su nivel, por tipo de agua, a las acciones siguientes."
       },
       "timeout_seconds": 30,
       "fields": [
@@ -689,11 +881,15 @@
           "source": "devices",
           "label": {
             "en": "Location",
-            "fr": "Lieu"
+            "fr": "Lieu",
+            "de": "Ort",
+            "es": "Ubicación"
           },
           "description": {
             "en": "The device of the watched location to query.",
-            "fr": "L’appareil du lieu surveillé à interroger."
+            "fr": "L’appareil du lieu surveillé à interroger.",
+            "de": "Das Gerät des überwachten Ortes, der abgefragt werden soll.",
+            "es": "El dispositivo de la ubicación vigilada que consultar."
           },
           "required": true
         }
@@ -704,7 +900,9 @@
           "type": "string",
           "label": {
             "en": "Location name",
-            "fr": "Nom du lieu"
+            "fr": "Nom du lieu",
+            "de": "Name des Ortes",
+            "es": "Nombre de la ubicación"
           }
         },
         {
@@ -712,7 +910,9 @@
           "type": "string",
           "label": {
             "en": "Level (wording)",
-            "fr": "Niveau (texte)"
+            "fr": "Niveau (texte)",
+            "de": "Stufe (Text)",
+            "es": "Nivel (texto)"
           }
         },
         {
@@ -720,7 +920,9 @@
           "type": "number",
           "label": {
             "en": "Level (0 to 4)",
-            "fr": "Niveau (0 à 4)"
+            "fr": "Niveau (0 à 4)",
+            "de": "Stufe (0 bis 4)",
+            "es": "Nivel (0 a 4)"
           }
         },
         {
@@ -728,7 +930,9 @@
           "type": "string",
           "label": {
             "en": "Surface water level",
-            "fr": "Niveau eau superficielle"
+            "fr": "Niveau eau superficielle",
+            "de": "Stufe Oberflächenwasser",
+            "es": "Nivel de aguas superficiales"
           }
         },
         {
@@ -736,7 +940,9 @@
           "type": "string",
           "label": {
             "en": "Groundwater level",
-            "fr": "Niveau eau souterraine"
+            "fr": "Niveau eau souterraine",
+            "de": "Stufe Grundwasser",
+            "es": "Nivel de aguas subterráneas"
           }
         },
         {
@@ -744,7 +950,9 @@
           "type": "string",
           "label": {
             "en": "Drinking water level",
-            "fr": "Niveau eau potable"
+            "fr": "Niveau eau potable",
+            "de": "Stufe Trinkwasser",
+            "es": "Nivel de agua potable"
           }
         },
         {
@@ -752,7 +960,9 @@
           "type": "number",
           "label": {
             "en": "Number of restricted uses",
-            "fr": "Nombre d’usages restreints"
+            "fr": "Nombre d’usages restreints",
+            "de": "Anzahl eingeschränkter Nutzungen",
+            "es": "Número de usos restringidos"
           }
         },
         {
@@ -760,7 +970,9 @@
           "type": "string",
           "label": {
             "en": "Restricted uses",
-            "fr": "Usages restreints"
+            "fr": "Usages restreints",
+            "de": "Eingeschränkte Nutzungen",
+            "es": "Usos restringidos"
           }
         },
         {
@@ -768,7 +980,9 @@
           "type": "string",
           "label": {
             "en": "Decree in force since",
-            "fr": "Arrêté en vigueur depuis"
+            "fr": "Arrêté en vigueur depuis",
+            "de": "Erlass in Kraft seit",
+            "es": "Decreto vigente desde"
           }
         },
         {
@@ -776,7 +990,9 @@
           "type": "string",
           "label": {
             "en": "Decree URL",
-            "fr": "Lien de l’arrêté"
+            "fr": "Lien de l’arrêté",
+            "de": "Link zum Erlass",
+            "es": "Enlace del decreto"
           }
         }
       ]
@@ -785,11 +1001,15 @@
       "key": "verifier_usage",
       "label": {
         "en": "Check whether a water use is restricted",
-        "fr": "Vérifier si un usage de l’eau est restreint"
+        "fr": "Vérifier si un usage de l’eau est restreint",
+        "de": "Prüfen, ob eine Wassernutzung eingeschränkt ist",
+        "es": "Comprobar si un uso del agua está restringido"
       },
       "description": {
         "en": "Queries VigiEau now and tells whether a use (watering, pool, car wash…) is restricted at a location.",
-        "fr": "Interroge VigiEau maintenant et indique si un usage (arrosage, piscine, lavage…) est restreint à un lieu."
+        "fr": "Interroge VigiEau maintenant et indique si un usage (arrosage, piscine, lavage…) est restreint à un lieu.",
+        "de": "Fragt VigiEau jetzt ab und meldet, ob eine Nutzung (Bewässerung, Pool, Autowäsche…) an einem Ort eingeschränkt ist.",
+        "es": "Consulta VigiEau ahora e indica si un uso (riego, piscina, lavado de coches…) está restringido en una ubicación."
       },
       "timeout_seconds": 30,
       "fields": [
@@ -799,11 +1019,15 @@
           "source": "devices",
           "label": {
             "en": "Location",
-            "fr": "Lieu"
+            "fr": "Lieu",
+            "de": "Ort",
+            "es": "Ubicación"
           },
           "description": {
             "en": "The device of the watched location to query.",
-            "fr": "L’appareil du lieu surveillé à interroger."
+            "fr": "L’appareil du lieu surveillé à interroger.",
+            "de": "Das Gerät des überwachten Ortes, der abgefragt werden soll.",
+            "es": "El dispositivo de la ubicación vigilada que consultar."
           },
           "required": true
         },
@@ -812,16 +1036,22 @@
           "type": "string",
           "label": {
             "en": "Water use",
-            "fr": "Usage de l’eau"
+            "fr": "Usage de l’eau",
+            "de": "Wassernutzung",
+            "es": "Uso del agua"
           },
           "description": {
             "en": "A word of the use's name or theme, e.g. \"watering\" in French: \"arrosage\".",
-            "fr": "Un mot du nom ou du thème de l’usage, par exemple « arrosage » ou « piscine »."
+            "fr": "Un mot du nom ou du thème de l’usage, par exemple « arrosage » ou « piscine ».",
+            "de": "Ein Wort aus dem Namen oder Thema der Nutzung, auf Französisch, z. B. „arrosage“ (Bewässerung).",
+            "es": "Una palabra del nombre o del tema del uso, en francés, por ejemplo «arrosage» (riego)."
           },
           "required": true,
           "placeholder": {
             "en": "arrosage",
-            "fr": "arrosage"
+            "fr": "arrosage",
+            "de": "arrosage",
+            "es": "arrosage"
           }
         }
       ],
@@ -831,7 +1061,9 @@
           "type": "boolean",
           "label": {
             "en": "Restricted",
-            "fr": "Restreint"
+            "fr": "Restreint",
+            "de": "Eingeschränkt",
+            "es": "Restringido"
           }
         },
         {
@@ -839,7 +1071,9 @@
           "type": "number",
           "label": {
             "en": "Number of matching uses",
-            "fr": "Nombre d’usages trouvés"
+            "fr": "Nombre d’usages trouvés",
+            "de": "Anzahl gefundener Nutzungen",
+            "es": "Número de usos encontrados"
           }
         },
         {
@@ -847,7 +1081,9 @@
           "type": "string",
           "label": {
             "en": "Matching uses",
-            "fr": "Usages trouvés"
+            "fr": "Usages trouvés",
+            "de": "Gefundene Nutzungen",
+            "es": "Usos encontrados"
           }
         },
         {
@@ -855,7 +1091,9 @@
           "type": "string",
           "label": {
             "en": "Details of the restrictions",
-            "fr": "Détail des restrictions"
+            "fr": "Détail des restrictions",
+            "de": "Details der Beschränkungen",
+            "es": "Detalle de las restricciones"
           }
         },
         {
@@ -863,7 +1101,9 @@
           "type": "string",
           "label": {
             "en": "Level (wording)",
-            "fr": "Niveau (texte)"
+            "fr": "Niveau (texte)",
+            "de": "Stufe (Text)",
+            "es": "Nivel (texto)"
           }
         },
         {
@@ -871,7 +1111,9 @@
           "type": "string",
           "label": {
             "en": "Decree URL",
-            "fr": "Lien de l’arrêté"
+            "fr": "Lien de l’arrêté",
+            "de": "Link zum Erlass",
+            "es": "Enlace del decreto"
           }
         }
       ]
