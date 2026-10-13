@@ -29,6 +29,7 @@ import {
   usableLocations,
 } from '../locations.js';
 import { formatDate, formatDateTime } from '../datetime.js';
+import { inEveryLanguage } from '../i18n.js';
 import { READINGS_KEY, recordReading, sceneEvents, serializeBaselines } from '../readings.js';
 import { WIDGET } from '../widgets.js';
 import {
@@ -140,12 +141,16 @@ function failureDetail(err) {
     return {
       en: 'VigiEau cannot tell which zone applies here. Search again with a more precise address (street and number).',
       fr: "VigiEau n'arrive pas à déterminer la zone applicable ici. Relancez la recherche avec une adresse plus précise (rue et numéro).",
+      de: 'VigiEau kann nicht bestimmen, welche Zone hier gilt. Suchen Sie erneut mit einer genaueren Adresse (Straße und Hausnummer).',
+      es: 'VigiEau no consigue determinar qué zona se aplica aquí. Vuelva a buscar con una dirección más precisa (calle y número).',
     };
   }
   const reason = String(err?.message ?? err).slice(0, 120);
   return {
     en: `VigiEau refresh failed: ${reason}`,
     fr: `le rafraîchissement VigiEau a échoué : ${reason}`,
+    de: `VigiEau-Aktualisierung fehlgeschlagen: ${reason}`,
+    es: `la actualización de VigiEau ha fallado: ${reason}`,
   };
 }
 
@@ -157,10 +162,9 @@ function failureDetail(err) {
  */
 function failureMessage(err, locationName) {
   const detail = failureDetail(err);
-  return {
-    en: `${locationName}: ${detail.en}`,
-    fr: `${locationName} : ${detail.fr}`,
-  };
+  return inEveryLanguage((language) =>
+    language === 'fr' ? `${locationName} : ${detail.fr}` : `${locationName}: ${detail[language]}`,
+  );
 }
 
 /**
@@ -340,10 +344,12 @@ function reportedLocations(config) {
 const NO_LOCATION_MESSAGE = {
   en: 'No location with usable coordinates yet. Add one with "Add a location".',
   fr: 'Aucun lieu avec des coordonnées utilisables. Ajoutez-en un avec « Ajouter un lieu ».',
+  de: 'Noch kein Ort mit verwendbaren Koordinaten. Fügen Sie einen mit „Ort hinzufügen“ hinzu.',
+  es: 'Todavía no hay ninguna ubicación con coordenadas utilizables. Añada una con «Añadir una ubicación».',
 };
 
 /**
- * A header plus one line per location, in both languages.
+ * A header plus one line per location, in every language.
  *
  * EXACTLY the format of the location listing — `• n. name — detail`, built by
  * the same `locationLine` — because the three reporting actions answer about
@@ -352,18 +358,17 @@ const NO_LOCATION_MESSAGE = {
  * translating one layout into another. The marker opening each entry is what
  * keeps them apart once the Configuration screen collapses the newlines (see
  * LOCATION_LINE_MARKER in src/locations.js).
- * @param {{ en: string, fr: string }} header
- * @param {Array<{ position: number, name: string, en: string, fr: string }>} lines
+ * @param {Record<string, string>} header - one text per language of LANGUAGES
+ * @param {Array<{ position: number, name: string } & Record<string, string>>} lines
  */
 function report(header, lines) {
   const join = (language) =>
     lines
       .map((line) => locationLine(line.position, line.name, line[language]))
       .join(LOCATION_LINE_SEPARATOR);
-  return {
-    en: `${header.en}${LOCATION_LINE_SEPARATOR}${join('en')}`,
-    fr: `${header.fr}${LOCATION_LINE_SEPARATOR}${join('fr')}`,
-  };
+  return inEveryLanguage(
+    (language) => `${header[language]}${LOCATION_LINE_SEPARATOR}${join(language)}`,
+  );
 }
 
 /**
@@ -385,7 +390,8 @@ function report(header, lines) {
  *
  * @param {object} config - the normalized configuration, for the positions
  * @param {Array<object>} locations
- * @param {(location: object) => Promise<{ en: string, fr: string }>} read
+ * @param {(location: object) => Promise<Record<string, string>>} read - one
+ *   detail per language of LANGUAGES
  * @returns {Promise<{ lines: Array<object>, failed: number }>}
  */
 async function readEachLocation(config, locations, read) {
@@ -458,10 +464,7 @@ export const droughtZone = {
       const { lines, failed } = await readEachLocation(config, locations, async (location) => {
         const { level, levelsByType } = await readLocation(config, location);
         const byType = ZONE_TYPES.map((type) => `${type}: ${levelsByType[type] ?? '?'}`).join(', ');
-        return {
-          en: `${severityLabel(level, 'en')} (${byType})`,
-          fr: `${severityLabel(level, 'fr')} (${byType})`,
-        };
+        return inEveryLanguage((language) => `${severityLabel(level, language)} (${byType})`);
       });
       // "VigiEau OK" only when it actually is: the header counts the locations
       // that failed, and each of their lines says why.
@@ -470,10 +473,14 @@ export const droughtZone = {
           ? {
               en: `VigiEau OK — ${locations.length} location(s):`,
               fr: `VigiEau OK — ${locations.length} lieu(x) :`,
+              de: `VigiEau OK — ${locations.length} Ort(e):`,
+              es: `VigiEau OK — ${locations.length} ubicación(es):`,
             }
           : {
               en: `VigiEau — ${failed} of ${locations.length} location(s) failing:`,
               fr: `VigiEau — ${failed} lieu(x) en échec sur ${locations.length} :`,
+              de: `VigiEau — ${failed} von ${locations.length} Ort(en) fehlgeschlagen:`,
+              es: `VigiEau — ${failed} de ${locations.length} ubicación(es) con error:`,
             };
       return report(header, lines);
     },
@@ -490,6 +497,8 @@ export const droughtZone = {
           return {
             en: 'no restricted usage',
             fr: 'aucun usage restreint',
+            de: 'keine eingeschränkte Nutzung',
+            es: 'ningún uso restringido',
           };
         }
         // The message is displayed under the button: keep it short, and point
@@ -503,12 +512,16 @@ export const droughtZone = {
         return {
           en: `${restrictedUsages.length} restricted usage(s): ${names}${more}${decree}`,
           fr: `${restrictedUsages.length} usage(s) restreint(s) : ${names}${more}${decree}`,
+          de: `${restrictedUsages.length} eingeschränkte Nutzung(en): ${names}${more}${decree}`,
+          es: `${restrictedUsages.length} uso(s) restringido(s): ${names}${more}${decree}`,
         };
       });
       return report(
         {
           en: `Restrictions in force — ${locations.length} location(s):`,
           fr: `Restrictions en vigueur — ${locations.length} lieu(x) :`,
+          de: `Geltende Beschränkungen — ${locations.length} Ort(e):`,
+          es: `Restricciones vigentes — ${locations.length} ubicación(es):`,
         },
         lines,
       );
@@ -609,13 +622,15 @@ export const droughtZone = {
         ? {
             en: ` (+${failures.length - 1} other location(s) failing)`,
             fr: ` (+${failures.length - 1} autre(s) lieu(x) en échec)`,
+            de: ` (+${failures.length - 1} weitere(r) Ort(e) fehlgeschlagen)`,
+            es: ` (+${failures.length - 1} ubicación(es) más con error)`,
           }
-        : { en: '', fr: '' };
+        : inEveryLanguage(() => '');
     await gladys
-      .setConnectionStatus(false, {
-        en: `${first.en}${others.en}`,
-        fr: `${first.fr}${others.fr}`,
-      })
+      .setConnectionStatus(
+        false,
+        inEveryLanguage((language) => `${first[language]}${others[language]}`),
+      )
       .catch(() => {});
     return result;
   },

@@ -16,7 +16,8 @@
 // a free public API. The only live call left is the fallback of a location the
 // memory knows nothing about yet.
 //
-// Every text is a `{ en, fr }` pair — the core picks the user's language — and
+// Every text is a `{ en, fr, de, es }` object — the core picks the user's
+// language, `en` for any other — and
 // every text is clipped HERE to the vocabulary's bounds, so what the core
 // renders is exactly what we sent (the SDK's validateWidgetContent checks it in
 // the tests).
@@ -26,6 +27,7 @@ import { createLogger } from '@gladysassistant/integration-sdk';
 import { formatDate, formatDateTime } from './datetime.js';
 import { hasCoordinates, usableLocations } from './locations.js';
 import { ZONE_TYPES, severityLabel } from './vigieau.js';
+import { inEveryLanguage } from './i18n.js';
 
 const logger = createLogger({ name: 'widgets' });
 
@@ -54,9 +56,14 @@ const LEVEL_COLORS = ['success', 'info', 'warning', 'danger', 'danger'];
 const RESTRICTION_LEVEL = 2;
 
 const TYPE_LABELS = {
-  SUP: { en: 'Surface water', fr: 'Eau superficielle' },
-  SOU: { en: 'Groundwater', fr: 'Eau souterraine' },
-  AEP: { en: 'Drinking water', fr: 'Eau potable' },
+  SUP: {
+    en: 'Surface water',
+    fr: 'Eau superficielle',
+    de: 'Oberflächenwasser',
+    es: 'Aguas superficiales',
+  },
+  SOU: { en: 'Groundwater', fr: 'Eau souterraine', de: 'Grundwasser', es: 'Aguas subterráneas' },
+  AEP: { en: 'Drinking water', fr: 'Eau potable', de: 'Trinkwasser', es: 'Agua potable' },
 };
 
 // The list display of a card-list holds 8 rows at most.
@@ -73,9 +80,9 @@ export function clip(text, max) {
   return value.length <= max ? value : `${value.slice(0, max - 1)}…`;
 }
 
-/** The `{ en, fr }` pair of a level's wording. */
+/** A level's wording, in every language. */
 function levelText(level) {
-  return { en: severityLabel(level, 'en'), fr: severityLabel(level, 'fr') };
+  return inEveryLanguage((language) => severityLabel(level, language));
 }
 
 /** An https URL, or null: the vocabulary refuses any other scheme. */
@@ -90,7 +97,7 @@ function heading(text) {
 function refreshButton() {
   return {
     type: 'button',
-    label: { en: 'Refresh', fr: 'Actualiser' },
+    label: { en: 'Refresh', fr: 'Actualiser', de: 'Aktualisieren', es: 'Actualizar' },
     icon: 'refresh-cw',
     style: 'secondary',
     action: { key: WIDGET_ACTION.REFRESH },
@@ -112,6 +119,8 @@ export function notWatchedContent() {
         text: {
           en: 'This location is no longer watched. Pick another one in the settings of this widget.',
           fr: "Ce lieu n'est plus surveillé. Choisissez-en un autre dans les réglages de ce widget.",
+          de: 'Dieser Ort wird nicht mehr überwacht. Wählen Sie in den Einstellungen dieses Widgets einen anderen.',
+          es: 'Esta ubicación ya no se vigila. Elija otra en los ajustes de este widget.',
         },
       },
     ],
@@ -136,6 +145,8 @@ export function errorContent(location, err) {
         text: {
           en: clip(`VigiEau could not be read: ${reason}`, 300),
           fr: clip(`Lecture VigiEau impossible : ${reason}`, 300),
+          de: clip(`VigiEau konnte nicht gelesen werden: ${reason}`, 300),
+          es: clip(`No se ha podido leer VigiEau: ${reason}`, 300),
         },
       },
       refreshButton(),
@@ -161,6 +172,8 @@ export function locationContent(location, { summary, readAt }) {
       text: {
         en: `The first ${MAX_USAGE_ITEMS} of ${restrictedUsages.length} restricted uses: the decree lists them all.`,
         fr: `Les ${MAX_USAGE_ITEMS} premiers des ${restrictedUsages.length} usages restreints : l'arrêté les liste tous.`,
+        de: `Die ersten ${MAX_USAGE_ITEMS} von ${restrictedUsages.length} eingeschränkten Nutzungen: Alle stehen im Erlass.`,
+        es: `Los ${MAX_USAGE_ITEMS} primeros de ${restrictedUsages.length} usos restringidos: el decreto los recoge todos.`,
       },
     });
   }
@@ -170,7 +183,12 @@ export function locationContent(location, { summary, readAt }) {
       type: 'status',
       items: [
         {
-          label: { en: 'Overall level', fr: 'Niveau global' },
+          label: {
+            en: 'Overall level',
+            fr: 'Niveau global',
+            de: 'Gesamtstufe',
+            es: 'Nivel global',
+          },
           value: levelText(level),
           color: levelColor(level),
         },
@@ -180,12 +198,27 @@ export function locationContent(location, { summary, readAt }) {
           color: levelColor(levelsByType[type]),
         })),
         {
-          label: { en: 'Decree in force since', fr: 'Arrêté en vigueur depuis' },
-          value: since ?? { en: 'No decree', fr: 'Aucun arrêté' },
+          label: {
+            en: 'Decree in force since',
+            fr: 'Arrêté en vigueur depuis',
+            de: 'Erlass in Kraft seit',
+            es: 'Decreto vigente desde',
+          },
+          value: since ?? {
+            en: 'No decree',
+            fr: 'Aucun arrêté',
+            de: 'Kein Erlass',
+            es: 'Ningún decreto',
+          },
           color: 'neutral',
         },
         {
-          label: { en: 'Last read', fr: 'Dernier relevé' },
+          label: {
+            en: 'Last read',
+            fr: 'Dernier relevé',
+            de: 'Letzte Abfrage',
+            es: 'Última lectura',
+          },
           value: formatDateTime(readAt),
           color: 'neutral',
         },
@@ -194,7 +227,12 @@ export function locationContent(location, { summary, readAt }) {
     {
       type: 'value',
       value: restrictedUsages.length,
-      label: { en: 'Restricted uses', fr: 'Usages restreints' },
+      label: {
+        en: 'Restricted uses',
+        fr: 'Usages restreints',
+        de: 'Eingeschränkte Nutzungen',
+        es: 'Usos restringidos',
+      },
       icon: 'slash',
       color: restrictedUsages.length > 0 ? 'warning' : 'success',
     },
@@ -211,7 +249,15 @@ export function locationContent(location, { summary, readAt }) {
         ...(decreeUrl
           ? {
               links: [
-                { url: decreeUrl, label: { en: 'Prefectoral decree', fr: 'Arrêté préfectoral' } },
+                {
+                  url: decreeUrl,
+                  label: {
+                    en: 'Prefectoral decree',
+                    fr: 'Arrêté préfectoral',
+                    de: 'Präfekturerlass',
+                    es: 'Decreto de la prefectura',
+                  },
+                },
               ],
             }
           : {}),
@@ -224,6 +270,8 @@ export function locationContent(location, { summary, readAt }) {
       text: {
         en: 'No water use is restricted at this location.',
         fr: "Aucun usage de l'eau n'est restreint à ce lieu.",
+        de: 'An diesem Ort ist keine Wassernutzung eingeschränkt.',
+        es: 'Ningún uso del agua está restringido en esta ubicación.',
       },
     });
   }
@@ -231,7 +279,12 @@ export function locationContent(location, { summary, readAt }) {
   if (decreeUrl) {
     components.push({
       type: 'button',
-      label: { en: 'View the decree', fr: "Voir l'arrêté" },
+      label: {
+        en: 'View the decree',
+        fr: "Voir l'arrêté",
+        de: 'Erlass ansehen',
+        es: 'Ver el decreto',
+      },
       icon: 'file-text',
       style: 'secondary',
       link: { url: decreeUrl },
@@ -248,7 +301,12 @@ export function locationContent(location, { summary, readAt }) {
  * @param {(locationId: string) => { summary: object, readAt: Date } | null} readingOf
  */
 export function overviewContent(locations, readingOf) {
-  const title = heading({ en: 'Drought watch', fr: 'Vigilance sécheresse' });
+  const title = heading({
+    en: 'Drought watch',
+    fr: 'Vigilance sécheresse',
+    de: 'Dürrewarnung',
+    es: 'Vigilancia de sequía',
+  });
   if (locations.length === 0) {
     return {
       ttl_seconds: WIDGET_TTL_SECONDS,
@@ -260,6 +318,8 @@ export function overviewContent(locations, readingOf) {
           text: {
             en: 'No location watched yet: add one from the VigiEau integration page.',
             fr: "Aucun lieu surveillé pour l'instant : ajoutez-en un depuis la page de l'intégration VigiEau.",
+            de: 'Noch kein Ort überwacht: Fügen Sie einen auf der Seite der Integration VigiEau hinzu.',
+            es: 'Todavía no se vigila ninguna ubicación: añada una desde la página de la integración VigiEau.',
           },
         },
       ],
@@ -278,6 +338,8 @@ export function overviewContent(locations, readingOf) {
       text: {
         en: `Last read: ${formatDateTime(newest)}`,
         fr: `Dernier relevé : ${formatDateTime(newest)}`,
+        de: `Letzte Abfrage: ${formatDateTime(newest)}`,
+        es: `Última lectura: ${formatDateTime(newest)}`,
       },
     });
   }
@@ -287,7 +349,12 @@ export function overviewContent(locations, readingOf) {
       type: 'value',
       value: read.filter(({ reading }) => (reading.summary.level ?? -1) >= RESTRICTION_LEVEL)
         .length,
-      label: { en: 'Under restriction', fr: 'Lieux en restriction' },
+      label: {
+        en: 'Under restriction',
+        fr: 'Lieux en restriction',
+        de: 'Mit Einschränkung',
+        es: 'Con restricción',
+      },
       icon: 'alert-triangle',
       color: 'neutral',
     },
@@ -295,7 +362,9 @@ export function overviewContent(locations, readingOf) {
       type: 'status',
       items: readings.slice(0, 10).map(({ location, reading }) => ({
         label: clip(location.name, 40),
-        value: reading ? levelText(reading.summary.level) : { en: 'Waiting', fr: 'En attente' },
+        value: reading
+          ? levelText(reading.summary.level)
+          : { en: 'Waiting', fr: 'En attente', de: 'Ausstehend', es: 'En espera' },
         color: reading ? levelColor(reading.summary.level) : 'neutral',
       })),
     },
@@ -368,10 +437,11 @@ export function createWidgets({
         }
         const { level } = await refreshLocation(config, location);
         const name = clip(location.name, 60);
-        return {
-          en: `${name}: ${severityLabel(level, 'en')}`,
-          fr: `${name} : ${severityLabel(level, 'fr')}`,
-        };
+        return inEveryLanguage((language) =>
+          language === 'fr'
+            ? `${name} : ${severityLabel(level, language)}`
+            : `${name}: ${severityLabel(level, language)}`,
+        );
       },
     },
 
@@ -387,9 +457,16 @@ export function createWidgets({
           return {
             en: `${total - failed} of ${total} location(s) refreshed, ${failed} failing.`,
             fr: `${total - failed} lieu(x) actualisé(s) sur ${total}, ${failed} en échec.`,
+            de: `${total - failed} von ${total} Ort(en) aktualisiert, ${failed} fehlgeschlagen.`,
+            es: `${total - failed} de ${total} ubicación(es) actualizada(s), ${failed} con error.`,
           };
         }
-        return { en: `${total} location(s) refreshed.`, fr: `${total} lieu(x) actualisé(s).` };
+        return {
+          en: `${total} location(s) refreshed.`,
+          fr: `${total} lieu(x) actualisé(s).`,
+          de: `${total} Ort(e) aktualisiert.`,
+          es: `${total} ubicación(es) actualizada(s).`,
+        };
       },
     },
   };

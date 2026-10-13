@@ -17,6 +17,8 @@ import {
 import { normalizeConfig } from '../src/config.js';
 import { summarize } from '../src/vigieau.js';
 import { zonesFixture } from './helpers/fakeGladys.js';
+import { LANGUAGES } from '../src/i18n.js';
+import { loadingContent } from '../src/widgetDeadline.js';
 
 const MAISON = { id: 'loc-maison', name: 'Maison', latitude: '48.8566', longitude: '2.3522' };
 const JARDIN = { id: 'loc-jardin', name: 'Jardin', latitude: '45.764', longitude: '4.8357' };
@@ -29,6 +31,20 @@ const reading = { summary: summarize(zonesFixture()), readAt: READ_AT };
 /** Every component of a type. */
 function ofType(content, type) {
   return content.components.filter((component) => component.type === type);
+}
+
+/** Every multi-language text of a content, wherever it sits. */
+function multiLanguageTexts(value, found = []) {
+  if (Array.isArray(value)) {
+    value.forEach((item) => multiLanguageTexts(item, found));
+  } else if (value && typeof value === 'object') {
+    if (typeof value.en === 'string') {
+      found.push(value);
+    } else {
+      Object.values(value).forEach((item) => multiLanguageTexts(item, found));
+    }
+  }
+  return found;
 }
 
 /** The content as the core would render it: nothing dropped, nothing cut. */
@@ -257,4 +273,41 @@ test('the overview widget lists the configured locations', async () => {
   const content = await widgets[WIDGET.OVERVIEW].get({ settings: {} });
   assertRenderedAsSent(content);
   assert.equal(ofType(content, 'status')[0].items.length, 2);
+});
+
+test('every widget text speaks the four languages of the Gladys interface', async () => {
+  const many = {
+    ...reading.summary,
+    restrictedUsages: Array(12).fill(reading.summary.restrictedUsages[0]),
+  };
+  const contents = [
+    locationContent(maison, reading),
+    locationContent(maison, { summary: many, readAt: READ_AT }),
+    locationContent(jardin, { summary: summarize([]), readAt: READ_AT }),
+    overviewContent([maison, jardin], (id) => (id === maison.id ? reading : null)),
+    overviewContent([], () => null),
+    errorContent(maison, new Error('VigiEau HTTP 500')),
+    notWatchedContent(),
+    loadingContent(),
+  ];
+  const { widgets } = widgetsWith({ refreshAll: async () => ({ total: 2, failed: 1 }) });
+  const messages = [
+    await widgets[WIDGET.LOCATION].action(
+      WIDGET_ACTION.REFRESH,
+      {},
+      { settings: { lieu: 'device:loc-maison' } },
+    ),
+    await widgets[WIDGET.OVERVIEW].action(WIDGET_ACTION.REFRESH, {}, {}),
+  ];
+  for (const content of contents) {
+    // The bounds hold in every language, not only in the two it was born in.
+    assertRenderedAsSent(content);
+  }
+  const texts = multiLanguageTexts([...contents, ...messages]);
+  assert.ok(texts.length > 20);
+  for (const text of texts) {
+    for (const language of LANGUAGES) {
+      assert.ok(text[language], `${language} missing in ${JSON.stringify(text)}`);
+    }
+  }
 });

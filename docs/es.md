@@ -1,0 +1,408 @@
+# VigiEau — Niveles de alerta por sequía en Francia en Gladys
+
+Esta integración consulta [VigiEau](https://vigieau.gouv.fr), el servicio del
+Estado francés que publica el **nivel de alerta por sequía** y las
+**restricciones de agua** vigentes en una dirección, y expone el resultado como
+sensores de Gladys.
+
+La API de VigiEau es gratuita y pública: **sin cuenta, sin clave de API**. Cubre
+**solo Francia**.
+
+## Qué obtiene
+
+**Un dispositivo por ubicación vigilada**, llamado «Vigilance sécheresse — _su
+ubicación_», cada uno con siete sensores. Puede vigilar hasta **diez
+ubicaciones**: una casa, una segunda residencia y un huerto rara vez dependen
+del mismo decreto de la prefectura.
+
+| Sensor                           | Valor                                                                          |
+| -------------------------------- | ------------------------------------------------------------------------------ |
+| **Nivel de alerta por sequía**   | 0 a 3 — el peor de los tres tipos de agua                                      |
+| **Nivel (texto)**                | «Alerte renforcée», «Crise»…                                                   |
+| **Nivel de aguas superficiales** | 0 a 3 — ríos y lagos (zonas `SUP`)                                             |
+| **Nivel de aguas subterráneas**  | 0 a 3 — acuíferos (zonas `SOU`)                                                |
+| **Nivel de agua potable**        | 0 a 3 — la red de agua del grifo (zonas `AEP`)                                 |
+| **Dernière mise à jour**         | «15/06/2026 09:26» — la última lectura correcta de VigiEau para esta ubicación |
+| **Arrêté en vigueur depuis**     | «15/06/2026» — el día en que entró en vigor el decreto que fija este nivel     |
+
+> **Las dos fechas no dicen lo mismo.** VigiEau no publica ninguna marca de
+> tiempo de sus propios datos: nada en la API dice «esta información data
+> del…». Por eso **Dernière mise à jour** es el momento en que _la integración_
+> consultó VigiEau correctamente por última vez para esta ubicación — lo que
+> distingue un sensor congelado de un nivel que simplemente no ha cambiado.
+> Solo avanza con una lectura correcta: tras una interrupción conserva su valor
+> anterior, igual que el nivel. **Arrêté en vigueur depuis** es una fecha de la
+> fuente: el día en que entró en vigor el decreto de la prefectura aplicable.
+> Cuando no hay nada vigente, el sensor indica «Aucun arrêté en vigueur» en
+> lugar de conservar la fecha de un decreto ya levantado. Ambas se muestran en
+> hora de París, sea cual sea la zona horaria del servidor.
+
+La escala numérica sigue los decretos de la prefectura, agrupada en los cuatro
+valores que Gladys sabe nombrar:
+
+| Valor | Mostrado por Gladys | Nivel de VigiEau             | Qué significa                                               |
+| ----- | ------------------- | ---------------------------- | ----------------------------------------------------------- |
+| 0     | Sin riesgo          | Pas de restriction           | Nada vigente en esta dirección                              |
+| 1     | Bajo                | Vigilance                    | Se recomienda ahorrar agua, aún sin prohibiciones           |
+| 2     | Medio               | Alerte                       | Primeras prohibiciones (riego, lavado de coches…)           |
+| 3     | Alto                | Alerte renforcée **o** Crise | Prohibiciones más amplias, hasta solo los usos prioritarios |
+
+> Gladys solo sabe nombrar un nivel de riesgo de 0 a 3; cualquier valor superior
+> se muestra como «Desconocido». «Alerte renforcée» y «Crise» comparten por
+> tanto el valor 3. El sensor **Nivel (texto)** conserva la redacción oficial
+> exacta, «Crise» incluida: úselo para distinguirlos.
+
+Una misma ubicación puede pertenecer a varias zonas: un decreto puede restringir
+las aguas subterráneas sin afectar al agua del grifo. Por eso los tres tipos de
+agua se exponen por separado, además del nivel global.
+
+## Configuración
+
+1. Abra la pestaña **Configuración** de la integración.
+2. Pulse **«Añadir una ubicación (buscar una dirección)»**, escriba su dirección
+   (calle, código postal, municipio) y, si lo desea, un **nombre** («Maison»,
+   «Jardin»… — si lo deja vacío se usa el municipio). La ubicación se crea, sus
+   coordenadas se geocodifican por usted y su dispositivo aparece en la pestaña
+   **Descubrir**, listo para añadirse. Si ya conoce el punto, rellene en su
+   lugar los campos opcionales **Latitud** y **Longitud**: se usan tal cual, sin
+   geocodificación.
+3. Repita la operación para cada ubicación que quiera vigilar, hasta diez. Si
+   las ubicaciones que quiere son sus **viviendas de Gladys**, el botón
+   **«Añadir mis viviendas de Gladys»** le ahorra escribir nada: consulte
+   «Añadir sus viviendas de Gladys con un clic» más abajo.
+4. En **«Ajustes generales»**, elija su **perfil de usuario**: particular,
+   empresa, entidad local o explotación agrícola. Las restricciones varían según
+   el perfil, y VigiEau devuelve las que se aplican al suyo. Este ajuste se
+   aplica a **todas las ubicaciones**.
+5. Deje el **intervalo de actualización** en 3600 s (1 hora): los decretos de la
+   prefectura cambian como mucho una vez al día. La integración mantiene ese
+   ritmo por sí misma, entre 15 minutos y 24 horas, escriba lo que escriba.
+6. Guarde.
+
+> Mientras ninguna ubicación tenga un punto utilizable, no se ofrece ningún
+> dispositivo. Es deliberado: mejor ningún dispositivo que uno ligado a una
+> ubicación vacía.
+
+### Añadir sus viviendas de Gladys con un clic
+
+Ya le ha indicado a Gladys dónde vive: es el mapa de **Configuración >
+Viviendas**. El botón **«Añadir mis viviendas de Gladys»** lee esas viviendas y
+crea una ubicación por cada una que aún no esté vigilada — sin dirección que
+escribir, sin riesgo de geocodificar el municipio equivocado. La ubicación toma
+el nombre que la vivienda tiene en Gladys, y la dirección mostrada en la lista
+se busca por usted a partir del punto.
+
+Algunas reglas, que el mensaje bajo el botón repite cada vez:
+
+- **Leer las coordenadas de sus viviendas es una autorización.** Dónde vive es
+  un dato personal: la integración lo solicita en su manifiesto, y Gladys le
+  muestra esa solicitud al instalarla. Si el botón responde que Gladys se niega
+  a compartir esas coordenadas, la versión instalada nunca la solicitó:
+  actualice la integración, o elimínela, vuelva a instalarla y acepte la
+  solicitud.
+- **Una vivienda que nunca se colocó en el mapa no tiene coordenadas.** Se
+  nombra en la respuesta y no se vigila nada en su lugar: ubíquela en
+  **Configuración > Viviendas** y vuelva a hacer clic.
+- **Una vivienda ya vigilada no se añade dos veces.** Haga clic tantas veces como
+  quiera: el mensaje le indica qué ubicación la vigila ya.
+- **No es una sincronización.** Las viviendas se leen una sola vez, al hacer
+  clic. Una ubicación creada así es una ubicación normal: si después mueve la
+  vivienda en Gladys, la ubicación se queda donde estaba — elimínela y vuelva a
+  hacer clic.
+
+### Ver sus ubicaciones
+
+Ejecute la acción **«Mostrar las ubicaciones»**: el mensaje bajo el botón
+muestra **todas las ubicaciones configuradas**, numeradas, con la forma
+
+```
+• number. name — address (latitude, longitude)
+```
+
+(en la interfaz en español: `• número. nombre — dirección (latitud, longitud)`).
+
+Los números son los que ofrece la lista desplegable de **«Eliminar una
+ubicación»** — ahí es donde se lee qué ubicación es «Ubicación 2». Una ubicación
+cuyas coordenadas no son utilizables también aparece, con un guion en el lugar
+de su punto: no se publica ni se consulta, y esa línea es lo único que lo
+indica.
+
+> **¿Por qué todas las ubicaciones van en una sola línea?** La integración sí
+> envía un salto de línea real entre dos ubicaciones — los registros del
+> contenedor lo muestran. Sin embargo, la pantalla de configuración muestra la
+> respuesta de una acción como el **texto** de un simple cuadro de aviso, y un
+> navegador representa ahí un salto de línea como un espacio: no es posible
+> ningún formato, envíe lo que envíe la integración. De ahí el **«•»** al
+> principio de cada ubicación — es lo que separa visiblemente las entradas
+> mientras Gladys siga juntando los saltos de línea.
+
+> **¿Por qué un botón y no una tabla en la página?** La pantalla de
+> configuración no muestra nada de lo que una integración tenga que decir,
+> salvo el mensaje de una **acción**, bajo su botón — y solo representa campos
+> de entrada, nunca un texto de solo lectura. Una lista que se va construyendo no
+> tiene cabida ahí. Eso es también lo que hace que «Mostrar las ubicaciones»
+> esté siempre al día: no hay nada que recargar.
+
+> **Una ubicación no se puede editar.** Para cambiar una dirección, añada la
+> nueva ubicación con «Añadir una ubicación» y luego elimine la antigua. Obtiene
+> un **nuevo dispositivo** en la pestaña «Descubrir»: el antiguo conserva su
+> propio historial, y el nombre de una ubicación es el que le da al crearla.
+>
+> ¿Por qué esta limitación? Editar una ubicación suponía designarla en la
+> pantalla de configuración, y la lista desplegable de una integración solo
+> puede ofrecer opciones escritas de antemano en su manifiesto — nunca los
+> nombres de sus ubicaciones. Los campos que seguían a esa lista desplegable
+> además seguían mostrando la ubicación anterior hasta que se recargaba la
+> página, con el riesgo de escribir la dirección de una ubicación sobre otra.
+
+### Eliminar una ubicación
+
+En la acción **«Eliminar una ubicación»**, elija el **número** que muestra
+«Mostrar las ubicaciones», marque **«Confirmo la eliminación»** y ejecútela. Si
+la ejecuta sin marcar, solo le indica qué ubicación se eliminaría.
+
+> Las ubicaciones que siguen a la eliminada **suben un puesto**: el mensaje lo
+> indica. Ejecute de nuevo «Mostrar las ubicaciones» para ver la nueva
+> numeración antes de la siguiente eliminación.
+
+Lo que ocurre con el dispositivo depende de lo que hubiera hecho con él:
+
+- **Nunca lo añadió** (solo se ofrecía en la pestaña «Descubrir»): desaparece
+  de inmediato del descubrimiento, ya que la integración ha dejado de ofrecerlo.
+  El mensaje lo confirma.
+- **Lo había añadido a Gladys**: **se queda** y deja de actualizarse. Una
+  integración no tiene permiso para eliminar un dispositivo — Gladys no le da
+  ninguna forma de hacerlo. El mensaje le indica su nombre exacto: elimínelo
+  usted mismo desde la pestaña **Dispositivos** de la integración.
+
+> Eliminar una ubicación no elimina su dispositivo de Gladys — una integración no
+> tiene permiso para hacerlo. Elimínelo usted mismo si ya no lo necesita.
+
+## Por qué una dirección y no un código postal
+
+La ubicación vigilada es un **punto preciso**, no un municipio.
+
+> Un **código postal** suele abarcar varios municipios, y un municipio puede
+> pertenecer a **varias zonas de restricción** para el mismo tipo de agua.
+> Justo entonces VigiEau se niega a responder y pide su calle: el código del
+> municipio no puede designar la zona aplicable.
+
+Un punto geocodificado nunca tiene ese problema — cae exactamente en una zona por
+tipo de agua. Por eso la integración consulta siempre VigiEau por coordenadas.
+
+### El botón de búsqueda
+
+1. Pulse **«Añadir una ubicación (buscar una dirección)»**.
+2. Escriba su dirección. Cuanto más precisa, mejor: «12 rue des Lilas, 82000
+   Montauban» es mejor que «Montauban».
+3. La integración la geocodifica en la
+   [Base Adresse Nationale](https://adresse.data.gouv.fr) oficial — el mismo
+   servicio que usa el sitio web de VigiEau —, crea la ubicación y publica su
+   dispositivo en la pestaña **Descubrir**.
+
+Cuando varias direcciones coinciden **sin una ganadora clara**, la integración
+**no adivina**: muestra las candidatas y le pide que sea más preciso. Añada el
+número, la calle o el municipio y vuelva a buscar.
+
+El mensaje de confirmación muestra la dirección elegida y sus coordenadas:
+compruébela de un vistazo antes de continuar.
+
+### Escribir usted mismo una latitud y una longitud
+
+Los campos **«Latitud»** y **«Longitud»** de la misma acción son
+**opcionales**. Rellene ambos y la ubicación se crea en ese punto **tal cual**,
+sin geocodificación: la salida para los casos que una dirección no puede cubrir
+— una parcela sin calle, una aldea que la Base Adresse Nationale no conoce, o un
+punto leído en un mapa.
+
+- Son **grados decimales WGS-84**: latitud de -90 a 90, longitud de -180 a 180.
+  Se aceptan tanto la coma como el punto («48,8566» igual que «48.8566»), y un
+  valor fuera de rango se rechaza con un mensaje que muestra lo recibido.
+- **Van juntas**: una latitud sola no es un punto, y la acción la rechaza en
+  lugar de completarla con un cero — lo que le haría vigilar el golfo de Guinea.
+- Si escribe **también una dirección**, **las coordenadas prevalecen**: la
+  dirección pasa a ser solo el nombre que muestra «Mostrar las ubicaciones» (y
+  el nombre, si no da ninguno). Sin dirección ni nombre, la ubicación recibe el
+  nombre de sus propias coordenadas.
+- Un punto elegido en un mapa sigue siendo solo un punto: compruébelo con
+  **«Probar la conexión con VigiEau»** justo después de añadirlo.
+
+## Acciones
+
+- **Añadir una ubicación (buscar una dirección)** — geocodifica la dirección y
+  crea la ubicación, o la crea directamente en la latitud y la longitud que
+  escriba (ambas opcionales). Consulte «Por qué una dirección y no un código
+  postal» más arriba.
+- **Añadir mis viviendas de Gladys** — lee las viviendas configuradas en Gladys
+  y añade una ubicación por cada una que aún no esté vigilada, sin escribir
+  nada. Elija una vivienda en su campo **Vivienda** para añadir solo esa (una
+  casa de vacaciones que no quiera vigilar se queda fuera); deje el campo vacío
+  para añadirlas todas. Requiere la autorización aceptada al instalar, y
+  Gladys 5.2 o posterior.
+- **Mostrar las ubicaciones** — muestra todas las ubicaciones configuradas,
+  numeradas, con su nombre, dirección y coordenadas. Esos números son los que
+  ofrece la eliminación.
+- **Probar la conexión con VigiEau (todas las ubicaciones)** — hace una consulta
+  en directo y muestra el nivel actual de cada ubicación, para los tres tipos de
+  agua. Úsela justo después de la configuración para comprobar que sus
+  ubicaciones están cubiertas.
+- **Mostrar las restricciones vigentes (todas las ubicaciones)** — muestra los
+  usos del agua restringidos actualmente en cada dirección para su perfil, con
+  un enlace al decreto.
+- **Eliminar una ubicación** — deja de vigilar, previa confirmación, la
+  ubicación cuyo número elija. Su dispositivo de Gladys se queda: elimínelo
+  usted mismo. Es el último botón de la pantalla, el único que destruye algo.
+
+## Widgets, disparadores y acciones de escena (Gladys 5.1)
+
+Desde Gladys 5.1, la integración añade sus propias tarjetas al panel y sus
+propios bloques al editor de escenas. Todos designan una ubicación por **su
+dispositivo**: una ubicación cuyo dispositivo aún no haya añadido desde la
+pestaña «Descubrir» no aparece en esas listas.
+
+### Widgets del panel
+
+- **Vigilancia de sequía** — una ubicación, elegida en los ajustes del widget:
+  el nivel global y el nivel de cada tipo de agua (punto de color), la fecha del
+  decreto, la hora de la última lectura, el número de usos restringidos y su
+  lista (toque un uso para leer los detalles). Dos botones: **Ver el decreto** y
+  **Actualizar**.
+- **Sequía: todas las ubicaciones** — todas las ubicaciones en una tarjeta, una
+  fila de color por ubicación, con el número de ubicaciones con restricción
+  (nivel Alerte o superior) y un botón **Actualizar**.
+
+Los widgets siguen las lecturas de la integración, sin consultar VigiEau cada
+vez que se muestra un panel.
+
+### Disparadores de escena
+
+- **El nivel de sequía ha cambiado** — una lectura da a una ubicación un nivel
+  distinto del anterior. Filtros opcionales (vacío = cualquiera): la ubicación,
+  el nuevo nivel (los cinco niveles de VigiEau, **Crise** incluido, que el sensor
+  numérico no puede distinguir de «Alerte renforcée») y el sentido
+  (empeoramiento o mejora).
+- **Un nuevo decreto está vigente** — una lectura encuentra un decreto de la
+  prefectura que la lectura anterior no tenía, incluso con el nivel sin cambios.
+  Filtro opcional: la ubicación.
+
+Ambos pasan a las acciones siguientes el nombre de la ubicación, el nivel en
+palabras, el enlace del decreto, etc.: insértelos en un mensaje con el selector
+de variables del editor («Nombre de la ubicación», «Nivel (texto)»…).
+
+La **primera** lectura de una ubicación no dispara nada: fija la referencia. Esa
+referencia sobrevive a un reinicio, de modo que un cambio ocurrido durante una
+actualización de la integración sigue disparando la escena en la lectura
+siguiente. Un disparador se activa al ritmo de las lecturas: como mucho una vez
+por «Intervalo de actualización».
+
+### Acciones de escena
+
+- **Leer el nivel de sequía** — consulta VigiEau de inmediato para una ubicación
+  y pasa a las acciones siguientes su nivel (en palabras, y un código de 0 a 4
+  donde 4 = Crise), el nivel de cada tipo de agua, los usos restringidos y el
+  decreto.
+- **Comprobar si un uso del agua está restringido** — consulta VigiEau para una
+  ubicación e indica si un uso está restringido: escriba una palabra de su
+  nombre o tema en francés («arrosage», «piscine», «lavage»…). La salida
+  «Restringido» (verdadero / falso) puede comprobarse en una condición de la
+  escena.
+
+Estas acciones no publican nada: no mueven ni los sensores ni los disparadores,
+de modo que una escena nunca puede reiniciarse a sí misma.
+
+## Ideas de escenas
+
+- **Detener el riego automático** en cuanto el «Nivel de alerta por sequía»
+  llegue a 1 (Vigilance) o 2 (Alerte), según la prudencia que quiera tener.
+- **Recibir una notificación** cuando cambie el nivel: disparador «El nivel de
+  sequía ha cambiado» y luego un mensaje con las variables «Nivel (texto)» y
+  «Enlace del decreto».
+- **Comprobar antes de regar**: en la escena de riego, acción «Comprobar si un
+  uso del agua está restringido» con «arrosage» y luego una condición sobre
+  «Restringido» antes de abrir la válvula.
+- **Seguir la temporada**: los sensores numéricos conservan su historial, de
+  modo que un gráfico muestra cómo sube la gravedad a lo largo del verano.
+
+## Solución de problemas
+
+- **Ningún dispositivo en la pestaña «Descubrir»** — por orden:
+  1. **¿Ha añadido una ubicación?** Sin una ubicación localizada, la integración
+     no publica deliberadamente ningún dispositivo. Use el botón
+     **«Añadir una ubicación (buscar una dirección)»**; la acción
+     **«Mostrar las ubicaciones»** muestra lo que realmente está guardado.
+  2. Pulse **Buscar** en la pestaña «Descubrir» para forzar una nueva
+     publicación.
+  3. Lea los **registros de la integración**. Una línea que empieza por
+     `Published` confirma que Gladys aceptó el dispositivo. Si en su lugar ve
+     `Post-connection initialization failed`, el mensaje siguiente da el motivo
+     exacto — también se muestra en la pantalla de configuración.
+  4. Compruebe que el contenedor se está ejecutando realmente: una imagen Docker
+     que no se puede descargar (`manifest unknown`) impide que la integración
+     arranque, y nunca se publica nada.
+- **Quiero corregir la latitud o la longitud de una ubicación** — una ubicación
+  nunca se edita: añada una nueva, ya sea con una dirección más precisa o
+  escribiendo directamente las coordenadas que quiera en «Añadir una
+  ubicación», y luego elimine la antigua.
+- **Dos dispositivos «Vigilance sécheresse» tras cambiar la dirección** — era el
+  caso hasta la versión 1.1.1: el identificador del dispositivo se construía a
+  partir de las coordenadas, así que cada dirección creaba su propio dispositivo
+  y el anterior dejaba de actualizarse. El dispositivo sigue ahora a la
+  dirección. Tras la actualización, la integración conserva el dispositivo que
+  ya creó, historial incluido — la línea de registro
+  `Keeping the existing identity of drought-zone` indica cuál. Cualquier otro
+  dispositivo que quede de una dirección anterior puede eliminarse en Gladys.
+- **No encuentro mis ubicaciones en ninguna parte de la página** — es
+  deliberado: una pantalla de configuración solo representa campos de entrada, y
+  no muestra nada de lo que una integración tenga que decir salvo el mensaje de
+  una acción. Ejecute **«Mostrar las ubicaciones»**: la lista aparece bajo el
+  botón, siempre al día, sin nada que recargar.
+- **La lista desplegable de eliminación muestra «Ubicación 1», «Ubicación 2»…
+  en lugar de mis nombres** — las opciones de una lista desplegable se escriben
+  de antemano en el manifiesto de la integración: solo pueden ser números.
+  «Mostrar las ubicaciones» es lo que asocia un número a un nombre.
+- **Un dispositivo que dejó de actualizarse tras eliminar una ubicación** — es lo
+  esperado: una integración no puede eliminar un dispositivo de Gladys, solo
+  dejar de ofrecerlo. Elimínelo en Gladys.
+- **«Sin valor reciente» en todas las funciones** — justo después de añadir el
+  dispositivo es normal durante unos segundos: Gladys descarta los estados
+  publicados antes de que existiera el dispositivo. La integración detecta la
+  creación y actualiza de inmediato. Si sigue vacío al cabo de un minuto, use la
+  acción **Probar la conexión con VigiEau**: consulta la API en directo y
+  muestra cualquier error.
+- **Todas las funciones se llaman «Nivel de riesgo»** — así es como las muestra
+  Gladys: la lista «Funciones» de la página del dispositivo muestra la etiqueta
+  genérica de la categoría, no el nombre publicado por la integración. Los tres
+  sensores de texto — nivel (texto), última actualización, decreto vigente
+  desde — corren la misma suerte y llevan una etiqueta genérica idéntica. Por
+  orden son: nivel global, texto, aguas superficiales, aguas subterráneas, agua
+  potable, última actualización, decreto vigente desde. En un panel o en una
+  escena, todos muestran su nombre real.
+- **«VigiEau no consigue determinar qué zona se aplica aquí»** — el punto
+  configurado no cae en una única zona. El mensaje nombra la ubicación: vuelva a
+  añadirla con una dirección más precisa (número y calle en lugar de solo el
+  nombre del municipio) y luego elimine la antigua.
+- **Sin datos / errores en los registros** — empiece por la acción **Probar la
+  conexión con VigiEau**. Un error `VigiEau HTTP 5xx` significa que el servicio
+  no está disponible temporalmente: se muestra en la pantalla de configuración,
+  y la integración vuelve a intentarlo en la siguiente actualización sin
+  rendirse.
+- **Los valores no se actualizan cada minuto** — es lo esperado. El dispositivo
+  no usa el mecanismo de sondeo de Gladys (limitado a un minuto): la integración
+  se actualiza por sí misma en el intervalo configurado, de inmediato al
+  conectarse y luego cada hora por defecto.
+- **Todos los niveles a 0** — es la respuesta normal cuando ninguna zona de
+  restricción cubre la dirección (VigiEau solo cubre Francia).
+- **El nivel dejó de moverse aunque la API cambió** — la integración nunca
+  publica un valor que no ha entendido, así que no puede anunciar por error «sin
+  restricción». Los registros contienen entonces un aviso
+  `VigiEau returned an unknown severity`.
+
+La integración registra todo lo que hace: lea sus registros desde la interfaz de
+Gladys (o con `docker logs` en el host) con `LOG_LEVEL=debug` para obtener todo
+el detalle, incluida la URL consultada.
+
+## Fuente de los datos
+
+Los datos proceden de VigiEau, gestionado por el Ministerio francés de la
+Transición Ecológica. Se facilitan solo a título informativo: en caso de duda,
+prevalece el decreto de la prefectura publicado por su prefectura.

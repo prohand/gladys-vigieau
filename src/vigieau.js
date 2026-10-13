@@ -77,11 +77,16 @@ export function toGladysRisk(level) {
 
 // Human-readable labels, indexed by numeric level. The French wording is the
 // official one used by the prefectoral decrees, so we publish it as-is in the
-// text feature; the English one is only used in the action messages.
+// text feature; the other languages are only used in the messages and widgets.
 export const SEVERITY_LABELS = {
   fr: ['Pas de restriction', 'Vigilance', 'Alerte', 'Alerte renforcée', 'Crise'],
   en: ['No restriction', 'Watch', 'Alert', 'Reinforced alert', 'Crisis'],
+  de: ['Keine Einschränkung', 'Wachsamkeit', 'Warnung', 'Verschärfte Warnung', 'Krise'],
+  es: ['Sin restricción', 'Vigilancia', 'Alerta', 'Alerta reforzada', 'Crisis'],
 };
+
+// What a level we could not read is called, per language.
+const UNKNOWN_LABELS = { fr: 'Inconnu', en: 'Unknown', de: 'Unbekannt', es: 'Desconocido' };
 
 /**
  * Turn a raw `niveauGravite` into its numeric level.
@@ -321,12 +326,14 @@ export function collectUsages(zones = []) {
 }
 
 /**
- * Human-readable label of a numeric level.
+ * Human-readable label of a numeric level. French by default — the official
+ * wording the text feature publishes — and English for a language we do not
+ * speak, like the core's own fallback.
  * @param {number | null} level
- * @param {'fr' | 'en'} language
+ * @param {'fr' | 'en' | 'de' | 'es'} language
  */
 export function severityLabel(level, language = 'fr') {
-  const labels = SEVERITY_LABELS[language] ?? SEVERITY_LABELS.fr;
-  const unknown = language === 'en' ? 'Unknown' : 'Inconnu';
+  const labels = SEVERITY_LABELS[language] ?? SEVERITY_LABELS.en;
+  const unknown = UNKNOWN_LABELS[language] ?? UNKNOWN_LABELS.en;
   return level === null || level === undefined ? unknown : (labels[level] ?? unknown);
 }
