@@ -6,6 +6,10 @@ All notable changes to this integration are documented here. The format follows
 
 ## [Unreleased]
 
+## [3.5.1] - 2026-10-23
+
+- Maintenance release, no functional change.
+
 ## [3.5.0] - 2026-10-13
 
 ### Added
@@ -180,7 +184,8 @@ First public release.
 
 - Vigieau integration for Gladys (vigilance sécheresse)
 
-[Unreleased]: https://github.com/prohand/gladys-vigieau/compare/v3.5.0...HEAD
+[Unreleased]: https://github.com/prohand/gladys-vigieau/compare/v3.5.1...HEAD
+[3.5.1]: https://github.com/prohand/gladys-vigieau/compare/v3.5.0...v3.5.1
 [3.5.0]: https://github.com/prohand/gladys-vigieau/compare/v3.4.0...v3.5.0
 [3.4.0]: https://github.com/prohand/gladys-vigieau/compare/v3.3.0...v3.4.0
 [3.3.0]: https://github.com/prohand/gladys-vigieau/compare/v3.2.0...v3.3.0
