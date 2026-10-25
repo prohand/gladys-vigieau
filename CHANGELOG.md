@@ -6,6 +6,8 @@ All notable changes to this integration are documented here. The format follows
 
 ## [Unreleased]
 
+## [3.6.0] - 2026-10-25
+
 ### Added
 
 - The Gladys catalog now shows the integration only to instances located in France, and its search finds it by the words users type for it (Propluvia, arrosage, arrêté préfectoral, eau potable, nappe phréatique…).
@@ -193,7 +195,8 @@ First public release.
 
 - Vigieau integration for Gladys (vigilance sécheresse)
 
-[Unreleased]: https://github.com/prohand/gladys-vigieau/compare/v3.5.1...HEAD
+[Unreleased]: https://github.com/prohand/gladys-vigieau/compare/v3.6.0...HEAD
+[3.6.0]: https://github.com/prohand/gladys-vigieau/compare/v3.5.1...v3.6.0
 [3.5.1]: https://github.com/prohand/gladys-vigieau/compare/v3.5.0...v3.5.1
 [3.5.0]: https://github.com/prohand/gladys-vigieau/compare/v3.4.0...v3.5.0
 [3.4.0]: https://github.com/prohand/gladys-vigieau/compare/v3.3.0...v3.4.0
