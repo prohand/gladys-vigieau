@@ -6,6 +6,15 @@ All notable changes to this integration are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- The Gladys catalog now shows the integration only to instances located in France, and its search finds it by the words users type for it (Propluvia, arrosage, arrêté préfectoral, eau potable, nappe phréatique…).
+
+### Changed
+
+- Requires Gladys 5.3.0 or later (catalog keywords and countries).
+- `@gladysassistant/integration-sdk` updated to 0.16.0.
+
 ## [3.5.1] - 2026-10-23
 
 - Maintenance release, no functional change.

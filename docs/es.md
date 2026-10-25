@@ -8,6 +8,8 @@ sensores de Gladys.
 La API de VigiEau es gratuita y pública: **sin cuenta, sin clave de API**. Cubre
 **solo Francia**.
 
+Requiere **Gladys 5.3.0 o posterior**.
+
 ## Qué obtiene
 
 **Un dispositivo por ubicación vigilada**, llamado «Vigilance sécheresse — _su

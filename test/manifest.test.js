@@ -547,6 +547,68 @@ test('the catalog shelf is declared, and requires Gladys >= 4.86.0 to be', () =>
   );
 });
 
+// --- Search keywords and countries (Gladys >= 5.3.0) -------------------------
+// `keywords` only feed the catalog search (never displayed), `countries` hides
+// the integration from the browse views of an instance located elsewhere. A core
+// older than 5.3.0 rejects the whole manifest over either unknown field, and
+// the store indexer enforces the floor.
+
+test('the catalog shelf belongs to the extended vocabulary', () => {
+  const vocabulary = [
+    'climate',
+    'lighting',
+    'energy',
+    'security',
+    'multimedia',
+    'appliances',
+    'environment',
+    'protocols',
+    'network',
+    'notifications',
+    'assistants',
+    'services',
+    'transport',
+    'vehicles',
+    'servers',
+    'leisure',
+  ];
+  for (const category of manifest.categories) {
+    assert.ok(vocabulary.includes(category), `unknown catalog category "${category}"`);
+  }
+  assert.equal(new Set(manifest.categories).size, manifest.categories.length);
+});
+
+test('keywords are 1-10 unique search terms of 2-30 characters', () => {
+  const { keywords } = manifest;
+  assert.ok(Array.isArray(keywords) && keywords.length >= 1 && keywords.length <= 10);
+  const normalized = keywords.map((keyword) => {
+    assert.equal(typeof keyword, 'string');
+    const trimmed = keyword.trim();
+    assert.ok(trimmed.length >= 2 && trimmed.length <= 30, `keyword "${keyword}" length`);
+    return trimmed.toLowerCase();
+  });
+  assert.equal(new Set(normalized).size, normalized.length, 'keywords must be unique');
+});
+
+test('countries are upper-case ISO 3166-1 alpha-2 codes: France only', () => {
+  // VigiEau only covers France, and the Base Adresse Nationale only geocodes
+  // French addresses.
+  const { countries } = manifest;
+  assert.ok(Array.isArray(countries) && countries.length >= 1 && countries.length <= 20);
+  for (const country of countries) assert.match(country, /^[A-Z]{2}$/);
+  assert.equal(new Set(countries).size, countries.length);
+  assert.deepEqual(countries, ['FR']);
+});
+
+test('keywords, countries and music require Gladys >= 5.3.0', () => {
+  const declared = ['keywords', 'countries', 'music'].filter((field) => field in manifest);
+  assert.ok(declared.length > 0, 'keywords and countries are declared');
+  assert.ok(
+    requiresAtLeast(5, 3),
+    `${declared.join(', ')} requires gladys_version >= 5.3.0, got "${manifest.gladys_version}"`,
+  );
+});
+
 test('the import button sits right under the button that adds one location', () => {
   // Both add locations, and this one is the shortcut for the other: separating
   // them by the reports would hide it under the fold of the add form.

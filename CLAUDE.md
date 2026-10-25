@@ -387,7 +387,8 @@ Gladys refused).
 ### Widgets, scene triggers and scene actions (Gladys >= 5.1.0)
 
 The three manifest capability fields `widgets`, `scene_triggers`, `scene_actions` landed in Gladys
-5.1.0, and the store indexer refuses them below `gladys_version >=5.1.0` — which is the floor now.
+5.1.0, and the store indexer refuses them below `gladys_version >=5.1.0` (the floor is `>=5.3.0`
+now, for `keywords` and `countries`).
 All of them name a location through a `lieu` field with `source: "devices"`: the value is a device
 `external_id`, mapped back by `locationForDevice()` (adoption-aware, so an upgraded ≤ 1.1.1 device
 works too). A device whose location was deleted resolves to nothing: the widget shows a "no longer
@@ -467,14 +468,15 @@ The traps, each pinned by a test in `test/manifest.test.js`:
 - a `select` takes static `options` or the core's `source: "devices"` — validated server-side only
   from 5.1.0, and listing CREATED devices, never locations: the widgets and scenes use it, the
   delete dropdown keeps its position numbers;
-- **`source: "houses"` costs a `gladys_version` floor of `>=5.2.0`** (ours, for the `maison` field
+- **`source: "houses"` costs a `gladys_version` floor of `>=5.2.0`** (needed by the `maison` field
   of the import button) and, like every dynamic select, takes no `default`;
 - **`widgets`, `scene_triggers`, `scene_actions` cost a `gladys_version` floor of `>=5.1.0`**. A
   widget label is 3-30 characters, its description ≤ 100; a scene trigger field cannot be `boolean`;
   scene action `timeout_seconds` is 5-120;
 - **`categories` costs a `gladys_version` floor of `>=4.86.0`.** It is the catalog shelf, 1 to 3
   keys of a controlled vocabulary (`climate`, `lighting`, `energy`, `security`, `multimedia`,
-  `appliances`, `environment`, `protocols`, `network`, `notifications`, `assistants`, `services`) —
+  `appliances`, `environment`, `protocols`, `network`, `notifications`, `assistants`, `services`,
+  and since 2026-10 `transport`, `vehicles`, `servers`, `leisure`) —
   decoupled from `type`, and without it the integration shows only under "All" and in search. The
   vocabulary is filtered, not enforced: the store DROPS an unknown key with a warning rather than
   refusing the manifest, so a newer shelf name still installs. The version floor is the real rule,
@@ -482,6 +484,12 @@ The traps, each pinned by a test in `test/manifest.test.js`:
   Ours is `["environment"]`, which is also the shelf the store's own `data/category-fallback.json`
   files `prohand/gladys-vigieau` under — declaring it just takes that placement out of a file this
   repo does not own.
+- **`keywords` and `countries` cost a `gladys_version` floor of `>=5.3.0`** — the floor of this
+  manifest today. `keywords` are 1-10 unique search terms of 2-30 characters, never displayed:
+  what a user types that the name and description do not already say (`propluvia`, `arrosage`,
+  `arrêté préfectoral`…). `countries` is `["FR"]`: VigiEau and the Base Adresse Nationale only
+  cover France, and the catalog of an instance located elsewhere hides the integration from its
+  browse views (never from the search).
 
 Manifest actions are registered per key. The ones that QUERY VigiEau (`test_vigieau`,
 `show_restrictions`) live in `blueprint.actions`; the three that are about the location LIST

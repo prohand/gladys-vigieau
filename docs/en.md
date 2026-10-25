@@ -8,6 +8,8 @@ sensors.
 The VigiEau API is free and public: **no account, no API key**. It covers
 **France only**.
 
+Requires **Gladys 5.3.0 or later**.
+
 ## What you get
 
 **One device per watched location**, named "Vigilance sécheresse — _your
