@@ -7,6 +7,8 @@ Gladys.
 
 L'API VigiEau est gratuite et publique : **aucun compte, aucune clé d'API**.
 
+Nécessite **Gladys 5.3.0 ou plus récent**.
+
 ## Ce que vous obtenez
 
 **Un appareil par lieu surveillé**, nommé « Vigilance sécheresse — _votre lieu_ »,

@@ -9,7 +9,9 @@
 #      (`gladys-assistant-integration.json`: both `version` and the
 #      `docker_image` tag, so the indexer and the image stay in lockstep);
 #   3. commits the bump and pushes the `vX.Y.Z` tag;
-#   4. calls build.yml to publish the multi-arch image (`:X.Y.Z` + `:latest`).
+#   4. calls build.yml to publish the multi-arch image (`:X.Y.Z` + `:latest`);
+#   5. once the image is out, runs the store's full admission checks on the
+#      released tag, image included (pull requests skip the image check).
 #
 # Why call build.yml instead of relying on the tag push: a tag pushed with the
 # default GITHUB_TOKEN does NOT trigger other workflows, so we invoke the build
@@ -118,6 +120,28 @@ jobs:
       packages: write
     with:
       version: ${{ needs.prepare.outputs.version }}
+
+  # The store indexer's admission checks, WITH the image check this time: the
+  # image of the released version now exists, so this is exactly what the
+  # store will see at its next crawl.
+  store-check:
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout the released tag
+        uses: actions/checkout@v7
+        with:
+          ref: v${{ needs.prepare.outputs.version }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Validate like the store indexer (image included)
+        run: npx --yes github:GladysAssistant/integration-store .
 
   # Publish the GitHub Release of the new tag: Gladys links the version on the
   # Supervision page to the repository's releases.

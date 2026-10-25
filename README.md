@@ -9,6 +9,8 @@ Data comes from [VigiEau](https://vigieau.gouv.fr), the official service of the
 French Ministry for Ecological Transition. The API is **free and public**: no
 account, no API key. It covers **France only**.
 
+Requires **Gladys 5.3.0** or later.
+
 Built on the official
 [JavaScript integration template](https://github.com/GladysAssistant/integration-template-js)
 and the
